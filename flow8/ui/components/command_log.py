@@ -44,11 +44,22 @@ class CommandLogPanel(tk.Frame):
 
         tk.Label(
             heading,
-            text="LATEST FIRST · FADERS SHOW COMMAND VALUES, NOT DEVICE READBACK",
+            text="UNSYNCED · COMMAND VALUES ≠ DEVICE READBACK",
             font=self.fonts["caption"],
-            fg=colors["text_muted"],
+            fg=colors["warning"],
             bg=colors["surface"],
         ).pack(side="left", padx=(12, 0))
+
+        self.count_var = tk.StringVar(value="0 EVENTS")
+        tk.Label(
+            heading,
+            textvariable=self.count_var,
+            font=self.fonts["status_key"],
+            fg=colors["text_secondary"],
+            bg=colors["surface_alt"],
+            padx=8,
+            pady=3,
+        ).pack(side="right")
 
         body = tk.Frame(self, bg=colors["surface"])
         body.pack(fill="both", expand=True, padx=8, pady=(0, 7))
@@ -61,7 +72,7 @@ class CommandLogPanel(tk.Frame):
             background=colors["background_alt"],
             fieldbackground=colors["background_alt"],
             foreground=colors["text"],
-            rowheight=22,
+            rowheight=26,
             font=self.fonts["status_key"],
             borderwidth=0,
         )
@@ -91,17 +102,35 @@ class CommandLogPanel(tk.Frame):
         )
         headings = {
             "time": ("TIME", 72),
-            "parameter": ("STRIP / PARAMETER", 145),
-            "commanded": ("COMMAND VALUE", 100),
-            "observed": ("OBSERVED", 90),
-            "midi": ("MIDI ADDRESS / DATA", 165),
-            "dispatch": ("DISPATCH", 145),
-            "applied": ("HARDWARE APPLIED", 112),
-            "error": ("ERROR", 260),
+            "parameter": ("PARAMETER", 128),
+            "commanded": ("CMD", 76),
+            "observed": ("OBSERVED", 82),
+            "midi": ("MIDI CH / CC · DATA", 154),
+            "dispatch": ("DISPATCH", 132),
+            "applied": ("DEVICE", 84),
+            "error": ("ERROR", 210),
         }
         for key, (label, width) in headings.items():
             self.tree.heading(key, text=label)
-            self.tree.column(key, width=width, minwidth=60, anchor="w", stretch=True)
+            self.tree.column(key, width=width, minwidth=52, anchor="w", stretch=True)
+
+        # Dispatch colours communicate transport state only, never hardware application.
+        self.tree.tag_configure(
+            "driver_dispatched",
+            foreground=colors["cyan_soft"],
+        )
+        self.tree.tag_configure(
+            "accepted_offline",
+            foreground=colors["text_secondary"],
+        )
+        self.tree.tag_configure(
+            "dispatch_problem",
+            foreground=colors["danger"],
+        )
+        self.tree.tag_configure(
+            "dispatch_unknown",
+            foreground=colors["warning"],
+        )
 
         vertical = ttk.Scrollbar(body, orient="vertical", command=self.tree.yview)
         horizontal = ttk.Scrollbar(body, orient="horizontal", command=self.tree.xview)
@@ -152,12 +181,25 @@ class CommandLogPanel(tk.Frame):
         for item in self.tree.get_children():
             self.tree.delete(item)
 
-        for index, entry in enumerate(reversed(list(entries))):
+        snapshot = list(entries)
+        self.count_var.set(f"{len(snapshot)} EVENTS")
+        for index, entry in enumerate(reversed(snapshot)):
+            status = str(entry.dispatch_status)
+            if status == "DRIVER_DISPATCHED":
+                tag = "driver_dispatched"
+            elif status == "ACCEPTED_OFFLINE":
+                tag = "accepted_offline"
+            elif status in ("REJECTED", "VALIDATION_FAILED", "DISPATCH_FAILED"):
+                tag = "dispatch_problem"
+            else:
+                tag = "dispatch_unknown"
+
             self.tree.insert(
                 "",
                 "end",
                 iid=f"command-{index}",
                 values=self._format_entry(entry),
+                tags=(tag,),
             )
 
         self.tree.yview_moveto(0.0)
