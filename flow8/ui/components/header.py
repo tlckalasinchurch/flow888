@@ -1,8 +1,7 @@
-"""Application header: product identity plus honest device state.
+"""Application header: product identity plus device state.
 
-The header states what exists: the FLOW 8 product identity and the fact that
-device presence has NOT been verified. It deliberately carries no connected
-indicator, no animated dot, and no green "ready" affordance.
+The header states what exists: the FLOW 8 product identity and the live
+connection status to the hardware.
 """
 
 from __future__ import annotations
@@ -23,11 +22,9 @@ class Header(tk.Frame):
             bg=theme.COLORS["background"],
             height=theme.HEADER_HEIGHT,
         )
-        # Fixed height band: children must never resize the header.
         self.grid_propagate(False)
         self.fonts = fonts
         self.status = status
-        #: Single source of the header's device claim; asserted by tests.
         self.device_status_var = tk.StringVar(
             value=f"DEVICE STATUS: {status.device}"
         )
@@ -81,47 +78,61 @@ class Header(tk.Frame):
 
         self._build_device_pill()
 
-        # Single hairline closing the band; the shell's only strong separator.
+        # Hairline closing the band
         tk.Frame(self, bg=colors["border"], height=1).place(
             relx=0.0, rely=1.0, relwidth=1.0, anchor="sw"
         )
 
     def _build_device_pill(self) -> None:
-        """Amber outline pill: attention, never a connection affirmation."""
         colors = theme.COLORS
-        pill = tk.Frame(
+        self.pill = tk.Frame(
             self,
             bg=colors["surface"],
             highlightbackground=colors["warning"],
             highlightthickness=1,
             bd=0,
         )
-        pill.pack(
+        self.pill.pack(
             side="right",
             padx=(0, theme.TOKENS["spacing_large"]),
             pady=16,
         )
 
-        dot = tk.Canvas(
-            pill,
+        self.dot = tk.Canvas(
+            self.pill,
             width=8,
             height=8,
             bg=colors["surface"],
             highlightthickness=0,
             bd=0,
         )
-        dot.pack(side="left", padx=(10, 6))
-        dot.create_oval(1, 1, 7, 7, fill=colors["warning"], outline="")
+        self.dot.pack(side="left", padx=(10, 6))
+        self.dot_oval = self.dot.create_oval(1, 1, 7, 7, fill=colors["warning"], outline="")
 
-        tk.Label(
-            pill,
+        self.status_label = tk.Label(
+            self.pill,
             textvariable=self.device_status_var,
             font=self.fonts["caption"],
             fg=colors["warning"],
             bg=colors["surface"],
             padx=0,
             pady=6,
-        ).pack(side="left", padx=(0, 10))
+        )
+        self.status_label.pack(side="left", padx=(0, 10))
+
+    def set_device_status(self, is_connected: bool, device_name: str = "FLOW 8") -> None:
+        """Update the header device status pill."""
+        colors = theme.COLORS
+        if is_connected:
+            self.device_status_var.set(f"DEVICE STATUS: {device_name} CONNECTED")
+            self.pill.configure(highlightbackground=colors["success"])
+            self.status_label.configure(fg=colors["success"])
+            self.dot.itemconfig(self.dot_oval, fill=colors["success"])
+        else:
+            self.device_status_var.set("DEVICE STATUS: NOT CONNECTED")
+            self.pill.configure(highlightbackground=colors["warning"])
+            self.status_label.configure(fg=colors["warning"])
+            self.dot.itemconfig(self.dot_oval, fill=colors["warning"])
 
     def _divider(self, parent: tk.Misc, padx: int, height: int) -> tk.Frame:
         divider = tk.Frame(parent, bg=theme.COLORS["border"], width=1, height=height)

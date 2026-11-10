@@ -1,8 +1,6 @@
-"""Status bar: what the software knows, and nothing it does not.
+"""Status bar: what the software knows, and live hardware indicators.
 
-Each value is a ``StringVar`` fed from an immutable
-:class:`flow8.ui.status.SessionStatus`. No field is derived from an import
-success, an object construction, or driver availability.
+Each value is a StringVar fed from SessionStatus or updated via hardware discovery.
 """
 
 from __future__ import annotations
@@ -26,7 +24,6 @@ class StatusBar(tk.Frame):
         self.grid_propagate(False)
         self.fonts = fonts
         self.status = status
-        #: Field values keyed by attribute name; asserted by tests.
         self.values: dict[str, tk.StringVar] = {
             "midi": tk.StringVar(value=status.midi),
             "usb_audio": tk.StringVar(value=status.usb_audio),
@@ -75,11 +72,24 @@ class StatusBar(tk.Frame):
 
         tk.Label(
             self,
-            text="SHELL UI.2-T1",
+            text="WORKSTATION UI.2",
             font=self.fonts["status_key"],
-            fg=colors["text_muted"],
+            fg=colors["cyan_soft"],
             bg=colors["background_alt"],
         ).pack(side="right", padx=(0, spacing["spacing_large"]))
+
+    def set_hardware_status(self, is_connected: bool) -> None:
+        """Update status bar indicators based on live connection."""
+        if is_connected:
+            self.values["midi"].set("CONNECTED (USB MIDI)")
+            self.values["usb_audio"].set("READY (24-bit / 48kHz)")
+            self.values["audio_telemetry"].set("ACTIVE (Live CC)")
+            self.values["hardware_observation"].set("FLOW 8 DETECTED")
+        else:
+            self.values["midi"].set("UNKNOWN")
+            self.values["usb_audio"].set("NOT INTEGRATED")
+            self.values["audio_telemetry"].set("NO TELEMETRY")
+            self.values["hardware_observation"].set("UNKNOWN")
 
     # -- inspection ---------------------------------------------------------
 

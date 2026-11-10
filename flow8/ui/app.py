@@ -1,12 +1,7 @@
-"""FLOW 8 Cyber Neon application shell (UI.2-T1).
+"""FLOW 8 Cyber Neon application workstation (UI.2).
 
-What this module does: builds the window, the identity header, the navigation
-rail, an empty workspace card, and the status bar, then runs the Tk event loop.
-
-What this module deliberately does not do: it never imports the MIDI transport
-modules, never opens a port, never dispatches a parameter, and never renders a
-meter, a channel value, or a hardware confirmation. Starting and closing the
-shell transmits zero MIDI bytes.
+Main application window, identity header, navigation rail, 7-strip mixer console,
+and real-time hardware status management.
 """
 
 from __future__ import annotations
@@ -15,26 +10,44 @@ import sys
 import tkinter as tk
 from typing import Optional
 
+from flow8.service import Flow8Service
 from flow8.ui import theme
+from flow8.ui.components import widget_texts
 from flow8.ui.components.header import Header
+from flow8.ui.components.mixer_console import MixerConsole
 from flow8.ui.components.navigation import Navigation
 from flow8.ui.components.status_bar import StatusBar
-from flow8.ui.components import widget_texts
 from flow8.ui.status import SessionStatus
 
 
 class Flow8App:
-    """Owns the Tk root window and the three shell regions."""
+    """Owns the Tk root window, hardware service, and workstation regions."""
 
     def __init__(
         self,
         root: Optional[tk.Tk] = None,
         status: Optional[SessionStatus] = None,
+        service: Optional[Flow8Service] = None,
+        connect_hardware: bool = False,
+        show_placeholder: bool = True,
     ) -> None:
         self._owns_root = root is None
         self.root = root if root is not None else tk.Tk()
         self.status = status if status is not None else SessionStatus()
         self._closed = False
+        self.connect_hardware = connect_hardware
+        self.show_placeholder = show_placeholder
+
+        # Hardware Service initialization
+        if service is not None:
+            self.service = service
+        elif connect_hardware:
+            try:
+                self.service = Flow8Service(auto_connect=True)
+            except Exception:
+                self.service = None
+        else:
+            self.service = None
 
         theme.apply_base_theme(self.root)
         self.fonts = theme.build_fonts(self.root)
@@ -42,6 +55,14 @@ class Flow8App:
         self._build_layout()
 
         self.root.protocol("WM_DELETE_WINDOW", self.close)
+
+        # Update initial connection state & schedule watcher
+        if self.service and self.service.is_connected:
+            self.header.set_device_status(True, "FLOW 8")
+            self.status_bar.set_hardware_status(True)
+
+        if self.connect_hardware:
+            self.root.after(2500, self._poll_hardware_state)
 
     # -- window -------------------------------------------------------------
 
@@ -51,14 +72,13 @@ class Flow8App:
         self.root.minsize(*theme.WINDOW_MIN_SIZE)
         self.root.resizable(True, True)
 
-        # Centre on the primary display; harmless if the metrics are unusual.
         try:
             screen_width = self.root.winfo_screenwidth()
             screen_height = self.root.winfo_screenheight()
             left = max(0, (screen_width - width) // 2)
             top = max(0, (screen_height - height) // 3)
             self.root.geometry(f"{width}x{height}+{left}+{top}")
-        except tk.TclError:  # pragma: no cover - defensive
+        except tk.TclError:
             self.root.geometry(f"{width}x{height}")
 
     # -- layout -------------------------------------------------------------
@@ -86,11 +106,16 @@ class Flow8App:
         self.status_bar = StatusBar(self.root, self.fonts, self.status)
         self.status_bar.grid(row=2, column=0, sticky="ew")
 
-        self._build_placeholder()
+        if self.show_placeholder:
+            self._build_placeholder()
+        else:
+            self.mixer_console = MixerConsole(self.workspace, self.fonts, service=self.service)
+            self.mixer_console.pack(fill="both", expand=True)
+
         self.navigation.select("mixer")
 
     def _build_placeholder(self) -> None:
-        """The workspace is empty by design: no controls exist in UI.2-T1."""
+        """The workspace placeholder (UI.2-T1 baseline mode)."""
         colors = theme.COLORS
         spacing = theme.TOKENS
 
@@ -100,7 +125,6 @@ class Flow8App:
         card = tk.Frame(halo, bg=colors["background_alt"])
         card.pack(padx=1, pady=1)
 
-        # Cyan top edge: the one accent that reads as glow on this panel.
         tk.Frame(card, bg=colors["cyan"], height=3).pack(fill="x")
 
         inner = tk.Frame(card, bg=colors["background_alt"])
@@ -156,10 +180,32 @@ class Flow8App:
             bg=colors["background_alt"],
         ).pack(pady=(spacing["spacing_large"], 0))
 
+    def _poll_hardware_state(self) -> None:
+        """Watchdog: verifies hardware connection and auto-reconnects if needed."""
+        if self._closed:
+            return
+
+        try:
+            if self.service:
+                was_connected = self.service.is_connected
+                if not was_connected:
+                    reconnected = self.service.connect()
+                    if reconnected:
+                        self.header.set_device_status(True, "FLOW 8")
+                        self.status_bar.set_hardware_status(True)
+                else:
+                    self.header.set_device_status(True, "FLOW 8")
+                    self.status_bar.set_hardware_status(True)
+        except Exception:
+            pass
+
+        if not self._closed:
+            self.root.after(2500, self._poll_hardware_state)
+
     # -- navigation ---------------------------------------------------------
 
     def show_page(self, key: str) -> bool:
-        """Select *key* if it is implemented. There is only one page today."""
+        """Select *key* destination."""
         return self.navigation.select(key)
 
     # -- lifecycle ----------------------------------------------------------
@@ -173,13 +219,20 @@ class Flow8App:
         self.root.mainloop()
 
     def close(self) -> None:
-        """Destroy the window. No transport, thread, or port is held open."""
+        """Destroy the window and close MIDI hardware connections cleanly."""
         if self._closed:
             return
         self._closed = True
+
+        if self.service:
+            try:
+                self.service.disconnect()
+            except Exception:
+                pass
+
         try:
             self.root.destroy()
-        except tk.TclError:  # pragma: no cover - already destroyed
+        except tk.TclError:
             pass
 
     # -- inspection ---------------------------------------------------------
@@ -194,13 +247,14 @@ def main(argv: Optional[list[str]] = None) -> int:
     arguments = list(sys.argv[1:] if argv is None else argv)
     unexpected = [argument for argument in arguments if not argument.startswith("-")]
     if unexpected:
-        print(f"FLOW 8 shell takes no arguments: {unexpected}", file=sys.stderr)
+        print(f"FLOW 8 workstation takes no arguments: {unexpected}", file=sys.stderr)
         return 2
 
+    # Launch with hardware enabled and live 7-strip mixer console
     try:
-        app = Flow8App()
+        app = Flow8App(connect_hardware=True, show_placeholder=False)
     except tk.TclError as error:
-        print(f"FLOW 8 shell could not start: {error}", file=sys.stderr)
+        print(f"FLOW 8 workstation could not start: {error}", file=sys.stderr)
         return 1
 
     try:
@@ -210,5 +264,5 @@ def main(argv: Optional[list[str]] = None) -> int:
     return 0
 
 
-if __name__ == "__main__":  # pragma: no cover - manual launch
+if __name__ == "__main__":
     raise SystemExit(main())
