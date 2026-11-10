@@ -165,6 +165,23 @@ class Flow8ServiceTests(unittest.TestCase):
         self.assertIn("IN_7L", LOGICAL_CHANNELS[6].physical_connectors)
         self.assertIn("IN_8R", LOGICAL_CHANNELS[6].physical_connectors)
 
+    def test_connect_restarts_open_midi_in_that_is_not_listening(self):
+        service = Flow8Service(auto_connect=False)
+        # Simulate endpoints that were opened before MIDI IN start failed.
+        service.midi_out._is_open = True
+        service.midi_out._handle = object()
+        service.midi_in._is_open = True
+        service.midi_in._handle = object()
+        service.midi_in._is_listening = False
+
+        def start_listener():
+            service.midi_in._is_listening = True
+
+        with mock.patch.object(service.midi_in, "start", side_effect=start_listener) as start:
+            self.assertTrue(service.connect())
+            start.assert_called_once()
+        self.assertTrue(service.is_connected)
+
     def test_service_initialization_offline(self):
         service = Flow8Service(auto_connect=False)
         self.assertFalse(service.is_connected)
