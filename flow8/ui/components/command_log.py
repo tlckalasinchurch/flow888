@@ -42,13 +42,23 @@ class CommandLogPanel(tk.Frame):
             bg=colors["surface"],
         ).pack(side="left")
 
-        tk.Label(
-            heading,
-            text="UNSYNCED · COMMAND VALUES ≠ DEVICE READBACK",
-            font=self.fonts["caption"],
-            fg=colors["warning"],
-            bg=colors["surface"],
-        ).pack(side="left", padx=(12, 0))
+        legend = tk.Frame(heading, bg=colors["surface"])
+        legend.pack(side="left", padx=(12, 0))
+
+        for label, foreground in (
+            ("CMD · LAST SENT", colors["cyan_soft"]),
+            ("OBS · DEVICE INPUT", colors["purple_soft"]),
+            ("UNSYNCED", colors["warning"]),
+        ):
+            tk.Label(
+                legend,
+                text=label,
+                font=self.fonts["caption"],
+                fg=foreground,
+                bg=colors["surface_alt"],
+                padx=6,
+                pady=3,
+            ).pack(side="left", padx=(0, 5))
 
         self.count_var = tk.StringVar(value="0 EVENTS")
         tk.Label(
@@ -107,7 +117,7 @@ class CommandLogPanel(tk.Frame):
             "observed": ("OBSERVED", 82),
             "midi": ("MIDI CH / CC · DATA", 154),
             "dispatch": ("DISPATCH", 132),
-            "applied": ("DEVICE", 84),
+            "applied": ("HW APPLIED", 84),
             "error": ("ERROR", 210),
         }
         for key, (label, width) in headings.items():
@@ -138,6 +148,17 @@ class CommandLogPanel(tk.Frame):
         self.tree.grid(row=0, column=0, sticky="nsew")
         vertical.grid(row=0, column=1, sticky="ns")
         horizontal.grid(row=1, column=0, sticky="ew")
+
+        self.empty_label = tk.Label(
+            body,
+            text="NO COMMANDS YET",
+            font=self.fonts["status_key"],
+            fg=colors["text_muted"],
+            bg=colors["background_alt"],
+            padx=10,
+            pady=5,
+        )
+        self.empty_label.place(relx=0.5, rely=0.5, anchor="center")
 
     @staticmethod
     def _format_entry(entry: Any) -> tuple[str, ...]:
@@ -183,6 +204,11 @@ class CommandLogPanel(tk.Frame):
 
         snapshot = list(entries)
         self.count_var.set(f"{len(snapshot)} EVENTS")
+        if snapshot:
+            self.empty_label.place_forget()
+        else:
+            self.empty_label.place(relx=0.5, rely=0.5, anchor="center")
+
         for index, entry in enumerate(reversed(snapshot)):
             status = str(entry.dispatch_status)
             if status == "DRIVER_DISPATCHED":
