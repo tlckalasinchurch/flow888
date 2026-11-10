@@ -231,6 +231,7 @@ class ChannelStripWidget(tk.Frame):
             default=64,
         )
         self.pan_scale.pack(fill="x", pady=(2, 0))
+        self.pan_scale.bind("<ButtonPress-1>", self._begin_gesture, add="+")
         self.pan_scale.bind("<ButtonRelease-1>", self._on_pan_release, add="+")
 
         # 4. Mute Button (Inputs only)
@@ -292,6 +293,7 @@ class ChannelStripWidget(tk.Frame):
             accent=colors["cyan"] if self.is_master else colors["cyan_soft"],
         )
         self.fader_scale.pack(fill="both", expand=True)
+        self.fader_scale.bind("<ButtonPress-1>", self._begin_gesture, add="+")
         self.fader_scale.bind("<ButtonRelease-1>", self._on_fader_release, add="+")
 
         # 7. Strip Footer Number
@@ -319,11 +321,29 @@ class ChannelStripWidget(tk.Frame):
         self.db_label_var.set(f"{db_text} (DEFAULT)" if default else db_text)
         self.midi_label_var.set(midi_text)
 
+    def _begin_gesture(self, _event: Optional[tk.Event] = None) -> None:
+        """Mouse down on a fader/pan: everything until release is one undo step."""
+        begin = getattr(self.service, "begin_batch", None)
+        if callable(begin):
+            try:
+                begin()
+            except Exception:
+                logging.getLogger(__name__).exception("Could not start undo batch")
+
+    def _end_gesture(self) -> None:
+        end = getattr(self.service, "end_batch", None)
+        if callable(end):
+            try:
+                end()
+            except Exception:
+                logging.getLogger(__name__).exception("Could not close undo batch")
+
     def _on_fader_release(self, _event: Optional[tk.Event]) -> None:
         if self._fader_after_id is not None:
             self.after_cancel(self._fader_after_id)
             self._fader_after_id = None
         self._flush_fader()
+        self._end_gesture()
 
     def _flush_fader(self) -> None:
         self._fader_after_id = None
@@ -360,6 +380,7 @@ class ChannelStripWidget(tk.Frame):
             self.after_cancel(self._pan_after_id)
             self._pan_after_id = None
         self._flush_pan()
+        self._end_gesture()
 
     def _flush_pan(self) -> None:
         self._pan_after_id = None
@@ -491,19 +512,47 @@ class ChannelStripWidget(tk.Frame):
                 raw = state.raw_midi_value
             if not isinstance(raw, int):
                 return
+            commanded = state.commanded_raw_midi is not None
             if parameter == "fader":
                 self.fader_val.set(raw)
-                db_text, midi_text = format_db(raw).split(" · ", 1)
-                self.db_label_var.set(db_text)
-                self.midi_label_var.set(midi_text)
+                self._set_fader_labels(raw)
+                self._last_fader_val = raw
+                if commanded:
+                    self.fader_provenance = ValueProvenance.COMMANDED
             else:
                 self.pan_val.set(raw)
                 self.pan_label_var.set(format_pan(raw))
+                self._last_pan_val = raw
+                if commanded:
+                    self.pan_provenance = ValueProvenance.COMMANDED
         elif parameter == "mute":
             self.is_muted.set(bool(state.commanded_value))
             self._update_mute_ui(bool(state.commanded_value))
+            if state.commanded_raw_midi is not None:
+                self.mute_provenance = ValueProvenance.COMMANDED
         elif parameter == "phantom":
             self.sync_phantom(bool(state.commanded_value))
+
+    def refresh_commanded(self) -> None:
+        """Show the last accepted software command (after undo/redo).
+
+        Only parameters that were actually commanded are touched; an app default
+        is never repainted as if it were a command. Never dispatches.
+        """
+        if self.service is None:
+            return
+        target = "main" if self.is_master else f"ch{self.channel_index}"
+        for parameter in ("fader", "pan") if self.is_master else ("fader", "pan", "mute"):
+            param_id = (
+                "main.balance" if self.is_master and parameter == "pan"
+                else f"{target}.{parameter}"
+            )
+            try:
+                state = self.service.state_store.get_parameter(param_id)
+            except Exception:
+                continue
+            if state is not None and state.commanded_raw_midi is not None:
+                self._restore_commanded_value(parameter)
 
     # -- External Sync Updates (from Hardware MIDI) ------------------------
 
@@ -562,6 +611,8 @@ class MixerConsole(tk.Frame):
             on_phantom_changed=self._on_phantom_changed,
         )
         self.bind("<Configure>", self._on_console_resize, add="+")
+        self._key_bindings: list[tuple[str, str]] = []
+        self._bind_history_keys()
 
         self.command_log_panel = CommandLogPanel(self, self.fonts)
         self.command_log_panel.pack(
@@ -749,6 +800,80 @@ class MixerConsole(tk.Frame):
             return
         self.inspector.request_phantom(channel_index, enabled)
 
+    # -- undo / redo ---------------------------------------------------------
+
+    _UNDO_KEYS = ("<Control-z>", "<Control-Z>")
+    _REDO_KEYS = ("<Control-y>", "<Control-Y>")
+
+    def _bind_history_keys(self) -> None:
+        """Ctrl+Z undo; Ctrl+Y or Ctrl+Shift+Z redo. Bound on the window, so a
+        modal dialog (e.g. the +48V confirmation) keeps them from firing."""
+        top = self.winfo_toplevel()
+        for sequence in self._UNDO_KEYS:
+            self._bind_key(top, sequence, self._on_undo_key)
+        for sequence in self._REDO_KEYS:
+            self._bind_key(top, sequence, self._on_redo_key)
+
+    def _bind_key(self, top: tk.Misc, sequence: str, handler) -> None:
+        funcid = top.bind(sequence, handler, add="+")
+        self._key_bindings.append((sequence, funcid))
+
+    def _on_undo_key(self, event: tk.Event) -> str:
+        # Ctrl+Shift+Z arrives as an upper-case "Z" with the Shift bit set.
+        if getattr(event, "state", 0) & 0x1:
+            self.redo()
+        else:
+            self.undo()
+        return "break"
+
+    def _on_redo_key(self, _event: tk.Event) -> str:
+        self.redo()
+        return "break"
+
+    def undo(self) -> bool:
+        """Undo the newest step. True only when commands were accepted."""
+        return self._run_history("UNDO", "undo")
+
+    def redo(self) -> bool:
+        return self._run_history("REDO", "redo")
+
+    def _feedback(self, message: str) -> None:
+        if self.on_feedback:
+            self.on_feedback(message)
+
+    def _run_history(self, label: str, method: str) -> bool:
+        action = getattr(self.service, method, None)
+        if not callable(action):
+            self._feedback(f"{label} UNAVAILABLE — NO COMMAND SERVICE")
+            return False
+        try:
+            records = action()
+        except Exception as error:
+            logging.getLogger(__name__).exception("%s failed", label)
+            self._refresh_strips()
+            self._feedback(f"{label} FAILED — NOT SENT: {error}")
+            return False
+        if not records:
+            self._feedback(f"NOTHING TO {label}")
+            return False
+        self._refresh_strips()
+        self._feedback(f"{label} COMMANDED — {self._describe(records, method)}")
+        return True
+
+    @staticmethod
+    def _describe(records, method: str) -> str:
+        if len(records) > 1:
+            return f"{len(records)} CHANGES"
+        record = records[0]
+        value = record.previous_value if method == "undo" else record.new_value
+        who = "MAIN" if record.channel_index == 8 else f"CH {record.channel_index}"
+        shown = ("ON" if value else "OFF") if record.parameter_type == "mute" else f"MIDI {value}"
+        return f"{who} {record.parameter_type.upper()} {shown}"
+
+    def _refresh_strips(self) -> None:
+        for strip in self.strips.values():
+            strip.refresh_commanded()
+
     def _on_phantom_changed(self, channel_index: int, commanded: bool) -> None:
         strip = self.strips.get(channel_index)
         if strip is not None and not strip.is_master:
@@ -764,6 +889,13 @@ class MixerConsole(tk.Frame):
             return
 
     def destroy(self) -> None:
+        try:
+            top = self.winfo_toplevel()
+            for sequence, funcid in self._key_bindings:
+                top.unbind(sequence, funcid)
+        except tk.TclError:
+            pass
+        self._key_bindings.clear()
         try:
             self.inspector.detach()
         except Exception:

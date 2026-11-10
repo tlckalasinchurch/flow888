@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections import deque
 from dataclasses import dataclass, replace
 from datetime import datetime, timezone
+from uuid import uuid4
 from typing import Any, Callable, Deque, Hashable, Optional
 
 
@@ -42,6 +43,8 @@ class CommandLedger:
         self._redo: Deque[CommandRecord] = deque(maxlen=capacity)
         self._executor = executor
         self._batch: Optional[dict[tuple[str, Hashable], CommandRecord]] = None
+        #: Records replayed by the most recent undo/redo (a whole transaction).
+        self.last_applied: tuple[CommandRecord, ...] = ()
 
     @property
     def history(self) -> tuple[CommandRecord, ...]:
@@ -81,11 +84,19 @@ class CommandLedger:
         self._batch = {}
 
     def end_batch(self) -> int:
-        """Commit a gesture as one transaction and return records committed."""
+        """Commit a gesture as one transaction and return records committed.
+
+        A gesture that ends where it began changes nothing and records nothing.
+        Several records from one batch share a ``transaction_id`` and undo/redo
+        together as one step.
+        """
         if self._batch is None:
             return 0
-        pending = tuple(self._batch.values())
+        pending = [r for r in self._batch.values() if r.previous_value != r.new_value]
         self._batch = None
+        if len(pending) > 1:
+            transaction_id = uuid4().hex
+            pending = [replace(r, transaction_id=transaction_id) for r in pending]
         for record in pending:
             self._undo.append(record)
         if pending:
@@ -99,23 +110,53 @@ class CommandLedger:
         if self._executor is not None:
             self._executor(record.parameter_type, record.channel_index, value)
 
+    @staticmethod
+    def _tail_group(stack: Deque[CommandRecord]) -> list[CommandRecord]:
+        """The newest record plus the records sharing its transaction, newest first."""
+        if not stack:
+            return []
+        top = stack[-1]
+        if top.transaction_id is None:
+            return [top]
+        group = []
+        for record in reversed(stack):
+            if record.transaction_id != top.transaction_id:
+                break
+            group.append(record)
+        return group
+
     def undo(self) -> Optional[CommandRecord]:
+        """Revert the newest step (a whole transaction when it has one).
+
+        The ledger changes only after every replay succeeded: if the executor
+        raises, nothing is popped, so the step is still available to retry.
+        """
         if self._batch is not None:
             self.end_batch()
-        if not self._undo:
+        group = self._tail_group(self._undo)
+        self.last_applied = ()
+        if not group:
             return None
-        record = self._undo.pop()
-        self._apply(record, record.previous_value)
-        self._redo.append(record)
-        return record
+        for record in group:
+            self._apply(record, record.previous_value)
+        for record in group:
+            self._undo.pop()
+            self._redo.append(record)
+        self.last_applied = tuple(group)
+        return group[0]
 
     def redo(self) -> Optional[CommandRecord]:
-        if not self._redo:
+        group = self._tail_group(self._redo)
+        self.last_applied = ()
+        if not group:
             return None
-        record = self._redo.pop()
-        self._apply(record, record.new_value)
-        self._undo.append(record)
-        return record
+        for record in group:
+            self._apply(record, record.new_value)
+        for record in group:
+            self._redo.pop()
+            self._undo.append(record)
+        self.last_applied = tuple(group)
+        return group[-1]
 
     def clear(self) -> None:
         self._undo.clear()
