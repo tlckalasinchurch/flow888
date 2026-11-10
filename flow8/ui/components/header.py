@@ -1,8 +1,4 @@
-"""Application header: product identity plus device state.
-
-The header states what exists: the FLOW 8 product identity and the live
-connection status to the hardware.
-"""
+"""Application header showing product identity and truthful MIDI port state."""
 
 from __future__ import annotations
 
@@ -26,7 +22,7 @@ class Header(tk.Frame):
         self.fonts = fonts
         self.status = status
         self.device_status_var = tk.StringVar(
-            value=f"DEVICE STATUS: {status.device}"
+            value="MIDI PORTS: CLOSED"
         )
         self._build()
 
@@ -120,19 +116,31 @@ class Header(tk.Frame):
         )
         self.status_label.pack(side="left", padx=(0, 10))
 
-    def set_device_status(self, is_connected: bool, device_name: str = "FLOW 8") -> None:
-        """Update the header device status pill."""
+    def set_midi_port_status(
+        self,
+        midi_out_open: bool,
+        midi_in_open: bool,
+        error: str | None = None,
+    ) -> None:
+        """Show open endpoint state without claiming FLOW 8 hardware confirmation."""
         colors = theme.COLORS
-        if is_connected:
-            self.device_status_var.set(f"DEVICE STATUS: {device_name} CONNECTED")
-            self.pill.configure(highlightbackground=colors["success"])
-            self.status_label.configure(fg=colors["success"])
-            self.dot.itemconfig(self.dot_oval, fill=colors["success"])
+        if midi_out_open and midi_in_open:
+            label = "MIDI PORTS OPEN"
+            color = colors["success"]
+        elif midi_out_open or midi_in_open:
+            label = "MIDI PORTS PARTIAL"
+            color = colors["warning"]
+        elif error:
+            label = "MIDI PORTS ERROR"
+            color = colors["danger"]
         else:
-            self.device_status_var.set("DEVICE STATUS: NOT CONNECTED")
-            self.pill.configure(highlightbackground=colors["warning"])
-            self.status_label.configure(fg=colors["warning"])
-            self.dot.itemconfig(self.dot_oval, fill=colors["warning"])
+            label = "MIDI PORTS CLOSED"
+            color = colors["text_muted"]
+
+        self.device_status_var.set(label)
+        self.pill.configure(highlightbackground=color)
+        self.status_label.configure(fg=color)
+        self.dot.itemconfig(self.dot_oval, fill=color)
 
     def _divider(self, parent: tk.Misc, padx: int, height: int) -> tk.Frame:
         divider = tk.Frame(parent, bg=theme.COLORS["border"], width=1, height=height)
