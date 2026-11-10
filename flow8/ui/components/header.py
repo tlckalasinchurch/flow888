@@ -22,7 +22,7 @@ class Header(tk.Frame):
         self.fonts = fonts
         self.status = status
         self.device_status_var = tk.StringVar(
-            value="MIDI PORTS: CLOSED"
+            value="MIDI PORTS CLOSED"
         )
         self._build()
 
@@ -121,10 +121,11 @@ class Header(tk.Frame):
         midi_out_open: bool,
         midi_in_open: bool,
         error: str | None = None,
+        midi_in_listening: bool = False,
     ) -> None:
         """Show open endpoint state without claiming FLOW 8 hardware confirmation."""
         colors = theme.COLORS
-        if midi_out_open and midi_in_open:
+        if midi_out_open and midi_in_open and midi_in_listening:
             label = "MIDI PORTS OPEN"
             color = colors["success"]
         elif midi_out_open or midi_in_open:
