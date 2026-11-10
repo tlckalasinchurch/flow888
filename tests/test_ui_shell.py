@@ -130,7 +130,7 @@ class ShellTests(unittest.TestCase):
     def test_device_status_is_not_verified(self):
         self.assertEqual(
             self.app.header.device_status_var.get(),
-            "MIDI PORTS: CLOSED",
+            "MIDI PORTS CLOSED",
         )
 
     def test_transport_statuses_are_honest(self):
@@ -152,8 +152,8 @@ class ShellTests(unittest.TestCase):
         self.assertIn("HARDWARE OBSERVATION:", texts)
 
     def test_partial_midi_port_state_is_reported_without_device_claim(self):
-        self.app.header.set_midi_port_status(True, False, "MIDI IN busy")
-        self.app.status_bar.set_midi_port_status(True, False, "MIDI IN busy")
+        self.app.header.set_midi_port_status(True, False, "MIDI IN busy", False)
+        self.app.status_bar.set_midi_port_status(True, False, "MIDI IN busy", False)
         self.assertEqual(self.app.header.device_status_var.get(), "MIDI PORTS PARTIAL")
         self.assertEqual(self.app.status_bar.values["midi_out"].get(), "OPEN")
         self.assertEqual(self.app.status_bar.values["midi_in"].get(), "CLOSED")
