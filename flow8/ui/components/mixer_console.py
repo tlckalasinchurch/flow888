@@ -6,6 +6,7 @@ according to the Behringer FLOW 8 Hardware Domain Model.
 
 from __future__ import annotations
 
+import logging
 import tkinter as tk
 from typing import Any, Dict, Optional
 
@@ -13,16 +14,17 @@ from flow8.domain_model import LOGICAL_CHANNELS
 from flow8.parameter_mapping import fader_midi_to_db, pan_midi_to_percent
 from flow8.ui import theme
 from flow8.ui.components.controls import HorizontalSlider, VerticalFader
+from flow8.ui.components.command_log import CommandLogPanel
 
 
 def format_db(raw_val: int) -> str:
-    """Format raw 0-127 MIDI value as user-friendly dB string."""
+    """Show an explicitly approximate dB conversion and its raw MIDI value."""
     if raw_val <= 0:
-        return "-inf dB"
-    db = fader_midi_to_db(raw_val)
-    if db >= 0:
-        return f"+{db:.1f} dB"
-    return f"{db:.1f} dB"
+        db_text = "-inf"
+    else:
+        db = fader_midi_to_db(raw_val)
+        db_text = f"+{db:.1f}" if db >= 0 else f"{db:.1f}"
+    return f"Approx. {db_text} dB · MIDI {raw_val}/127"
 
 
 def format_pan(raw_val: int) -> str:
@@ -240,23 +242,35 @@ class ChannelStripWidget(tk.Frame):
             return
         val = int(val_str)
         self.db_label_var.set(format_db(val))
-        if self.service and self.service.is_connected:
-            self.service.set_fader(self.channel_index, val)
+        if self.service:
+            try:
+                self.service.set_fader(self.channel_index, val)
+            except Exception:
+                logging.getLogger(__name__).exception("Fader command failed")
+                self._restore_commanded_value("fader")
 
     def _on_pan_drag(self, val_str: str) -> None:
         if self._is_updating:
             return
         val = int(val_str)
         self.pan_label_var.set(format_pan(val))
-        if self.service and self.service.is_connected:
-            self.service.set_pan(self.channel_index, val)
+        if self.service:
+            try:
+                self.service.set_pan(self.channel_index, val)
+            except Exception:
+                logging.getLogger(__name__).exception("Pan/balance command failed")
+                self._restore_commanded_value("pan")
 
     def _toggle_mute(self) -> None:
         new_mute = not self.is_muted.get()
         self.is_muted.set(new_mute)
         self._update_mute_ui(new_mute)
-        if self.service and self.service.is_connected:
-            self.service.set_mute(self.channel_index, new_mute)
+        if self.service:
+            try:
+                self.service.set_mute(self.channel_index, new_mute)
+            except Exception:
+                logging.getLogger(__name__).exception("Mute command failed")
+                self._restore_commanded_value("mute")
 
     def _update_mute_ui(self, muted: bool) -> None:
         colors = theme.COLORS
@@ -282,8 +296,49 @@ class ChannelStripWidget(tk.Frame):
             self.phantom_btn.configure(bg=colors["warning"], fg=colors["background"])
         else:
             self.phantom_btn.configure(bg=colors["surface_alt"], fg=colors["text_muted"])
-        if self.service and self.service.is_connected:
-            self.service.set_phantom(self.channel_index, new_val)
+        if self.service:
+            try:
+                self.service.set_phantom(self.channel_index, new_val)
+            except Exception:
+                logging.getLogger(__name__).exception("Phantom command failed")
+                self._restore_commanded_value("phantom")
+
+    def _restore_commanded_value(self, parameter: str) -> None:
+        """Restore the last accepted software command after a failed dispatch."""
+        if self.service is None:
+            return
+        target = "main" if self.is_master else f"ch{self.channel_index}"
+        param_id = "main.balance" if self.is_master and parameter == "pan" else f"{target}.{parameter}"
+        try:
+            state = self.service.state_store.get_parameter(param_id)
+        except Exception:
+            return
+        if state is None:
+            return
+
+        if parameter in ("fader", "pan"):
+            raw = state.commanded_raw_midi
+            if raw is None:
+                raw = state.raw_midi_value
+            if not isinstance(raw, int):
+                return
+            if parameter == "fader":
+                self.fader_val.set(raw)
+                self.db_label_var.set(format_db(raw))
+            else:
+                self.pan_val.set(raw)
+                self.pan_label_var.set(format_pan(raw))
+        elif parameter == "mute":
+            self.is_muted.set(bool(state.commanded_value))
+            self._update_mute_ui(bool(state.commanded_value))
+        elif parameter == "phantom":
+            enabled = bool(state.commanded_value)
+            self.is_phantom.set(enabled)
+            colors = theme.COLORS
+            self.phantom_btn.configure(
+                bg=colors["warning"] if enabled else colors["surface_alt"],
+                fg=colors["background"] if enabled else colors["text_muted"],
+            )
 
     # -- External Sync Updates (from Hardware MIDI) ------------------------
 
@@ -318,8 +373,21 @@ class MixerConsole(tk.Frame):
         self.strips: Dict[int, ChannelStripWidget] = {}
         self._build()
 
+        self.command_log_panel = CommandLogPanel(self, self.fonts)
+        self.command_log_panel.pack(
+            fill="x",
+            padx=theme.TOKENS["spacing_large"],
+            pady=(0, theme.TOKENS["spacing_medium"]),
+        )
+
         if self.service:
-            self.service.add_listener(self._on_service_param_update)
+            add_listener = getattr(self.service, "add_command_log_listener", None)
+            if callable(add_listener):
+                add_listener(self._on_command_log_update)
+            boundary = getattr(self.service, "command_boundary", None)
+            entries = getattr(boundary, "command_log", [])
+            if isinstance(entries, (list, tuple)):
+                self.command_log_panel.set_entries(entries)
 
     def _build(self) -> None:
         colors = theme.COLORS
@@ -344,6 +412,14 @@ class MixerConsole(tk.Frame):
             fg=colors["text_muted"],
             bg=colors["background"],
         ).pack(side="left", padx=(spacing["spacing_medium"], 0))
+
+        tk.Label(
+            banner,
+            text="UNSYNCED · COMMAND VALUES ONLY",
+            font=self.fonts["status_key"],
+            fg=colors["warning"],
+            bg=colors["background"],
+        ).pack(side="right")
 
         # Strips Container
         strips_container = tk.Frame(self, bg=colors["background"])
@@ -397,31 +473,21 @@ class MixerConsole(tk.Frame):
         master_strip.grid(row=0, column=7, sticky="nsew", padx=(8, 3), pady=2)
         self.strips[8] = master_strip
 
-    def _on_service_param_update(self, param_id: str, value: Any) -> None:
-        """Handle incoming hardware state updates from service (thread-safe dispatch to Tk)."""
+    def _on_command_log_update(self, entries: list) -> None:
+        """Schedule command-log rendering on the Tk main thread."""
         try:
-            self.after_idle(lambda: self._apply_update(param_id, value))
-        except Exception:
-            pass
-
-    def _apply_update(self, param_id: str, value: Any) -> None:
-        """Apply parameter update on Tkinter main thread."""
-        parts = param_id.split(".")
-        if len(parts) != 2:
+            snapshot = list(entries)
+            self.after_idle(lambda: self.command_log_panel.set_entries(snapshot))
+        except tk.TclError:
+            # The widget may be closing while a worker callback is in flight.
             return
-        target, param = parts[0], parts[1]
 
-        ch = None
-        if target.startswith("ch") and target[2:].isdigit():
-            ch = int(target[2:])
-        elif target == "main":
-            ch = 8
-
-        if ch and ch in self.strips:
-            strip = self.strips[ch]
-            if param == "fader":
-                strip.sync_fader(int(value))
-            elif param in ("pan", "balance"):
-                strip.sync_pan(int(value))
-            elif param == "mute":
-                strip.sync_mute(bool(value))
+    def destroy(self) -> None:
+        if self.service:
+            remove_listener = getattr(self.service, "remove_command_log_listener", None)
+            if callable(remove_listener):
+                try:
+                    remove_listener(self._on_command_log_update)
+                except Exception:
+                    logging.getLogger(__name__).exception("Could not remove command-log listener")
+        super().destroy()
