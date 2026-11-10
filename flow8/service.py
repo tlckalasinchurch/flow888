@@ -8,8 +8,11 @@ Handles hardware discovery, connection lifecycle, and bidirectional synchronizat
 
 from __future__ import annotations
 
+import logging
 import threading
 from typing import Any, Callable, Dict, Optional
+
+logger = logging.getLogger(__name__)
 
 from flow8.command_boundary import Flow8CommandBoundary
 from flow8.domain_model import LOGICAL_CHANNELS
@@ -39,16 +42,44 @@ class Flow8Service:
 
         self._lock = threading.RLock()
         self._connected = False
+        self._connection_error: Optional[str] = None
         self._listeners: list[Callable[[str, Any], None]] = []
+        self._command_log_listeners: list[Callable[[list], None]] = []
 
         if auto_connect:
             self.connect()
 
     @property
     def is_connected(self) -> bool:
-        """True if both MIDI OUT and IN endpoints are open and ready."""
+        """True only when both MIDI endpoints are open and MIDI IN is listening."""
         with self._lock:
-            return self._connected and self.midi_out.is_connected
+            return (
+                self._connected
+                and self.midi_out.is_connected
+                and self.midi_in.is_connected
+                and self.midi_in.is_listening
+            )
+
+    @property
+    def midi_out_open(self) -> bool:
+        """Whether the MIDI OUT endpoint handle is open."""
+        return self.midi_out.is_connected
+
+    @property
+    def midi_in_open(self) -> bool:
+        """Whether the MIDI IN endpoint handle is open."""
+        return self.midi_in.is_connected
+
+    @property
+    def midi_in_listening(self) -> bool:
+        """Whether the MIDI IN endpoint is actively receiving events."""
+        return self.midi_in.is_listening
+
+    @property
+    def connection_error(self) -> Optional[str]:
+        """Most recent connection error, if a port could not be opened."""
+        with self._lock:
+            return self._connection_error
 
     def add_listener(self, listener: Callable[[str, Any], None]) -> None:
         """Register listener for state changes: listener(param_id, value)."""
@@ -68,7 +99,36 @@ class Flow8Service:
             try:
                 cb(param_id, value)
             except Exception:
-                pass
+                logger.exception("FLOW 8 state listener failed for %s", param_id)
+
+    def add_command_log_listener(self, listener: Callable[[list], None]) -> None:
+        """Register a listener for command-log snapshots."""
+        with self._lock:
+            if listener not in self._command_log_listeners:
+                self._command_log_listeners.append(listener)
+
+    def remove_command_log_listener(self, listener: Callable[[list], None]) -> None:
+        """Remove a command-log listener."""
+        with self._lock:
+            if listener in self._command_log_listeners:
+                self._command_log_listeners.remove(listener)
+
+    def _notify_command_log_listeners(self) -> None:
+        entries = self.command_boundary.command_log
+        with self._lock:
+            callbacks = list(self._command_log_listeners)
+        for callback in callbacks:
+            try:
+                callback(entries)
+            except Exception:
+                logger.exception("FLOW 8 command-log listener failed")
+
+    def _dispatch_and_notify(self, callback: Callable, *args, **kwargs):
+        """Notify audit listeners even when a command attempt raises."""
+        try:
+            return callback(*args, **kwargs)
+        finally:
+            self._notify_command_log_listeners()
 
     def connect(self) -> bool:
         """Attempt to locate and open the FLOW 8 hardware endpoints."""
@@ -85,9 +145,12 @@ class Flow8Service:
                     self.midi_in.start()
 
                 self._connected = True
+                self._connection_error = None
                 return True
             except Exception as e:
                 self._connected = False
+                self._connection_error = str(e)
+                logger.exception("FLOW 8 MIDI connection failed")
                 return False
 
     def disconnect(self) -> None:
@@ -102,47 +165,68 @@ class Flow8Service:
             except Exception:
                 pass
             self._connected = False
+            self._connection_error = None
 
     def _on_midi_in_event(self, event: dict) -> None:
-        """Handle incoming MIDI event from FLOW 8 physical hardware."""
-        # CC status is 0xB0 to 0xBF
-        if (event.get('status', 0) & 0xF0) != 0xB0:
+        """Record recognized inbound CC as observed state; never echo it as a command."""
+        if (event.get("status", 0) & 0xF0) != 0xB0:
             return
 
-        channel = event.get('channel', 0)   # 1 to 8 (1..7 strips, 8 main)
-        cc = event.get('data1', 0)
-        val = event.get('data2', 0)
+        channel = event.get("channel", 0)  # MIDI channels are one-based here.
+        cc = event.get("data1", 0)
+        raw_value = event.get("data2", 0)
 
         param_id = None
-        if 1 <= channel <= 7:
-            prefix = f"ch{channel}"
-            if cc == CC_VOLUME_FADER:
-                param_id = f"{prefix}.fader"
-            elif cc == CC_MUTE:
-                param_id = f"{prefix}.mute"
-            elif cc == CC_PAN:
-                param_id = f"{prefix}.pan"
-            elif cc == CC_PHANTOM:
-                param_id = f"{prefix}.phantom"
-            elif cc == CC_GAIN:
-                param_id = f"{prefix}.gain"
-        elif channel == 8:
+        if channel == 8:
             if cc == CC_VOLUME_FADER:
                 param_id = "main.fader"
             elif cc == CC_PAN:
                 param_id = "main.balance"
+        else:
+            # Resolve MIDI channel through the shared logical-channel model.
+            # MIDI ch6 is logical strip ch6 (the 7/8 stereo pair), not input 6.
+            channel_spec = next(
+                (
+                    spec for spec in LOGICAL_CHANNELS.values()
+                    if spec.midi_channel == channel
+                ),
+                None,
+            )
+            if channel_spec is not None:
+                prefix = f"ch{channel_spec.channel_index}"
+                if cc == CC_VOLUME_FADER:
+                    param_id = f"{prefix}.fader"
+                elif cc == CC_MUTE:
+                    param_id = f"{prefix}.mute"
+                elif cc == CC_PAN:
+                    param_id = f"{prefix}.pan"
+                elif cc == CC_PHANTOM:
+                    param_id = f"{prefix}.phantom"
+                elif cc == CC_GAIN:
+                    param_id = f"{prefix}.gain"
 
-        if param_id:
-            try:
-                self.state_store.commit_inbound_observed(
-                    param_id=param_id,
-                    observed_value=val,
-                    raw_midi=val,
-                    source=EventSource.PHYSICAL_HARDWARE,
-                )
-                self._notify_listeners(param_id, val)
-            except Exception:
-                pass
+        if not param_id or param_id not in self.command_boundary.ACTIVE_ALLOWLIST:
+            return
+
+        observed_value = (
+            bool(raw_value) if cc in (CC_MUTE, CC_PHANTOM) else raw_value
+        )
+        try:
+            self.state_store.set_observed_value(
+                param_id=param_id,
+                value=observed_value,
+                raw_midi_value=raw_value,
+                source=EventSource.PHYSICAL_HARDWARE,
+            )
+        except Exception:
+            logger.exception(
+                "Failed to record inbound FLOW 8 MIDI observation: "
+                "param=%s channel=%s cc=%s value=%s",
+                param_id, channel, cc, raw_value,
+            )
+            return
+
+        self._notify_listeners(param_id, observed_value)
 
     # -- High-level UI dispatch methods -------------------------------------
 
@@ -150,24 +234,39 @@ class Flow8Service:
         """Set fader level (1..7 for input strips, 8 for Main bus)."""
         clamped = max(0, min(127, int(raw_value)))
         if 1 <= channel_index <= 7:
-            self.parameter_engine.channel(channel_index).set_fader(clamped, unit="raw")
+            self._dispatch_and_notify(
+                self.parameter_engine.channel(channel_index).set_fader,
+                clamped, unit="raw",
+            )
         elif channel_index == 8:
-            self.parameter_engine.set_main_fader(clamped, unit="raw")
+            self._dispatch_and_notify(
+                self.parameter_engine.set_main_fader, clamped, unit="raw",
+            )
 
     def set_mute(self, channel_index: int, muted: bool) -> None:
         """Set mute state (1..7 for input strips)."""
         if 1 <= channel_index <= 7:
-            self.parameter_engine.channel(channel_index).set_mute(bool(muted))
+            self._dispatch_and_notify(
+                self.parameter_engine.channel(channel_index).set_mute, bool(muted),
+            )
 
     def set_pan(self, channel_index: int, raw_value: int) -> None:
         """Set pan/balance (1..7 for input strips, 8 for Main bus)."""
         clamped = max(0, min(127, int(raw_value)))
         if 1 <= channel_index <= 7:
-            self.parameter_engine.channel(channel_index).set_pan(clamped, unit="raw")
+            self._dispatch_and_notify(
+                self.parameter_engine.channel(channel_index).set_pan,
+                clamped, unit="raw",
+            )
         elif channel_index == 8:
-            self.parameter_engine.set_main_balance(clamped, unit="raw")
+            self._dispatch_and_notify(
+                self.parameter_engine.set_main_balance, clamped, unit="raw",
+            )
 
     def set_phantom(self, channel_index: int, enabled: bool) -> None:
         """Set +48V phantom power (Channels 1 and 2 only)."""
         if channel_index in (1, 2):
-            self.parameter_engine.channel(channel_index).set_phantom(bool(enabled))
+            self._dispatch_and_notify(
+                self.parameter_engine.channel(channel_index).set_phantom,
+                bool(enabled),
+            )
