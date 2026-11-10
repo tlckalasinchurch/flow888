@@ -77,7 +77,10 @@ class ChannelStripWidget(tk.Frame):
         self.is_muted = tk.BooleanVar(value=False)
         self.is_phantom = tk.BooleanVar(value=False)
 
-        self.db_label_var = tk.StringVar(value=format_db(self.fader_val.get()))
+        initial_db = format_db(self.fader_val.get())
+        db_text, midi_text = initial_db.split(" · ", 1)
+        self.db_label_var = tk.StringVar(value=db_text)
+        self.midi_label_var = tk.StringVar(value=midi_text)
         self.pan_label_var = tk.StringVar(value=format_pan(self.pan_val.get()))
 
         self._build(title, subtitle, kind_badge, pan_label)
@@ -203,15 +206,32 @@ class ChannelStripWidget(tk.Frame):
             # Spacer for alignment
             tk.Frame(self, bg=colors["surface"], height=32).pack(fill="x", pady=(4, 8))
 
-        # 5. Fader Level dB readout
-        tk.Label(
+        # 5. Fader readout: approximate dB and raw MIDI are separate visual levels.
+        readout = tk.Frame(
             self,
+            bg=colors["background_alt"],
+            highlightbackground=colors["border"],
+            highlightthickness=1,
+        )
+        readout.pack(fill="x", pady=(0, 6))
+
+        tk.Label(
+            readout,
             textvariable=self.db_label_var,
             font=self.fonts["status_value"],
             fg=colors["cyan"] if self.is_master else colors["text"],
             bg=colors["background_alt"],
-            pady=4,
-        ).pack(fill="x", pady=(0, 6))
+            pady=3,
+        ).pack(fill="x")
+
+        tk.Label(
+            readout,
+            textvariable=self.midi_label_var,
+            font=self.fonts["caption"],
+            fg=colors["text_muted"],
+            bg=colors["background_alt"],
+            pady=(0, 3),
+        ).pack(fill="x")
 
         # 6. Vertical Volume Fader
         fader_container = tk.Frame(self, bg=colors["surface"])
@@ -241,7 +261,9 @@ class ChannelStripWidget(tk.Frame):
         if self._is_updating:
             return
         val = int(val_str)
-        self.db_label_var.set(format_db(val))
+        db_text, midi_text = format_db(val).split(" · ", 1)
+        self.db_label_var.set(db_text)
+        self.midi_label_var.set(midi_text)
         if self.service:
             try:
                 self.service.set_fader(self.channel_index, val)
@@ -324,7 +346,9 @@ class ChannelStripWidget(tk.Frame):
                 return
             if parameter == "fader":
                 self.fader_val.set(raw)
-                self.db_label_var.set(format_db(raw))
+                db_text, midi_text = format_db(raw).split(" · ", 1)
+                self.db_label_var.set(db_text)
+                self.midi_label_var.set(midi_text)
             else:
                 self.pan_val.set(raw)
                 self.pan_label_var.set(format_pan(raw))
@@ -346,7 +370,9 @@ class ChannelStripWidget(tk.Frame):
         self._is_updating = True
         try:
             self.fader_val.set(raw_val)
-            self.db_label_var.set(format_db(raw_val))
+            db_text, midi_text = format_db(raw_val).split(" · ", 1)
+            self.db_label_var.set(db_text)
+            self.midi_label_var.set(midi_text)
         finally:
             self._is_updating = False
 
