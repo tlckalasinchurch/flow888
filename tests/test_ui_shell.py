@@ -130,22 +130,36 @@ class ShellTests(unittest.TestCase):
     def test_device_status_is_not_verified(self):
         self.assertEqual(
             self.app.header.device_status_var.get(),
-            "DEVICE STATUS: NOT VERIFIED",
+            "MIDI PORTS: CLOSED",
         )
 
     def test_transport_statuses_are_honest(self):
         values = self.app.status_bar.values
-        self.assertEqual(values["midi"].get(), "UNKNOWN")
+        self.assertEqual(values["midi_out"].get(), "CLOSED")
+        self.assertEqual(values["midi_in"].get(), "CLOSED")
+        self.assertEqual(values["midi_error"].get(), "NONE")
         self.assertEqual(values["usb_audio"].get(), "NOT INTEGRATED")
         self.assertEqual(values["audio_telemetry"].get(), "NO TELEMETRY")
         self.assertEqual(values["hardware_observation"].get(), "UNKNOWN")
 
     def test_status_bar_renders_labels_and_values(self):
         texts = " ".join(self.app.status_bar.text_snapshot())
-        self.assertIn("MIDI:", texts)
+        self.assertIn("MIDI OUT:", texts)
+        self.assertIn("MIDI IN:", texts)
+        self.assertIn("MIDI ERROR:", texts)
         self.assertIn("USB AUDIO:", texts)
         self.assertIn("AUDIO TELEMETRY:", texts)
         self.assertIn("HARDWARE OBSERVATION:", texts)
+
+    def test_partial_midi_port_state_is_reported_without_device_claim(self):
+        self.app.header.set_midi_port_status(True, False, "MIDI IN busy")
+        self.app.status_bar.set_midi_port_status(True, False, "MIDI IN busy")
+        self.assertEqual(self.app.header.device_status_var.get(), "MIDI PORTS PARTIAL")
+        self.assertEqual(self.app.status_bar.values["midi_out"].get(), "OPEN")
+        self.assertEqual(self.app.status_bar.values["midi_in"].get(), "CLOSED")
+        self.assertEqual(self.app.status_bar.values["midi_error"].get(), "MIDI IN busy")
+        self.assertEqual(self.app.status_bar.values["usb_audio"].get(), "NOT INTEGRATED")
+        self.assertEqual(self.app.status_bar.values["hardware_observation"].get(), "UNKNOWN")
 
     def test_no_forbidden_hardware_claims_rendered(self):
         rendered = " ".join(self.app.text_snapshot()).upper()
