@@ -166,7 +166,7 @@ class ShellTests(unittest.TestCase):
         for claim in FORBIDDEN_CLAIMS:
             self.assertNotRegex(
                 rendered,
-                rf"\\b{re.escape(claim)}\\b",
+                rf"\b{re.escape(claim)}\b",
                 f"shell claims {claim!r}",
             )
 
