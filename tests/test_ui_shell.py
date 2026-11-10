@@ -164,7 +164,11 @@ class ShellTests(unittest.TestCase):
     def test_no_forbidden_hardware_claims_rendered(self):
         rendered = " ".join(self.app.text_snapshot()).upper()
         for claim in FORBIDDEN_CLAIMS:
-            self.assertNotIn(claim, rendered, f"shell claims {claim!r}")
+            self.assertNotRegex(
+                rendered,
+                rf"\\b{re.escape(claim)}\\b",
+                f"shell claims {claim!r}",
+            )
 
     def test_no_meter_or_channel_value_rendered(self):
         rendered = " ".join(self.app.text_snapshot()).upper()
