@@ -127,7 +127,7 @@ class ShellTests(unittest.TestCase):
 
     # -- honest statuses ----------------------------------------------------
 
-    def test_device_status_is_not_verified(self):
+    def test_header_reports_port_state_not_device_detection(self):
         self.assertEqual(
             self.app.header.device_status_var.get(),
             "MIDI PORTS CLOSED",
@@ -160,6 +160,15 @@ class ShellTests(unittest.TestCase):
         self.assertEqual(self.app.status_bar.values["midi_error"].get(), "MIDI IN busy")
         self.assertEqual(self.app.status_bar.values["usb_audio"].get(), "NOT INTEGRATED")
         self.assertEqual(self.app.status_bar.values["hardware_observation"].get(), "UNKNOWN")
+
+    def test_open_midi_input_without_listener_is_partial(self):
+        self.app.header.set_midi_port_status(True, True, None, False)
+        self.app.status_bar.set_midi_port_status(True, True, None, False)
+        self.assertEqual(self.app.header.device_status_var.get(), "MIDI PORTS PARTIAL")
+        self.assertEqual(
+            self.app.status_bar.values["midi_in"].get(),
+            "OPEN / NOT LISTENING",
+        )
 
     def test_no_forbidden_hardware_claims_rendered(self):
         rendered = " ".join(self.app.text_snapshot()).upper()
