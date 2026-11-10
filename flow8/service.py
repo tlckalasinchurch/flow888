@@ -3,7 +3,8 @@
 Orchestrates the communication chain according to the architectural rules:
     UI -> Application Service -> Parameter Engine -> Command Boundary -> MIDI Driver
 
-Handles hardware discovery, connection lifecycle, and bidirectional synchronization.
+Handles MIDI port lifecycle, command dispatch, and inbound observation recording.
+Inbound CC handling is not a claim that the FLOW 8 provides complete two-way sync.
 """
 
 from __future__ import annotations
