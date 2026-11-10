@@ -6,6 +6,7 @@ and real-time hardware status management.
 
 from __future__ import annotations
 
+import logging
 import sys
 import tkinter as tk
 from typing import Optional
@@ -18,6 +19,8 @@ from flow8.ui.components.mixer_console import MixerConsole
 from flow8.ui.components.navigation import Navigation
 from flow8.ui.components.status_bar import StatusBar
 from flow8.ui.status import SessionStatus
+
+logger = logging.getLogger(__name__)
 
 
 class Flow8App:
@@ -56,10 +59,8 @@ class Flow8App:
 
         self.root.protocol("WM_DELETE_WINDOW", self.close)
 
-        # Update initial connection state & schedule watcher
-        if self.service and self.service.is_connected:
-            self.header.set_device_status(True, "FLOW 8")
-            self.status_bar.set_hardware_status(True)
+        # Report each MIDI endpoint independently; an open port is not hardware confirmation.
+        self._refresh_hardware_status()
 
         if self.connect_hardware:
             self.root.after(2500, self._poll_hardware_state)
@@ -180,24 +181,33 @@ class Flow8App:
             bg=colors["background_alt"],
         ).pack(pady=(spacing["spacing_large"], 0))
 
+    def _refresh_hardware_status(self) -> None:
+        """Refresh independent MIDI port states and surface the latest connection error."""
+        if self.service is None:
+            midi_out_open = False
+            midi_in_open = False
+            error = None
+        else:
+            midi_out_open = self.service.midi_out_open
+            midi_in_open = self.service.midi_in_open
+            error = self.service.connection_error
+
+        self.header.set_midi_port_status(midi_out_open, midi_in_open, error)
+        self.status_bar.set_midi_port_status(midi_out_open, midi_in_open, error)
+
     def _poll_hardware_state(self) -> None:
-        """Watchdog: verifies hardware connection and auto-reconnects if needed."""
+        """Refresh MIDI port state and retry incomplete endpoint connections."""
         if self._closed:
             return
 
-        try:
-            if self.service:
-                was_connected = self.service.is_connected
-                if not was_connected:
-                    reconnected = self.service.connect()
-                    if reconnected:
-                        self.header.set_device_status(True, "FLOW 8")
-                        self.status_bar.set_hardware_status(True)
-                else:
-                    self.header.set_device_status(True, "FLOW 8")
-                    self.status_bar.set_hardware_status(True)
-        except Exception:
-            pass
+        if self.service:
+            try:
+                if not self.service.is_connected:
+                    self.service.connect()
+            except Exception:
+                logger.exception("FLOW 8 connection poll failed")
+            finally:
+                self._refresh_hardware_status()
 
         if not self._closed:
             self.root.after(2500, self._poll_hardware_state)
