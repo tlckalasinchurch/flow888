@@ -77,6 +77,30 @@ class MixerConsoleTests(unittest.TestCase):
         ch1.sync_mute(True)
         self.assertTrue(ch1.is_muted.get())
 
+    def test_fader_responds_to_user_drag_and_dispatches(self):
+        service = mock.Mock()
+        service.is_connected = True
+        console = MixerConsole(self.root, self.fonts, service=service)
+        console.pack(fill="both", expand=True)
+        self.root.deiconify()
+        self.root.geometry("1400x800")
+        self.root.update()
+        strip = console.strips[1]
+        fader = strip.fader_scale
+        h = fader.winfo_height()
+        fader.event_generate("<Button-1>", x=30, y=h // 2)
+        self.root.update()
+        self.assertGreater(strip.fader_val.get(), 0)
+        service.set_fader.assert_called_with(1, strip.fader_val.get())
+
+    def test_double_click_resets_fader_to_unity(self):
+        console = MixerConsole(self.root, self.fonts)
+        self.root.deiconify()
+        self.root.update()
+        strip = console.strips[2]
+        strip.fader_scale._on_reset(None)
+        self.assertEqual(strip.fader_val.get(), 101)
+
     def test_inbound_service_update(self):
         service = Flow8Service(auto_connect=False)
         console = MixerConsole(self.root, self.fonts, service=service)

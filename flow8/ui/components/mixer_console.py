@@ -12,6 +12,7 @@ from typing import Any, Dict, Optional
 from flow8.domain_model import LOGICAL_CHANNELS
 from flow8.parameter_mapping import fader_midi_to_db, pan_midi_to_percent
 from flow8.ui import theme
+from flow8.ui.components.controls import HorizontalSlider, VerticalFader
 
 
 def format_db(raw_val: int) -> str:
@@ -171,21 +172,11 @@ class ChannelStripWidget(tk.Frame):
             bg=colors["surface"],
         ).pack(side="right")
 
-        self.pan_scale = tk.Scale(
+        self.pan_scale = HorizontalSlider(
             pan_frame,
-            from_=0,
-            to=127,
-            orient="horizontal",
-            showvalue=False,
             variable=self.pan_val,
-            bg=colors["surface_alt"],
-            troughcolor=colors["background"],
-            activebackground=colors["cyan"],
-            highlightthickness=0,
-            bd=0,
-            sliderrelief="flat",
-            length=110,
             command=self._on_pan_drag,
+            default=64,
         )
         self.pan_scale.pack(fill="x", pady=(2, 0))
 
@@ -224,21 +215,12 @@ class ChannelStripWidget(tk.Frame):
         fader_container = tk.Frame(self, bg=colors["surface"])
         fader_container.pack(fill="both", expand=True, pady=(0, 6))
 
-        self.fader_scale = tk.Scale(
+        self.fader_scale = VerticalFader(
             fader_container,
-            from_=127,
-            to=0,
-            orient="vertical",
-            showvalue=False,
             variable=self.fader_val,
-            bg=colors["surface_alt"],
-            troughcolor=colors["background"],
-            activebackground=colors["cyan"] if self.is_master else colors["cyan_soft"],
-            highlightthickness=0,
-            bd=0,
-            sliderrelief="flat",
-            width=16,
             command=self._on_fader_drag,
+            default=101,
+            accent=colors["cyan"] if self.is_master else colors["cyan_soft"],
         )
         self.fader_scale.pack(fill="both", expand=True)
 
