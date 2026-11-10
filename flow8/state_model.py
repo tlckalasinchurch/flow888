@@ -28,8 +28,9 @@ class VerificationLevel(Enum):
     HARDWARE_TESTED      physical mixer behaviour actually observed
     UNKNOWN              capability asserted but evidence absent/unresolved
 
-    API acknowledgement, USB transmission, mixer application, and audible change
-    are four different things; only the last may justify HARDWARE_TESTED.
+    Driver acceptance, application acknowledgement, USB transmission, mixer
+    application, and audible change are distinct evidence stages. Only direct
+    observation of physical mixer behaviour may justify HARDWARE_TESTED.
     """
     HARDWARE_SPECIFIED = "HARDWARE_SPECIFIED"
     PROTOCOL_VERIFIED = "PROTOCOL_VERIFIED"
