@@ -124,7 +124,12 @@ class Flow8App:
         if self.show_placeholder:
             self._build_placeholder()
         else:
-            self.mixer_console = MixerConsole(self.workspace, self.fonts, service=self.service)
+            self.mixer_console = MixerConsole(
+                self.workspace,
+                self.fonts,
+                service=self.service,
+                on_feedback=self.status_bar.show_feedback,
+            )
             self.mixer_console.pack(fill="both", expand=True)
 
         self.navigation.select("mixer")

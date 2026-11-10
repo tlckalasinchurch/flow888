@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import logging
 import tkinter as tk
+from enum import Enum
 from typing import Any, Callable, Dict, Optional
 
 from flow8.domain_model import LOGICAL_CHANNELS
@@ -26,6 +27,16 @@ from flow8.ui.components.channel_detail import (
 INSPECTOR_MAX_WIDTH = 320
 INSPECTOR_MIN_WIDTH = 248
 MIN_STRIP_SLOT = 104
+
+
+class ValueProvenance(str, Enum):
+    """What the UI is entitled to claim about a displayed control value."""
+
+    UNSYNCED_DEFAULT = "UNSYNCED_DEFAULT"
+    COMMANDED = "COMMANDED"
+    OBSERVED = "OBSERVED"
+    DISPATCH_FAILED = "DISPATCH_FAILED"
+
 
 
 def format_db(raw_val: int) -> str:
@@ -66,6 +77,7 @@ class ChannelStripWidget(tk.Frame):
         is_master: bool = False,
         on_select: Optional[Callable[["SelectionTarget"], None]] = None,
         on_phantom_request: Optional[Callable[[int, bool], None]] = None,
+        on_feedback: Any = None,
     ) -> None:
         colors = theme.COLORS
         super().__init__(
@@ -81,21 +93,32 @@ class ChannelStripWidget(tk.Frame):
         self.is_master = is_master
         self.fonts = fonts
         self.service = service
+        self.on_feedback = on_feedback
         self.has_phantom = has_phantom
         self.is_selected = False
         self._on_select = on_select
         self._on_phantom_request = on_phantom_request
         self._is_updating = False
+        self.fader_provenance = ValueProvenance.UNSYNCED_DEFAULT
+        self.pan_provenance = ValueProvenance.UNSYNCED_DEFAULT
+        self.mute_provenance = ValueProvenance.UNSYNCED_DEFAULT
 
         # State tracking
         self.fader_val = tk.IntVar(value=101 if is_master else 0)  # default unity for main, 0 for inputs
         self.pan_val = tk.IntVar(value=64)  # center
+        self._last_fader_val = self.fader_val.get()
+        self._last_pan_val = self.pan_val.get()
+        self._pending_fader: Optional[int] = None
+        self._pending_pan: Optional[int] = None
+        self._fader_after_id: Optional[str] = None
+        self._pan_after_id: Optional[str] = None
         self.is_muted = tk.BooleanVar(value=False)
         self.is_phantom = tk.BooleanVar(value=False)
 
         initial_db = format_db(self.fader_val.get())
         db_text, midi_text = initial_db.split(" · ", 1)
-        self.db_label_var = tk.StringVar(value=db_text)
+        # Nothing has been commanded or observed yet: say so next to the value.
+        self.db_label_var = tk.StringVar(value=f"{db_text} (DEFAULT)")
         self.midi_label_var = tk.StringVar(value=midi_text)
         self.pan_label_var = tk.StringVar(value=format_pan(self.pan_val.get()))
 
@@ -208,6 +231,7 @@ class ChannelStripWidget(tk.Frame):
             default=64,
         )
         self.pan_scale.pack(fill="x", pady=(2, 0))
+        self.pan_scale.bind("<ButtonRelease-1>", self._on_pan_release, add="+")
 
         # 4. Mute Button (Inputs only)
         if not self.is_master:
@@ -268,6 +292,7 @@ class ChannelStripWidget(tk.Frame):
             accent=colors["cyan"] if self.is_master else colors["cyan_soft"],
         )
         self.fader_scale.pack(fill="both", expand=True)
+        self.fader_scale.bind("<ButtonRelease-1>", self._on_fader_release, add="+")
 
         # 7. Strip Footer Number
         tk.Label(
@@ -284,38 +309,99 @@ class ChannelStripWidget(tk.Frame):
         if self._is_updating:
             return
         val = int(val_str)
-        db_text, midi_text = format_db(val).split(" · ", 1)
-        self.db_label_var.set(db_text)
+        self._pending_fader = val
+        self._set_fader_labels(val)
+        if self._fader_after_id is None:
+            self._fader_after_id = self.after(30, self._flush_fader)
+
+    def _set_fader_labels(self, raw: int, default: bool = False) -> None:
+        db_text, midi_text = format_db(raw).split(" · ", 1)
+        self.db_label_var.set(f"{db_text} (DEFAULT)" if default else db_text)
         self.midi_label_var.set(midi_text)
-        if self.service:
-            try:
-                self.service.set_fader(self.channel_index, val)
-            except Exception:
-                logging.getLogger(__name__).exception("Fader command failed")
-                self._restore_commanded_value("fader")
+
+    def _on_fader_release(self, _event: Optional[tk.Event]) -> None:
+        if self._fader_after_id is not None:
+            self.after_cancel(self._fader_after_id)
+            self._fader_after_id = None
+        self._flush_fader()
+
+    def _flush_fader(self) -> None:
+        self._fader_after_id = None
+        if self._pending_fader is None:
+            return
+        val = self._pending_fader
+        self._pending_fader = None
+        previous = self._last_fader_val
+        if not self.service:
+            return
+        try:
+            self.service.set_fader(self.channel_index, val)
+            self._last_fader_val = val
+            self.fader_provenance = ValueProvenance.COMMANDED
+            self._feedback(f"CH {self.channel_index}: FADER COMMANDED")
+        except Exception:
+            logging.getLogger(__name__).exception("Fader command failed")
+            self.fader_val.set(previous)
+            self._set_fader_labels(previous)
+            self.fader_provenance = ValueProvenance.DISPATCH_FAILED
+            self._feedback(f"CH {self.channel_index}: FADER FAILED")
 
     def _on_pan_drag(self, val_str: str) -> None:
         if self._is_updating:
             return
         val = int(val_str)
+        self._pending_pan = val
         self.pan_label_var.set(format_pan(val))
-        if self.service:
-            try:
-                self.service.set_pan(self.channel_index, val)
-            except Exception:
-                logging.getLogger(__name__).exception("Pan/balance command failed")
-                self._restore_commanded_value("pan")
+        if self._pan_after_id is None:
+            self._pan_after_id = self.after(30, self._flush_pan)
+
+    def _on_pan_release(self, _event: Optional[tk.Event]) -> None:
+        if self._pan_after_id is not None:
+            self.after_cancel(self._pan_after_id)
+            self._pan_after_id = None
+        self._flush_pan()
+
+    def _flush_pan(self) -> None:
+        self._pan_after_id = None
+        if self._pending_pan is None:
+            return
+        val = self._pending_pan
+        self._pending_pan = None
+        previous = self._last_pan_val
+        if not self.service:
+            return
+        try:
+            self.service.set_pan(self.channel_index, val)
+            self._last_pan_val = val
+            self.pan_provenance = ValueProvenance.COMMANDED
+            self._feedback(f"CH {self.channel_index}: PAN COMMANDED")
+        except Exception:
+            logging.getLogger(__name__).exception("Pan/balance command failed")
+            self.pan_val.set(previous)
+            self.pan_label_var.set(format_pan(previous))
+            self.pan_provenance = ValueProvenance.DISPATCH_FAILED
+            self._feedback(f"CH {self.channel_index}: PAN FAILED")
 
     def _toggle_mute(self) -> None:
+        previous = self.is_muted.get()
         new_mute = not self.is_muted.get()
         self.is_muted.set(new_mute)
         self._update_mute_ui(new_mute)
         if self.service:
             try:
                 self.service.set_mute(self.channel_index, new_mute)
+                self.mute_provenance = ValueProvenance.COMMANDED
+                self._feedback(f"CH {self.channel_index}: MUTE COMMANDED")
             except Exception:
                 logging.getLogger(__name__).exception("Mute command failed")
-                self._restore_commanded_value("mute")
+                self.is_muted.set(previous)
+                self._update_mute_ui(previous)
+                self.mute_provenance = ValueProvenance.DISPATCH_FAILED
+                self._feedback(f"CH {self.channel_index}: MUTE FAILED")
+
+    def _feedback(self, message: str) -> None:
+        if self.on_feedback:
+            self.on_feedback(message)
 
     def _update_mute_ui(self, muted: bool) -> None:
         colors = theme.COLORS
@@ -425,9 +511,9 @@ class ChannelStripWidget(tk.Frame):
         self._is_updating = True
         try:
             self.fader_val.set(raw_val)
-            db_text, midi_text = format_db(raw_val).split(" · ", 1)
-            self.db_label_var.set(db_text)
-            self.midi_label_var.set(midi_text)
+            self._set_fader_labels(raw_val)
+            self._last_fader_val = raw_val
+            self.fader_provenance = ValueProvenance.OBSERVED
         finally:
             self._is_updating = False
 
@@ -436,21 +522,34 @@ class ChannelStripWidget(tk.Frame):
         try:
             self.pan_val.set(raw_val)
             self.pan_label_var.set(format_pan(raw_val))
+            self._last_pan_val = raw_val
+            self.pan_provenance = ValueProvenance.OBSERVED
         finally:
             self._is_updating = False
 
     def sync_mute(self, is_muted: bool) -> None:
         self.is_muted.set(is_muted)
         self._update_mute_ui(is_muted)
+        self.mute_provenance = ValueProvenance.OBSERVED
+
+    def destroy(self) -> None:
+        for timer_id in (self._fader_after_id, self._pan_after_id):
+            if timer_id is not None:
+                try:
+                    self.after_cancel(timer_id)
+                except tk.TclError:
+                    pass
+        super().destroy()
 
 
 class MixerConsole(tk.Frame):
     """Container holding the 7 logical input channel strips + 1 Master strip."""
 
-    def __init__(self, master: tk.Misc, fonts: dict, service: Any = None) -> None:
+    def __init__(self, master: tk.Misc, fonts: dict, service: Any = None, on_feedback: Any = None) -> None:
         super().__init__(master, bg=theme.COLORS["background"])
         self.fonts = fonts
         self.service = service
+        self.on_feedback = on_feedback
         self.strips: Dict[int, ChannelStripWidget] = {}
         self.selected_target: Optional[SelectionTarget] = None
         self._build()
@@ -555,6 +654,7 @@ class MixerConsole(tk.Frame):
                 is_master=False,
                 on_select=self.select_target,
                 on_phantom_request=self._on_phantom_request,
+                on_feedback=self.on_feedback,
             )
             strip.grid(row=0, column=idx - 1, sticky="nsew", padx=3, pady=2)
             self.strips[idx] = strip
@@ -572,6 +672,7 @@ class MixerConsole(tk.Frame):
             service=self.service,
             is_master=True,
             on_select=self.select_target,
+            on_feedback=self.on_feedback,
         )
         master_strip.grid(row=0, column=7, sticky="nsew", padx=(8, 3), pady=2)
         self.strips[8] = master_strip

@@ -14,6 +14,7 @@ import tkinter as tk
 from typing import Callable, Optional
 
 from flow8.ui import theme
+from flow8.parameter_mapping import fader_db_to_midi
 
 
 class _BaseControl(tk.Canvas):
@@ -29,9 +30,12 @@ class _BaseControl(tk.Canvas):
         super().__init__(
             master,
             bg=theme.COLORS["surface"],
-            highlightthickness=0,
+            highlightthickness=2,
+            highlightbackground=theme.COLORS["border"],
+            highlightcolor=theme.COLORS["cyan"],
             bd=0,
             cursor="hand2",
+            takefocus=True,
             **kwargs,
         )
         self.variable = variable
@@ -41,11 +45,17 @@ class _BaseControl(tk.Canvas):
         self.minimum = 0
         self.maximum = 127
         self._trace = self.variable.trace_add("write", lambda *_: self._redraw())
+        self._last_pointer_raw: Optional[int] = None
         self.bind("<Configure>", lambda _e: self._redraw())
         self.bind("<Button-1>", self._on_pointer)
         self.bind("<B1-Motion>", self._on_pointer)
         self.bind("<Double-Button-1>", self._on_reset)
         self.bind("<MouseWheel>", self._on_wheel)
+        self.bind("<Button-4>", lambda event: self._on_wheel(event))
+        self.bind("<Button-5>", lambda event: self._on_wheel(event))
+        self.bind("<KeyPress>", self._on_key)
+        self.bind("<FocusIn>", lambda _event: self.configure(highlightbackground=theme.COLORS["cyan"]))
+        self.bind("<FocusOut>", lambda _event: self.configure(highlightbackground=theme.COLORS["border"]))
 
     # -- subclass hooks -----------------------------------------------------
     def _value_from_event(self, event: tk.Event) -> int:  # pragma: no cover
@@ -64,14 +74,42 @@ class _BaseControl(tk.Canvas):
             self.command(str(value))
 
     def _on_pointer(self, event: tk.Event) -> None:
-        self._commit(self._value_from_event(event))
+        self.focus_set()
+        raw_value = self._value_from_event(event)
+        if event.type == tk.EventType.ButtonPress:
+            self._last_pointer_raw = raw_value
+            self._commit(raw_value)
+            return
+        if event.state & 0x0001 and self._last_pointer_raw is not None:
+            delta = raw_value - self._last_pointer_raw
+            value = self.variable.get() + round(delta * 0.25)
+        else:
+            value = raw_value
+        self._last_pointer_raw = raw_value
+        self._commit(value)
 
     def _on_reset(self, _event: tk.Event) -> None:
         self._commit(self.default)
 
     def _on_wheel(self, event: tk.Event) -> None:
-        step = 2 if event.delta > 0 else -2
+        direction = 1 if getattr(event, "delta", 0) > 0 or getattr(event, "num", 0) == 4 else -1
+        step = 1 if event.state & 0x0001 else 4
+        step *= direction
         self._commit(self.variable.get() + step)
+
+    def _on_key(self, event: tk.Event) -> str:
+        step = 1 if event.state & 0x0001 else 4
+        if event.keysym in ("Up", "Right"):
+            self._commit(self.variable.get() + step)
+        elif event.keysym in ("Down", "Left"):
+            self._commit(self.variable.get() - step)
+        elif event.keysym == "Home":
+            self._commit(self.maximum)
+        elif event.keysym == "End":
+            self._commit(self.minimum)
+        else:
+            return "break"
+        return "break"
 
     def destroy(self) -> None:
         try:
@@ -87,11 +125,13 @@ class VerticalFader(_BaseControl):
     PAD_Y = 16
     HANDLE_H = 26
     UNITY = 101
+    DB_TICKS = (("+10", 127), ("0", 101), ("-10", fader_db_to_midi(-10)),
+                ("-20", fader_db_to_midi(-20)), ("-40", fader_db_to_midi(-40)), ("-∞", 0))
 
     def __init__(self, master, variable, command=None, default=101, accent=None, **kw):
         super().__init__(
             master, variable, command, default,
-            accent or theme.COLORS["cyan"], width=64, height=220, **kw,
+            accent or theme.COLORS["cyan"], width=84, height=220, **kw,
         )
 
     def _y_for(self, value: int) -> float:
@@ -114,15 +154,20 @@ class VerticalFader(_BaseControl):
         y = self._y_for(value)
         bottom = max(self.winfo_height(), 60) - self.PAD_Y
 
-        # scale ticks (every 1/8th) + unity marker
+        # Scale ticks plus explicit dB reference labels.
         for i in range(0, 9):
             ty = self._y_for(round(i * self.maximum / 8))
             self.create_line(cx - 22, ty, cx - 14, ty, fill=colors["border"])
             self.create_line(cx + 14, ty, cx + 22, ty, fill=colors["border"])
-        uy = self._y_for(self.UNITY)
-        self.create_line(cx - 26, uy, cx + 26, uy, fill=colors["lime"])
-        self.create_text(cx + 28, uy, text="0", fill=colors["lime"], anchor="w",
-                         font=("Segoe UI", 7))
+        for label, tick_value in self.DB_TICKS:
+            ty = self._y_for(tick_value)
+            is_unity = label == "0"
+            self.create_line(cx - 26, ty, cx + 26, ty,
+                             fill=colors["lime"] if is_unity else colors["border"],
+                             width=2 if is_unity else 1)
+            self.create_text(cx + 28, ty, text=label,
+                             fill=colors["lime"] if is_unity else colors["text_muted"],
+                             anchor="w", font=("Segoe UI", 7), tags=("db-scale",))
 
         # trough + active fill
         self.create_rectangle(cx - 4, self.PAD_Y, cx + 4, bottom,

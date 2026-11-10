@@ -18,6 +18,7 @@ successful return.
 
 import threading
 import ctypes
+import sys
 from typing import Optional, Union, Tuple
 from ctypes import wintypes
 
@@ -105,12 +106,19 @@ class Flow8MidiOut:
 
     def __init__(self, target_device_name: str = FLOW8_MIDI_OUT_NAME):
         self._target_name = target_device_name
-        self._winmm = ctypes.windll.winmm
+        self._winmm = ctypes.windll.winmm if sys.platform == "win32" else None
         self._handle: Optional[wintypes.HANDLE] = None
         self._device_id: Optional[int] = None
         self._device_name: Optional[str] = None
         self._lock = threading.RLock()
         self._is_open = False
+
+    def _require_winmm(self) -> None:
+        if self._winmm is None:
+            raise Flow8MidiError(
+                "Windows WinMM MIDI is unavailable on this platform; "
+                "use a mock MIDI backend for offline operation."
+            )
 
     @property
     def is_connected(self) -> bool:
@@ -126,6 +134,7 @@ class Flow8MidiOut:
 
     def find_device_id(self) -> Optional[int]:
         """Enumerate system MIDI Out devices and find the FLOW 8 endpoint ID."""
+        self._require_winmm()
         num_devs = self._winmm.midiOutGetNumDevs()
         for i in range(num_devs):
             caps = MIDIOUTCAPSW()
@@ -141,6 +150,7 @@ class Flow8MidiOut:
         If device_id is omitted, auto-discovers by name.
         """
         with self._lock:
+            self._require_winmm()
             if self._is_open:
                 # Prevent duplicate handles; close existing first
                 self.close()

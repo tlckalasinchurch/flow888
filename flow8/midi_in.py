@@ -8,6 +8,7 @@ Bidirectional state synchronization is NOT claimed in this phase.
 
 import threading
 import ctypes
+import sys
 from typing import Optional, Callable, Tuple, List
 from ctypes import wintypes
 from datetime import datetime
@@ -32,13 +33,17 @@ class MIDIINCAPSW(ctypes.Structure):
 # Define 64-bit compatible DWORD_PTR / UINT_PTR
 DWORD_PTR = ctypes.c_uint64 if ctypes.sizeof(ctypes.c_void_p) == 8 else wintypes.DWORD
 
-MidiInProc = ctypes.WINFUNCTYPE(
-    None,
-    wintypes.HANDLE,
-    wintypes.UINT,
-    DWORD_PTR,
-    DWORD_PTR,
-    DWORD_PTR
+MidiInProc = (
+    ctypes.WINFUNCTYPE(
+        None,
+        wintypes.HANDLE,
+        wintypes.UINT,
+        DWORD_PTR,
+        DWORD_PTR,
+        DWORD_PTR,
+    )
+    if sys.platform == "win32"
+    else None
 )
 
 class Flow8MidiIn:
@@ -48,7 +53,7 @@ class Flow8MidiIn:
 
     def __init__(self, target_device_name: str = FLOW8_MIDI_IN_NAME):
         self._target_name = target_device_name
-        self._winmm = ctypes.windll.winmm
+        self._winmm = ctypes.windll.winmm if sys.platform == "win32" else None
         self._handle: Optional[wintypes.HANDLE] = None
         self._device_id: Optional[int] = None
         self._device_name: Optional[str] = None
@@ -57,6 +62,13 @@ class Flow8MidiIn:
         self._is_listening = False
         self._callbacks: List[Callable[[dict], None]] = []
         self._c_callback_ref = None
+
+    def _require_winmm(self) -> None:
+        if self._winmm is None:
+            raise Flow8MidiError(
+                "Windows WinMM MIDI is unavailable on this platform; "
+                "use a mock MIDI backend for offline operation."
+            )
 
     @property
     def is_connected(self) -> bool:
@@ -90,6 +102,7 @@ class Flow8MidiIn:
 
     def find_device_id(self) -> Optional[int]:
         """Locate FLOW 8 MIDI IN device ID from system enumeration."""
+        self._require_winmm()
         num_devs = self._winmm.midiInGetNumDevs()
         for i in range(num_devs):
             caps = MIDIINCAPSW()
@@ -126,6 +139,7 @@ class Flow8MidiIn:
     def open(self, device_id: Optional[int] = None) -> None:
         """Open the MIDI IN endpoint safely."""
         with self._lock:
+            self._require_winmm()
             if self._is_open:
                 self.close()
 

@@ -21,6 +21,7 @@ class StatusBar(tk.Frame):
         self.grid_propagate(False)
         self.fonts = fonts
         self.status = status
+        self.feedback_var = tk.StringVar(value="")
         self.values: dict[str, tk.StringVar] = {
             "midi_out": tk.StringVar(value=status.midi_out),
             "midi_in": tk.StringVar(value=status.midi_in),
@@ -88,11 +89,22 @@ class StatusBar(tk.Frame):
 
         tk.Label(
             self,
+            textvariable=self.feedback_var,
+            font=self.fonts["status_key"],
+            fg=colors["warning"],
+            bg=colors["background_alt"],
+        ).pack(side="right", padx=(0, spacing["spacing_medium"]))
+        tk.Label(
+            self,
             text="WORKSTATION UI.2",
             font=self.fonts["status_key"],
             fg=colors["cyan_soft"],
             bg=colors["background_alt"],
         ).pack(side="right", padx=(0, spacing["spacing_large"]))
+
+    def show_feedback(self, message: str) -> None:
+        """Show the latest truthful command feedback (software command, not hardware)."""
+        self.feedback_var.set(message)
 
     def set_midi_port_status(
         self,
