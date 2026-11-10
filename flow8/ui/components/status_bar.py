@@ -1,7 +1,4 @@
-"""Status bar: what the software knows, and live hardware indicators.
-
-Each value is a StringVar fed from SessionStatus or updated via hardware discovery.
-"""
+"""Status bar showing independent MIDI port states and unintegrated capabilities."""
 
 from __future__ import annotations
 
@@ -25,7 +22,9 @@ class StatusBar(tk.Frame):
         self.fonts = fonts
         self.status = status
         self.values: dict[str, tk.StringVar] = {
-            "midi": tk.StringVar(value=status.midi),
+            "midi_out": tk.StringVar(value=status.midi_out),
+            "midi_in": tk.StringVar(value=status.midi_in),
+            "midi_error": tk.StringVar(value=status.midi_error),
             "usb_audio": tk.StringVar(value=status.usb_audio),
             "audio_telemetry": tk.StringVar(value=status.audio_telemetry),
             "hardware_observation": tk.StringVar(value=status.hardware_observation),
@@ -78,18 +77,20 @@ class StatusBar(tk.Frame):
             bg=colors["background_alt"],
         ).pack(side="right", padx=(0, spacing["spacing_large"]))
 
-    def set_hardware_status(self, is_connected: bool) -> None:
-        """Update status bar indicators based on live connection."""
-        if is_connected:
-            self.values["midi"].set("CONNECTED (USB MIDI)")
-            self.values["usb_audio"].set("READY (24-bit / 48kHz)")
-            self.values["audio_telemetry"].set("ACTIVE (Live CC)")
-            self.values["hardware_observation"].set("FLOW 8 DETECTED")
-        else:
-            self.values["midi"].set("UNKNOWN")
-            self.values["usb_audio"].set("NOT INTEGRATED")
-            self.values["audio_telemetry"].set("NO TELEMETRY")
-            self.values["hardware_observation"].set("UNKNOWN")
+    def set_midi_port_status(
+        self,
+        midi_out_open: bool,
+        midi_in_open: bool,
+        error: str | None = None,
+    ) -> None:
+        """Render each port independently; opening MIDI is not hardware confirmation."""
+        self.values["midi_out"].set("OPEN" if midi_out_open else "CLOSED")
+        self.values["midi_in"].set("OPEN" if midi_in_open else "CLOSED")
+        self.values["midi_error"].set((error or "NONE")[:48])
+        # These capabilities remain unintegrated regardless of MIDI port state.
+        self.values["usb_audio"].set("NOT INTEGRATED")
+        self.values["audio_telemetry"].set("NO TELEMETRY")
+        self.values["hardware_observation"].set("UNKNOWN")
 
     # -- inspection ---------------------------------------------------------
 
