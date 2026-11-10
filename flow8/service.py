@@ -11,7 +11,7 @@ from __future__ import annotations
 import threading
 from typing import Any, Callable, Dict, Optional
 
-from flow8.command_boundary import Flow8CommandBoundary
+from flow8.command_boundary import CommandLogEntry, Flow8CommandBoundary
 from flow8.domain_model import LOGICAL_CHANNELS
 from flow8.midi_constants import CC_VOLUME_FADER, CC_MUTE, CC_PAN, CC_PHANTOM, CC_GAIN
 from flow8.midi_in import Flow8MidiIn
@@ -39,6 +39,7 @@ class Flow8Service:
 
         self._lock = threading.RLock()
         self._connected = False
+        self._last_connection_error: Optional[str] = None
         self._listeners: list[Callable[[str, Any], None]] = []
 
         if auto_connect:
@@ -85,10 +86,21 @@ class Flow8Service:
                     self.midi_in.start()
 
                 self._connected = True
+                self._last_connection_error = None
                 return True
-            except Exception as e:
+            except Exception as error:
                 self._connected = False
+                self._last_connection_error = str(error) or error.__class__.__name__
+                try:
+                    self.midi_in.close()
+                    self.midi_out.close()
+                except Exception:
+                    pass
                 return False
+
+    @property
+    def last_connection_error(self) -> Optional[str]:
+        return self._last_connection_error
 
     def disconnect(self) -> None:
         """Cleanly close all endpoints."""
@@ -146,28 +158,32 @@ class Flow8Service:
 
     # -- High-level UI dispatch methods -------------------------------------
 
-    def set_fader(self, channel_index: int, raw_value: int) -> None:
+    def set_fader(self, channel_index: int, raw_value: int) -> CommandLogEntry:
         """Set fader level (1..7 for input strips, 8 for Main bus)."""
         clamped = max(0, min(127, int(raw_value)))
         if 1 <= channel_index <= 7:
-            self.parameter_engine.channel(channel_index).set_fader(clamped, unit="raw")
+            return self.parameter_engine.channel(channel_index).set_fader(clamped, unit="raw")
         elif channel_index == 8:
-            self.parameter_engine.set_main_fader(clamped, unit="raw")
+            return self.parameter_engine.set_main_fader(clamped, unit="raw")
+        raise ValueError(f"Invalid FLOW 8 channel index: {channel_index}")
 
-    def set_mute(self, channel_index: int, muted: bool) -> None:
+    def set_mute(self, channel_index: int, muted: bool) -> CommandLogEntry:
         """Set mute state (1..7 for input strips)."""
         if 1 <= channel_index <= 7:
-            self.parameter_engine.channel(channel_index).set_mute(bool(muted))
+            return self.parameter_engine.channel(channel_index).set_mute(bool(muted))
+        raise ValueError(f"Invalid FLOW 8 channel index: {channel_index}")
 
-    def set_pan(self, channel_index: int, raw_value: int) -> None:
+    def set_pan(self, channel_index: int, raw_value: int) -> CommandLogEntry:
         """Set pan/balance (1..7 for input strips, 8 for Main bus)."""
         clamped = max(0, min(127, int(raw_value)))
         if 1 <= channel_index <= 7:
-            self.parameter_engine.channel(channel_index).set_pan(clamped, unit="raw")
+            return self.parameter_engine.channel(channel_index).set_pan(clamped, unit="raw")
         elif channel_index == 8:
-            self.parameter_engine.set_main_balance(clamped, unit="raw")
+            return self.parameter_engine.set_main_balance(clamped, unit="raw")
+        raise ValueError(f"Invalid FLOW 8 channel index: {channel_index}")
 
-    def set_phantom(self, channel_index: int, enabled: bool) -> None:
+    def set_phantom(self, channel_index: int, enabled: bool) -> CommandLogEntry:
         """Set +48V phantom power (Channels 1 and 2 only)."""
         if channel_index in (1, 2):
-            self.parameter_engine.channel(channel_index).set_phantom(bool(enabled))
+            return self.parameter_engine.channel(channel_index).set_phantom(bool(enabled))
+        raise ValueError(f"Phantom power is unavailable on channel {channel_index}")

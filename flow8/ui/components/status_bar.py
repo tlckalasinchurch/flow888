@@ -26,10 +26,13 @@ class StatusBar(tk.Frame):
         self.status = status
         self.values: dict[str, tk.StringVar] = {
             "midi": tk.StringVar(value=status.midi),
+            "midi_out": tk.StringVar(value=status.midi_out),
+            "midi_in": tk.StringVar(value=status.midi_in),
             "usb_audio": tk.StringVar(value=status.usb_audio),
             "audio_telemetry": tk.StringVar(value=status.audio_telemetry),
             "hardware_observation": tk.StringVar(value=status.hardware_observation),
         }
+        self.feedback_var = tk.StringVar(value="")
         self._build()
 
     def _build(self) -> None:
@@ -72,6 +75,13 @@ class StatusBar(tk.Frame):
 
         tk.Label(
             self,
+            textvariable=self.feedback_var,
+            font=self.fonts["status_key"],
+            fg=colors["warning"],
+            bg=colors["background_alt"],
+        ).pack(side="right", padx=(0, spacing["spacing_medium"]))
+        tk.Label(
+            self,
             text="WORKSTATION UI.2",
             font=self.fonts["status_key"],
             fg=colors["cyan_soft"],
@@ -81,15 +91,23 @@ class StatusBar(tk.Frame):
     def set_hardware_status(self, is_connected: bool) -> None:
         """Update status bar indicators based on live connection."""
         if is_connected:
-            self.values["midi"].set("CONNECTED (USB MIDI)")
-            self.values["usb_audio"].set("READY (24-bit / 48kHz)")
-            self.values["audio_telemetry"].set("ACTIVE (Live CC)")
-            self.values["hardware_observation"].set("FLOW 8 DETECTED")
-        else:
-            self.values["midi"].set("UNKNOWN")
+            self.values["midi"].set("CONNECTED (MIDI I/O)")
+            self.values["midi_out"].set("CONNECTED")
+            self.values["midi_in"].set("CONNECTED")
             self.values["usb_audio"].set("NOT INTEGRATED")
             self.values["audio_telemetry"].set("NO TELEMETRY")
-            self.values["hardware_observation"].set("UNKNOWN")
+            self.values["hardware_observation"].set("UNCONFIRMED")
+        else:
+            self.values["midi"].set("UNKNOWN")
+            self.values["midi_out"].set("DISCONNECTED")
+            self.values["midi_in"].set("DISCONNECTED")
+            self.values["usb_audio"].set("NOT INTEGRATED")
+            self.values["audio_telemetry"].set("NO TELEMETRY")
+            self.values["hardware_observation"].set("UNCONFIRMED")
+
+    def show_feedback(self, message: str) -> None:
+        """Show the latest truthful command/transport feedback."""
+        self.feedback_var.set(message)
 
     # -- inspection ---------------------------------------------------------
 

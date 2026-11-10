@@ -23,9 +23,11 @@ from dataclasses import dataclass
 
 DEVICE_NOT_VERIFIED = "NOT VERIFIED"
 MIDI_UNKNOWN = "UNKNOWN"
+MIDI_OUT_UNKNOWN = "UNKNOWN"
+MIDI_IN_UNKNOWN = "UNKNOWN"
 USB_AUDIO_NOT_INTEGRATED = "NOT INTEGRATED"
 AUDIO_TELEMETRY_NONE = "NO TELEMETRY"
-OBSERVATION_UNKNOWN = "UNKNOWN"
+OBSERVATION_UNKNOWN = "UNCONFIRMED"
 
 #: Claims that require a verified observation path. None exists in UI.2.
 FORBIDDEN_CLAIMS = (
@@ -46,6 +48,8 @@ class SessionStatus:
 
     device: str = DEVICE_NOT_VERIFIED
     midi: str = MIDI_UNKNOWN
+    midi_out: str = MIDI_OUT_UNKNOWN
+    midi_in: str = MIDI_IN_UNKNOWN
     usb_audio: str = USB_AUDIO_NOT_INTEGRATED
     audio_telemetry: str = AUDIO_TELEMETRY_NONE
     hardware_observation: str = OBSERVATION_UNKNOWN
@@ -53,7 +57,8 @@ class SessionStatus:
     def transport_rows(self) -> tuple[tuple[str, str], ...]:
         """Return ``(label, value)`` pairs for the status bar."""
         return (
-            ("MIDI", self.midi),
+            ("MIDI OUT", self.midi_out),
+            ("MIDI IN", self.midi_in),
             ("USB AUDIO", self.usb_audio),
             ("AUDIO TELEMETRY", self.audio_telemetry),
             ("HARDWARE OBSERVATION", self.hardware_observation),

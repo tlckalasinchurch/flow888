@@ -2,6 +2,7 @@
 
 import tkinter as tk
 import unittest
+from types import SimpleNamespace
 from unittest import mock
 
 from flow8.service import Flow8Service
@@ -10,9 +11,11 @@ from flow8.ui.app import Flow8App
 from flow8.ui.components.mixer_console import (
     ChannelStripWidget,
     MixerConsole,
+    ValueProvenance,
     format_db,
     format_pan,
 )
+from flow8.ui.components.controls import VerticalFader
 
 
 class MixerFormattingTests(unittest.TestCase):
@@ -76,6 +79,29 @@ class MixerConsoleTests(unittest.TestCase):
 
         ch1.sync_mute(True)
         self.assertTrue(ch1.is_muted.get())
+        self.assertEqual(ch1.fader_provenance, ValueProvenance.OBSERVED)
+
+    def test_initial_fader_is_marked_as_default(self):
+        console = MixerConsole(self.root, self.fonts)
+        self.assertIn("DEFAULT", console.strips[1].db_label_var.get())
+        self.assertEqual(
+            console.strips[1].fader_provenance,
+            ValueProvenance.UNSYNCED_DEFAULT,
+        )
+
+    def test_failed_fader_dispatch_is_visible_and_rolls_back(self):
+        service = mock.Mock()
+        service.set_fader.side_effect = RuntimeError("driver unavailable")
+        messages = []
+        console = MixerConsole(
+            self.root, self.fonts, service=service, on_feedback=messages.append
+        )
+        strip = console.strips[1]
+        strip._on_fader_drag("80")
+        strip._flush_fader()
+        self.assertEqual(strip.fader_val.get(), 0)
+        self.assertEqual(strip.fader_provenance, ValueProvenance.DISPATCH_FAILED)
+        self.assertIn("FAILED", messages[-1])
 
     def test_fader_responds_to_user_drag_and_dispatches(self):
         service = mock.Mock()
@@ -91,7 +117,63 @@ class MixerConsoleTests(unittest.TestCase):
         fader.event_generate("<Button-1>", x=30, y=h // 2)
         self.root.update()
         self.assertGreater(strip.fader_val.get(), 0)
+        strip._on_fader_release(None)
         service.set_fader.assert_called_with(1, strip.fader_val.get())
+
+    def test_fader_coalesces_to_latest_value_until_release(self):
+        service = mock.Mock()
+        console = MixerConsole(self.root, self.fonts, service=service)
+        strip = console.strips[1]
+        strip._on_fader_drag("20")
+        strip._on_fader_drag("40")
+        strip._on_fader_drag("90")
+        service.set_fader.assert_not_called()
+        strip._on_fader_release(None)
+        service.set_fader.assert_called_once_with(1, 90)
+
+    def test_fader_contains_explicit_db_scale_labels(self):
+        console = MixerConsole(self.root, self.fonts)
+        console.pack(fill="both", expand=True)
+        fader = console.strips[1].fader_scale
+        self.root.deiconify()
+        self.root.geometry("1400x800")
+        self.root.update_idletasks()
+        labels = {fader.itemcget(item, "text") for item in fader.find_withtag("db-scale")}
+        self.assertTrue({"+10", "0", "-10", "-20", "-40", "-∞"}.issubset(labels))
+
+    def test_shift_pointer_delta_is_finer_than_normal_delta(self):
+        variable = tk.IntVar(self.root, value=64)
+        control = VerticalFader(self.root, variable=variable)
+        control.pack()
+        self.root.deiconify()
+        self.root.geometry("400x400")
+        self.root.update_idletasks()
+        control._on_pointer(SimpleNamespace(type=tk.EventType.ButtonPress, y=130, state=0))
+        normal_start = variable.get()
+        control._on_pointer(SimpleNamespace(type=tk.EventType.Motion, y=100, state=0))
+        normal_delta = abs(variable.get() - normal_start)
+        variable.set(64)
+        control._on_pointer(SimpleNamespace(type=tk.EventType.ButtonPress, y=130, state=0))
+        fine_start = variable.get()
+        control._on_pointer(SimpleNamespace(type=tk.EventType.Motion, y=100, state=1))
+        fine_delta = abs(variable.get() - fine_start)
+        self.assertLess(fine_delta, normal_delta)
+
+    def test_keyboard_control_dispatches_bounded_values(self):
+        service = mock.Mock()
+        console = MixerConsole(self.root, self.fonts, service=service)
+        strip = console.strips[1]
+        strip.fader_scale._on_key(SimpleNamespace(keysym="Up", state=0))
+        strip._flush_fader()
+        self.assertEqual(strip.fader_val.get(), 4)
+        strip.fader_scale._on_key(SimpleNamespace(keysym="Up", state=1))
+        strip._flush_fader()
+        self.assertEqual(strip.fader_val.get(), 5)
+        strip.fader_scale._on_key(SimpleNamespace(keysym="End", state=0))
+        strip._flush_fader()
+        self.assertEqual(strip.fader_val.get(), 0)
+        self.assertEqual(strip.fader_provenance, ValueProvenance.COMMANDED)
+        service.set_fader.assert_called_with(1, 0)
 
     def test_double_click_resets_fader_to_unity(self):
         console = MixerConsole(self.root, self.fonts)

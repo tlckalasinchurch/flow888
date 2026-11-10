@@ -16,7 +16,15 @@ from flow8.ui.status import SessionStatus
 class Header(tk.Frame):
     """Top identity band for the FLOW 8 Cyber Neon shell."""
 
-    def __init__(self, master: tk.Misc, fonts: dict, status: SessionStatus) -> None:
+    def __init__(
+        self,
+        master: tk.Misc,
+        fonts: dict,
+        status: SessionStatus,
+        on_connect=None,
+        on_disconnect=None,
+        on_retry=None,
+    ) -> None:
         super().__init__(
             master,
             bg=theme.COLORS["background"],
@@ -25,6 +33,9 @@ class Header(tk.Frame):
         self.grid_propagate(False)
         self.fonts = fonts
         self.status = status
+        self.on_connect = on_connect
+        self.on_disconnect = on_disconnect
+        self.on_retry = on_retry
         self.device_status_var = tk.StringVar(
             value=f"DEVICE STATUS: {status.device}"
         )
@@ -77,6 +88,7 @@ class Header(tk.Frame):
         ).pack(side="left")
 
         self._build_device_pill()
+        self._build_connection_controls()
 
         # Hairline closing the band
         tk.Frame(self, bg=colors["border"], height=1).place(
@@ -119,6 +131,30 @@ class Header(tk.Frame):
             pady=6,
         )
         self.status_label.pack(side="left", padx=(0, 10))
+
+    def _build_connection_controls(self) -> None:
+        colors = theme.COLORS
+        controls = tk.Frame(self, bg=colors["background"])
+        controls.pack(side="right", padx=(0, theme.TOKENS["spacing_medium"]))
+        for label, callback in (
+            ("CONNECT", self.on_connect),
+            ("DISCONNECT", self.on_disconnect),
+            ("RETRY", self.on_retry),
+        ):
+            tk.Button(
+                controls,
+                text=label,
+                command=callback,
+                font=self.fonts["caption"],
+                bg=colors["surface_alt"],
+                fg=colors["text_secondary"],
+                activebackground=colors["cyan"],
+                activeforeground=colors["background"],
+                bd=0,
+                relief="flat",
+                padx=6,
+                pady=3,
+            ).pack(side="left", padx=2)
 
     def set_device_status(self, is_connected: bool, device_name: str = "FLOW 8") -> None:
         """Update the header device status pill."""

@@ -138,11 +138,12 @@ class ShellTests(unittest.TestCase):
         self.assertEqual(values["midi"].get(), "UNKNOWN")
         self.assertEqual(values["usb_audio"].get(), "NOT INTEGRATED")
         self.assertEqual(values["audio_telemetry"].get(), "NO TELEMETRY")
-        self.assertEqual(values["hardware_observation"].get(), "UNKNOWN")
+        self.assertEqual(values["hardware_observation"].get(), "UNCONFIRMED")
 
     def test_status_bar_renders_labels_and_values(self):
         texts = " ".join(self.app.status_bar.text_snapshot())
-        self.assertIn("MIDI:", texts)
+        self.assertIn("MIDI OUT:", texts)
+        self.assertIn("MIDI IN:", texts)
         self.assertIn("USB AUDIO:", texts)
         self.assertIn("AUDIO TELEMETRY:", texts)
         self.assertIn("HARDWARE OBSERVATION:", texts)
@@ -196,6 +197,15 @@ class ShellTests(unittest.TestCase):
         self.app.close()
         self.assertTrue(self.app.closed)
 
+    def test_connection_completion_is_applied_by_main_thread_poll(self):
+        poll_id = self.app._connection_poll_id
+        self.assertIsNotNone(poll_id)
+        self.app._connection_events.put(("connect", True))
+        self.app._poll_connection_events()
+        self.assertIn("CONNECTED", self.app.header.device_status_var.get())
+        self.app.close()
+        self.assertIsNone(self.app._connection_poll_id)
+
 
 # ---------------------------------------------------------------------------
 # 6. No MIDI on start-up or shutdown
@@ -226,7 +236,7 @@ class MidiSafetyTests(unittest.TestCase):
         self.assertEqual(status.midi, "UNKNOWN")
         self.assertEqual(status.usb_audio, "NOT INTEGRATED")
         self.assertEqual(status.audio_telemetry, "NO TELEMETRY")
-        self.assertEqual(status.hardware_observation, "UNKNOWN")
+        self.assertEqual(status.hardware_observation, "UNCONFIRMED")
 
 
 # ---------------------------------------------------------------------------

@@ -8,6 +8,8 @@ from __future__ import annotations
 
 import sys
 import tkinter as tk
+import threading
+import queue
 from typing import Optional
 
 from flow8.service import Flow8Service
@@ -35,6 +37,9 @@ class Flow8App:
         self.root = root if root is not None else tk.Tk()
         self.status = status if status is not None else SessionStatus()
         self._closed = False
+        self._connection_events: queue.Queue[tuple[str, object]] = queue.Queue()
+        self._connection_poll_id: Optional[str] = None
+        self._connection_in_flight = False
         self.connect_hardware = connect_hardware
         self.show_placeholder = show_placeholder
 
@@ -55,10 +60,11 @@ class Flow8App:
         self._build_layout()
 
         self.root.protocol("WM_DELETE_WINDOW", self.close)
+        self._connection_poll_id = self.root.after(25, self._poll_connection_events)
 
         # Update initial connection state & schedule watcher
         if self.service and self.service.is_connected:
-            self.header.set_device_status(True, "FLOW 8")
+            self.header.set_device_status(True, "MIDI I/O")
             self.status_bar.set_hardware_status(True)
 
         if self.connect_hardware:
@@ -89,7 +95,14 @@ class Flow8App:
         self.root.grid_rowconfigure(1, weight=1)
         self.root.grid_columnconfigure(0, weight=1)
 
-        self.header = Header(self.root, self.fonts, self.status)
+        self.header = Header(
+            self.root,
+            self.fonts,
+            self.status,
+            on_connect=self.connect_hardware_async,
+            on_disconnect=self.disconnect_hardware,
+            on_retry=self.connect_hardware_async,
+        )
         self.header.grid(row=0, column=0, sticky="ew")
 
         body = tk.Frame(self.root, bg=colors["background"])
@@ -109,7 +122,12 @@ class Flow8App:
         if self.show_placeholder:
             self._build_placeholder()
         else:
-            self.mixer_console = MixerConsole(self.workspace, self.fonts, service=self.service)
+            self.mixer_console = MixerConsole(
+                self.workspace,
+                self.fonts,
+                service=self.service,
+                on_feedback=self.status_bar.show_feedback,
+            )
             self.mixer_console.pack(fill="both", expand=True)
 
         self.navigation.select("mixer")
@@ -189,18 +207,88 @@ class Flow8App:
             if self.service:
                 was_connected = self.service.is_connected
                 if not was_connected:
-                    reconnected = self.service.connect()
-                    if reconnected:
-                        self.header.set_device_status(True, "FLOW 8")
-                        self.status_bar.set_hardware_status(True)
+                    self.connect_hardware_async()
                 else:
-                    self.header.set_device_status(True, "FLOW 8")
+                    self.header.set_device_status(True, "MIDI I/O")
                     self.status_bar.set_hardware_status(True)
         except Exception:
             pass
 
         if not self._closed:
             self.root.after(2500, self._poll_hardware_state)
+
+    def _poll_connection_events(self) -> None:
+        """Drain worker results on the Tk main thread only."""
+        if self._closed:
+            return
+        try:
+            while True:
+                event, payload = self._connection_events.get_nowait()
+                self._connection_in_flight = False
+                if event == "connect":
+                    connected = bool(payload)
+                    if connected:
+                        self.header.set_device_status(True, "MIDI I/O")
+                        self.status_bar.set_hardware_status(True)
+                        self.status_bar.show_feedback("CONNECT OK")
+                    else:
+                        self.header.set_device_status(False)
+                        self.status_bar.set_hardware_status(False)
+                        detail = self.service.last_connection_error if self.service else "unavailable"
+                        self.status_bar.show_feedback(f"CONNECT FAILED: {detail or 'unavailable'}")
+                elif event == "disconnect":
+                    self._apply_disconnect_result(str(payload))
+        except queue.Empty:
+            pass
+        if not self._closed:
+            self._connection_poll_id = self.root.after(25, self._poll_connection_events)
+
+    def connect_hardware_async(self) -> None:
+        """Start connection work off the Tk thread and report its result."""
+        if self._closed:
+            return
+        if self._connection_in_flight:
+            return
+        if self.service is None:
+            try:
+                self.service = Flow8Service(auto_connect=False)
+            except Exception as error:
+                self.status_bar.show_feedback(f"CONNECT FAILED: {error}")
+                return
+
+        def worker() -> None:
+            try:
+                connected = self.service.connect()
+            except Exception:
+                connected = False
+            self._connection_events.put(("connect", connected))
+
+        self._connection_in_flight = True
+        threading.Thread(target=worker, name="flow8-connect", daemon=True).start()
+
+    def disconnect_hardware(self) -> None:
+        """Disconnect without blocking the UI thread."""
+        if not self.service:
+            self.status_bar.show_feedback("DISCONNECT: NOT CONNECTED")
+            return
+        if self._connection_in_flight:
+            return
+
+        def worker() -> None:
+            try:
+                self.service.disconnect()
+                message = "DISCONNECTED"
+            except Exception as error:
+                message = f"DISCONNECT FAILED: {error}"
+            self._connection_events.put(("disconnect", message))
+
+        self._connection_in_flight = True
+        threading.Thread(target=worker, name="flow8-disconnect", daemon=True).start()
+
+    def _apply_disconnect_result(self, message: str) -> None:
+        self.header.set_device_status(False)
+        self.status_bar.set_hardware_status(False)
+        self.status_bar.show_feedback(message)
 
     # -- navigation ---------------------------------------------------------
 
@@ -223,6 +311,13 @@ class Flow8App:
         if self._closed:
             return
         self._closed = True
+
+        if self._connection_poll_id is not None:
+            try:
+                self.root.after_cancel(self._connection_poll_id)
+            except tk.TclError:
+                pass
+            self._connection_poll_id = None
 
         if self.service:
             try:
