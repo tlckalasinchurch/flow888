@@ -7,6 +7,7 @@ according to the Behringer FLOW 8 Hardware Domain Model.
 from __future__ import annotations
 
 import logging
+import sys
 import tkinter as tk
 from enum import Enum
 from typing import Any, Callable, Dict, Optional
@@ -803,32 +804,31 @@ class MixerConsole(tk.Frame):
 
     # -- undo / redo ---------------------------------------------------------
 
-    _UNDO_KEYS = ("<Control-z>", "<Control-Z>")
-    _REDO_KEYS = ("<Control-y>", "<Control-Y>")
+    # Windows virtual-key codes. Layouts without Latin letters (e.g. Thai) report
+    # no "z"/"y" keysym for Ctrl+Z / Ctrl+Y, but the key code stays the same.
+    _VK_KEYS = {0x5A: "z", 0x59: "y"}
 
     def _bind_history_keys(self) -> None:
         """Ctrl+Z undo; Ctrl+Y or Ctrl+Shift+Z redo. Bound on the window, so a
         modal dialog (e.g. the +48V confirmation) keeps them from firing."""
         top = self.winfo_toplevel()
-        for sequence in self._UNDO_KEYS:
-            self._bind_key(top, sequence, self._on_undo_key)
-        for sequence in self._REDO_KEYS:
-            self._bind_key(top, sequence, self._on_redo_key)
+        funcid = top.bind("<Control-KeyPress>", self._on_history_key, add="+")
+        self._key_bindings.append(("<Control-KeyPress>", funcid))
 
-    def _bind_key(self, top: tk.Misc, sequence: str, handler) -> None:
-        funcid = top.bind(sequence, handler, add="+")
-        self._key_bindings.append((sequence, funcid))
-
-    def _on_undo_key(self, event: tk.Event) -> str:
-        # Ctrl+Shift+Z arrives as an upper-case "Z" with the Shift bit set.
-        if getattr(event, "state", 0) & 0x1:
+    def _on_history_key(self, event: tk.Event) -> Optional[str]:
+        key = str(getattr(event, "keysym", "")).lower()
+        if key not in ("z", "y") and sys.platform == "win32":
+            key = self._VK_KEYS.get(getattr(event, "keycode", None), key)
+        if key == "y":
             self.redo()
+        elif key == "z":
+            # Ctrl+Shift+Z: the Shift bit is set.
+            if getattr(event, "state", 0) & 0x1:
+                self.redo()
+            else:
+                self.undo()
         else:
-            self.undo()
-        return "break"
-
-    def _on_redo_key(self, _event: tk.Event) -> str:
-        self.redo()
+            return None  # not ours: let other Ctrl shortcuts through
         return "break"
 
     def undo(self) -> bool:
