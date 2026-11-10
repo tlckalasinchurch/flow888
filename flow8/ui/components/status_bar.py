@@ -82,10 +82,17 @@ class StatusBar(tk.Frame):
         midi_out_open: bool,
         midi_in_open: bool,
         error: str | None = None,
+        midi_in_listening: bool = False,
     ) -> None:
         """Render each port independently; opening MIDI is not hardware confirmation."""
         self.values["midi_out"].set("OPEN" if midi_out_open else "CLOSED")
-        self.values["midi_in"].set("OPEN" if midi_in_open else "CLOSED")
+        if midi_in_open and midi_in_listening:
+            midi_in_status = "OPEN / LISTENING"
+        elif midi_in_open:
+            midi_in_status = "OPEN / NOT LISTENING"
+        else:
+            midi_in_status = "CLOSED"
+        self.values["midi_in"].set(midi_in_status)
         self.values["midi_error"].set((error or "NONE")[:48])
         # These capabilities remain unintegrated regardless of MIDI port state.
         self.values["usb_audio"].set("NOT INTEGRATED")
