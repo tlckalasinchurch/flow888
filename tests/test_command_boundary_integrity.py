@@ -248,7 +248,7 @@ class TestDispatchTransaction(unittest.TestCase):
         boundary, _, _, _ = make_boundary(connected=True)
         entry = boundary.execute_command("ch1.fader", 50)
         self.assertIsNone(entry.observed_value)
-        self.assertEqual(entry.verification_level, VerificationLevel.API_ACKNOWLEDGED)
+        self.assertEqual(entry.verification_level, VerificationLevel.UNKNOWN)
 
     def test_latency_is_host_side_only(self):
         boundary, _, _, _ = make_boundary(connected=True)
