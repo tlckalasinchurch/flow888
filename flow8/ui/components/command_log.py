@@ -9,9 +9,8 @@ from __future__ import annotations
 from datetime import datetime
 import tkinter as tk
 from tkinter import ttk
-from typing import Iterable
+from typing import Any, Iterable
 
-from flow8.command_boundary import CommandLogEntry
 from flow8.ui import theme
 
 
@@ -112,7 +111,7 @@ class CommandLogPanel(tk.Frame):
         horizontal.grid(row=1, column=0, sticky="ew")
 
     @staticmethod
-    def _format_entry(entry: CommandLogEntry) -> tuple[str, ...]:
+    def _format_entry(entry: Any) -> tuple[str, ...]:
         timestamp = datetime.fromtimestamp(entry.timestamp).strftime("%H:%M:%S")
         observed = (
             str(entry.observed_value)
@@ -148,7 +147,7 @@ class CommandLogPanel(tk.Frame):
             (entry.error_message or "—")[:160],
         )
 
-    def set_entries(self, entries: Iterable[CommandLogEntry]) -> None:
+    def set_entries(self, entries: Iterable[Any]) -> None:
         """Replace the visible snapshot, keeping the newest command at the top."""
         for item in self.tree.get_children():
             self.tree.delete(item)
