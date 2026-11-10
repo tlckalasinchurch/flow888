@@ -72,6 +72,8 @@ TOKENS = {
 WINDOW_TITLE = "FLOW 8 — Cyber Neon Workstation"
 WINDOW_DEFAULT_SIZE = (1600, 900)
 WINDOW_MIN_SIZE = (1366, 768)
+# Vertical room left for the Windows taskbar when clamping to a small display.
+TASKBAR_ALLOWANCE = 48
 
 HEADER_HEIGHT = 68
 STATUS_BAR_HEIGHT = 36

@@ -8,13 +8,24 @@ from __future__ import annotations
 
 import logging
 import tkinter as tk
-from typing import Any, Dict, Optional
+from typing import Any, Callable, Dict, Optional
 
 from flow8.domain_model import LOGICAL_CHANNELS
 from flow8.parameter_mapping import fader_midi_to_db, pan_midi_to_percent
 from flow8.ui import theme
 from flow8.ui.components.controls import HorizontalSlider, VerticalFader
 from flow8.ui.components.command_log import CommandLogPanel
+from flow8.ui.components.channel_detail import (
+    MAIN_TARGET,
+    ChannelDetailPanel,
+    SelectionTarget,
+)
+
+# Inspector sizing: ~320px when there is room, shrinking (never below the
+# minimum) so each strip keeps a usable slot for its fader and controls.
+INSPECTOR_MAX_WIDTH = 320
+INSPECTOR_MIN_WIDTH = 248
+MIN_STRIP_SLOT = 104
 
 
 def format_db(raw_val: int) -> str:
@@ -53,6 +64,8 @@ class ChannelStripWidget(tk.Frame):
         fonts: dict,
         service: Any = None,
         is_master: bool = False,
+        on_select: Optional[Callable[["SelectionTarget"], None]] = None,
+        on_phantom_request: Optional[Callable[[int, bool], None]] = None,
     ) -> None:
         colors = theme.COLORS
         super().__init__(
@@ -69,6 +82,9 @@ class ChannelStripWidget(tk.Frame):
         self.fonts = fonts
         self.service = service
         self.has_phantom = has_phantom
+        self.is_selected = False
+        self._on_select = on_select
+        self._on_phantom_request = on_phantom_request
         self._is_updating = False
 
         # State tracking
@@ -88,21 +104,27 @@ class ChannelStripWidget(tk.Frame):
     def _build(self, title: str, subtitle: str, kind_badge: str, pan_label: str) -> None:
         colors = theme.COLORS
 
-        # 1. Strip Header
+        # 1. Strip Header (the only region that selects the strip)
         hdr = tk.Frame(self, bg=colors["surface"])
         hdr.pack(fill="x", pady=(0, 6))
+        self.header_frame = hdr
 
         # Channel Number & Type Badge
         top_row = tk.Frame(hdr, bg=colors["surface"])
         top_row.pack(fill="x")
 
         ch_num_text = "MAIN" if self.is_master else f"{self.channel_index:02d}"
+        # Bolder, larger channel badge for hierarchy
+        ch_font = self.fonts["subtitle"] if self.is_master else self.fonts["eyebrow"]
+        ch_padx = 6 if self.is_master else 4
         tk.Label(
             top_row,
             text=ch_num_text,
-            font=self.fonts["eyebrow"],
+            font=ch_font,
             fg=colors["cyan"] if self.is_master else colors["cyan_soft"],
             bg=colors["surface"],
+            padx=ch_padx,
+            pady=2,
         ).pack(side="left")
 
         tk.Label(
@@ -133,6 +155,8 @@ class ChannelStripWidget(tk.Frame):
             bg=colors["surface"],
             anchor="w",
         ).pack(fill="x")
+
+        self._bind_header_selection(hdr)
 
         # Divider
         tk.Frame(self, bg=colors["border"], height=1).pack(fill="x", pady=6)
@@ -230,8 +254,7 @@ class ChannelStripWidget(tk.Frame):
             font=self.fonts["caption"],
             fg=colors["text_muted"],
             bg=colors["background_alt"],
-            pady=(0, 3),
-        ).pack(fill="x")
+        ).pack(fill="x", pady=(0, 3))
 
         # 6. Vertical Volume Fader
         fader_container = tk.Frame(self, bg=colors["surface"])
@@ -311,19 +334,57 @@ class ChannelStripWidget(tk.Frame):
                 )
 
     def _toggle_phantom(self) -> None:
-        new_val = not self.is_phantom.get()
-        self.is_phantom.set(new_val)
+        """Route a +48V request to the confirmation workflow.
+
+        The strip never dispatches phantom power itself: turning it ON must pass
+        the explicit confirmation dialog, which is owned by the inspector.
+        """
+        if self._on_phantom_request is None:
+            return
+        self._on_phantom_request(self.channel_index, not self.is_phantom.get())
+
+    def sync_phantom(self, enabled: bool) -> None:
+        """Show the last accepted commanded +48V state (not a hardware reading)."""
+        self.is_phantom.set(bool(enabled))
+        if not hasattr(self, "phantom_btn"):
+            return
         colors = theme.COLORS
-        if new_val:
-            self.phantom_btn.configure(bg=colors["warning"], fg=colors["background"])
+        self.phantom_btn.configure(
+            bg=colors["warning"] if enabled else colors["surface_alt"],
+            fg=colors["background"] if enabled else colors["text_muted"],
+        )
+
+    # -- Selection ----------------------------------------------------------
+
+    @property
+    def target(self) -> SelectionTarget:
+        """Selection identity: Main L/R is its own target, never strip 8."""
+        return MAIN_TARGET if self.is_master else SelectionTarget.input(self.channel_index)
+
+    def _bind_header_selection(self, widget: tk.Misc) -> None:
+        """Only the header (badge, name, subtitle) selects; controls never do."""
+        widget.bind("<Button-1>", self._handle_header_click, add="+")
+        try:
+            widget.configure(cursor="hand2")
+        except tk.TclError:
+            pass
+        for child in widget.winfo_children():
+            self._bind_header_selection(child)
+
+    def _handle_header_click(self, _event: tk.Event) -> None:
+        if self._on_select is not None:
+            self._on_select(self.target)
+
+    def set_selected(self, selected: bool) -> None:
+        colors = theme.COLORS
+        self.is_selected = bool(selected)
+        if self.is_selected:
+            self.configure(highlightbackground=colors["cyan"], highlightthickness=2)
         else:
-            self.phantom_btn.configure(bg=colors["surface_alt"], fg=colors["text_muted"])
-        if self.service:
-            try:
-                self.service.set_phantom(self.channel_index, new_val)
-            except Exception:
-                logging.getLogger(__name__).exception("Phantom command failed")
-                self._restore_commanded_value("phantom")
+            self.configure(
+                highlightbackground=colors["cyan"] if self.is_master else colors["border"],
+                highlightthickness=1,
+            )
 
     def _restore_commanded_value(self, parameter: str) -> None:
         """Restore the last accepted software command after a failed dispatch."""
@@ -356,13 +417,7 @@ class ChannelStripWidget(tk.Frame):
             self.is_muted.set(bool(state.commanded_value))
             self._update_mute_ui(bool(state.commanded_value))
         elif parameter == "phantom":
-            enabled = bool(state.commanded_value)
-            self.is_phantom.set(enabled)
-            colors = theme.COLORS
-            self.phantom_btn.configure(
-                bg=colors["warning"] if enabled else colors["surface_alt"],
-                fg=colors["background"] if enabled else colors["text_muted"],
-            )
+            self.sync_phantom(bool(state.commanded_value))
 
     # -- External Sync Updates (from Hardware MIDI) ------------------------
 
@@ -397,7 +452,17 @@ class MixerConsole(tk.Frame):
         self.fonts = fonts
         self.service = service
         self.strips: Dict[int, ChannelStripWidget] = {}
+        self.selected_target: Optional[SelectionTarget] = None
         self._build()
+
+        self.inspector = ChannelDetailPanel(
+            self._middle,
+            self.fonts,
+            service=self.service,
+            on_close=self.clear_selection,
+            on_phantom_changed=self._on_phantom_changed,
+        )
+        self.bind("<Configure>", self._on_console_resize, add="+")
 
         self.command_log_panel = CommandLogPanel(self, self.fonts)
         self.command_log_panel.pack(
@@ -447,9 +512,18 @@ class MixerConsole(tk.Frame):
             bg=colors["background"],
         ).pack(side="right")
 
+        # Middle band: strips on the left, the Channel Detail Inspector docks on
+        # the right while a target is selected.
+        self._middle = tk.Frame(self, bg=colors["background"])
+        self._middle.pack(fill="both", expand=True)
+
         # Strips Container
-        strips_container = tk.Frame(self, bg=colors["background"])
-        strips_container.pack(fill="both", expand=True, padx=spacing["spacing_large"], pady=(0, spacing["spacing_large"]))
+        strips_container = tk.Frame(self._middle, bg=colors["background"])
+        self._strips_container = strips_container
+        strips_container.pack(
+            side="left", fill="both", expand=True,
+            padx=spacing["spacing_large"], pady=(0, spacing["spacing_large"]),
+        )
 
         # Grid configuration: 8 columns (1-7 strips + 8 main)
         for col in range(8):
@@ -479,6 +553,8 @@ class MixerConsole(tk.Frame):
                 fonts=self.fonts,
                 service=self.service,
                 is_master=False,
+                on_select=self.select_target,
+                on_phantom_request=self._on_phantom_request,
             )
             strip.grid(row=0, column=idx - 1, sticky="nsew", padx=3, pady=2)
             self.strips[idx] = strip
@@ -495,9 +571,87 @@ class MixerConsole(tk.Frame):
             fonts=self.fonts,
             service=self.service,
             is_master=True,
+            on_select=self.select_target,
         )
         master_strip.grid(row=0, column=7, sticky="nsew", padx=(8, 3), pady=2)
         self.strips[8] = master_strip
+
+    # -- selection and inspector -------------------------------------------
+
+    def _strip_for(self, target: SelectionTarget) -> Optional[ChannelStripWidget]:
+        # Legacy widget key: the Main L/R strip is stored under 8. That is only
+        # a dictionary key; the selection identity is MAIN_TARGET, not strip 8.
+        key = 8 if target.kind == "main" else target.index
+        return self.strips.get(key)
+
+    @property
+    def inspector_visible(self) -> bool:
+        return bool(self.inspector.winfo_manager())
+
+    def select_target(self, target: SelectionTarget) -> None:
+        """Select exactly one target and show it in the inspector.
+
+        Selection is presentation state only; it never dispatches a command.
+        """
+        if not isinstance(target, SelectionTarget):
+            raise TypeError("select_target requires a SelectionTarget")
+        strip = self._strip_for(target)
+        if strip is None:
+            return
+        for other in self.strips.values():
+            if other is not strip and other.is_selected:
+                other.set_selected(False)
+        strip.set_selected(True)
+        self.selected_target = target
+        self._show_inspector()
+        self.inspector.show_target(target)
+
+    def clear_selection(self) -> None:
+        """Close the inspector and clear every selection highlight."""
+        for strip in self.strips.values():
+            if strip.is_selected:
+                strip.set_selected(False)
+        self.selected_target = None
+        self.inspector.clear()
+        if self.inspector.winfo_manager():
+            self.inspector.pack_forget()
+
+    def _inspector_width(self) -> int:
+        available = self.winfo_width() - 2 * theme.TOKENS["spacing_large"]
+        if available <= 2 * theme.TOKENS["spacing_large"]:
+            return INSPECTOR_MAX_WIDTH  # not laid out yet
+        room = available - len(self.strips) * MIN_STRIP_SLOT
+        return max(INSPECTOR_MIN_WIDTH, min(INSPECTOR_MAX_WIDTH, room))
+
+    def _show_inspector(self) -> None:
+        spacing = theme.TOKENS
+        self.inspector.configure(width=self._inspector_width())
+        if not self.inspector.winfo_manager():
+            # Packed before the strips so the strips yield space, not the inspector.
+            self.inspector.pack(
+                side="right", fill="y", before=self._strips_container,
+                padx=(0, spacing["spacing_large"]),
+                pady=(0, spacing["spacing_large"]),
+            )
+
+    def _on_console_resize(self, _event: tk.Event) -> None:
+        if self.inspector_visible:
+            width = self._inspector_width()
+            if int(self.inspector.cget("width")) != width:
+                self.inspector.configure(width=width)
+
+    def _on_phantom_request(self, channel_index: int, enabled: bool) -> None:
+        """A strip's +48V button: open the inspector and run the confirmation flow."""
+        try:
+            self.select_target(SelectionTarget.input(channel_index))
+        except ValueError:
+            return
+        self.inspector.request_phantom(channel_index, enabled)
+
+    def _on_phantom_changed(self, channel_index: int, commanded: bool) -> None:
+        strip = self.strips.get(channel_index)
+        if strip is not None and not strip.is_master:
+            strip.sync_phantom(commanded)
 
     def _on_command_log_update(self, entries: list) -> None:
         """Schedule command-log rendering on the Tk main thread."""
@@ -509,6 +663,10 @@ class MixerConsole(tk.Frame):
             return
 
     def destroy(self) -> None:
+        try:
+            self.inspector.detach()
+        except Exception:
+            logging.getLogger(__name__).exception("Could not detach inspector")
         if self.service:
             remove_listener = getattr(self.service, "remove_command_log_listener", None)
             if callable(remove_listener):

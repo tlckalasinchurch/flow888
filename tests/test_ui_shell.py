@@ -170,6 +170,41 @@ class ShellTests(unittest.TestCase):
             "OPEN / NOT LISTENING",
         )
 
+    def test_status_bar_dynamic_foreground_color_transitions(self):
+        sb = self.app.status_bar
+        colors = theme.COLORS
+
+        # 1. Initial default state: both ports CLOSED -> danger
+        self.assertEqual(sb.values["midi_out"].get(), "CLOSED")
+        self.assertEqual(sb.value_labels["midi_out"].cget("fg"), colors["danger"])
+        self.assertEqual(sb.values["midi_in"].get(), "CLOSED")
+        self.assertEqual(sb.value_labels["midi_in"].cget("fg"), colors["danger"])
+
+        # 2. Transition: MIDI OUT open -> lime, MIDI IN remains CLOSED -> danger
+        sb.set_midi_port_status(True, False, None, False)
+        self.assertEqual(sb.values["midi_out"].get(), "OPEN")
+        self.assertEqual(sb.value_labels["midi_out"].cget("fg"), colors["lime"])
+        self.assertEqual(sb.values["midi_in"].get(), "CLOSED")
+        self.assertEqual(sb.value_labels["midi_in"].cget("fg"), colors["danger"])
+
+        # 3. Transition: MIDI IN open but not listening -> warning
+        sb.set_midi_port_status(True, True, None, False)
+        self.assertEqual(sb.values["midi_in"].get(), "OPEN / NOT LISTENING")
+        self.assertEqual(sb.value_labels["midi_in"].cget("fg"), colors["warning"])
+
+        # 4. Transition: MIDI IN open and listening -> lime
+        sb.set_midi_port_status(True, True, None, True)
+        self.assertEqual(sb.values["midi_in"].get(), "OPEN / LISTENING")
+        self.assertEqual(sb.value_labels["midi_in"].cget("fg"), colors["lime"])
+
+        # 5. Transition: all closed -> danger
+        sb.set_midi_port_status(False, False, "Port disconnected", False)
+        self.assertEqual(sb.values["midi_out"].get(), "CLOSED")
+        self.assertEqual(sb.value_labels["midi_out"].cget("fg"), colors["danger"])
+        self.assertEqual(sb.values["midi_in"].get(), "CLOSED")
+        self.assertEqual(sb.value_labels["midi_in"].cget("fg"), colors["danger"])
+        self.assertEqual(sb.values["midi_error"].get(), "Port disconnected")
+
     def test_no_forbidden_hardware_claims_rendered(self):
         rendered = " ".join(self.app.text_snapshot()).upper()
         for claim in FORBIDDEN_CLAIMS:
@@ -250,7 +285,9 @@ class MidiSafetyTests(unittest.TestCase):
     def test_status_snapshot_defaults_are_honest(self):
         status = SessionStatus()
         self.assertEqual(status.device, "NOT VERIFIED")
-        self.assertEqual(status.midi, "UNKNOWN")
+        self.assertEqual(status.midi_out, "CLOSED")
+        self.assertEqual(status.midi_in, "CLOSED")
+        self.assertEqual(status.midi_error, "NONE")
         self.assertEqual(status.usb_audio, "NOT INTEGRATED")
         self.assertEqual(status.audio_telemetry, "NO TELEMETRY")
         self.assertEqual(status.hardware_observation, "UNKNOWN")
@@ -276,10 +313,37 @@ class UIImportBoundaryTests(unittest.TestCase):
                     self.assertFalse(module.startswith("flow8.midi"), path.name)
 
     def test_ui_sources_contain_no_driver_call_sites(self):
+        markers = {"winmm", "send_cc", "midioutshortmsg", "midiinshortmsg"}
         for path in sorted(UI_DIRECTORY.rglob("*.py")):
-            source = path.read_text(encoding="utf-8").lower()
-            for marker in ("winmm", "send_cc", "midioutshortmsg", "midiinshortmsg"):
-                self.assertNotIn(marker, source, f"{path.name} references {marker}")
+            tree = ast.parse(path.read_text(encoding="utf-8"))
+            for node in ast.walk(tree):
+                if isinstance(node, (ast.Import, ast.ImportFrom)):
+                    names = [alias.name for alias in node.names]
+                    if isinstance(node, ast.ImportFrom) and node.module:
+                        names.append(node.module)
+                    for name in names:
+                        for part in name.lower().split("."):
+                            self.assertNotIn(
+                                part, markers, f"{path.name} imports {name}"
+                            )
+                elif isinstance(node, ast.Constant) and isinstance(node.value, str):
+                    # getattr(x, "send_cc")-style indirection; docstrings are longer.
+                    self.assertNotIn(
+                        node.value.lower(), markers,
+                        f"{path.name} names {node.value!r} as a string",
+                    )
+                if isinstance(node, ast.Name):
+                    self.assertNotIn(
+                        node.id.lower(),
+                        markers,
+                        f"{path.name} defines/references identifier {node.id}",
+                    )
+                elif isinstance(node, ast.Attribute):
+                    self.assertNotIn(
+                        node.attr.lower(),
+                        markers,
+                        f"{path.name} accesses attribute {node.attr}",
+                    )
 
 
 if __name__ == "__main__":

@@ -79,6 +79,17 @@ class Flow8App:
         try:
             screen_width = self.root.winfo_screenwidth()
             screen_height = self.root.winfo_screenheight()
+            # Never open larger than the display (the taskbar allowance keeps the
+            # status bar and docked inspector on screen), but never below the
+            # supported minimum size.
+            usable_height = screen_height - theme.TASKBAR_ALLOWANCE
+            # The supported minimum cannot exceed a small display (e.g. 720 high);
+            # otherwise the status bar would sit below the screen edge.
+            min_width = min(theme.WINDOW_MIN_SIZE[0], screen_width)
+            min_height = min(theme.WINDOW_MIN_SIZE[1], usable_height)
+            self.root.minsize(min_width, min_height)
+            width = max(min_width, min(width, screen_width))
+            height = max(min_height, min(height, usable_height))
             left = max(0, (screen_width - width) // 2)
             top = max(0, (screen_height - height) // 3)
             self.root.geometry(f"{width}x{height}+{left}+{top}")

@@ -29,7 +29,20 @@ class StatusBar(tk.Frame):
             "audio_telemetry": tk.StringVar(value=status.audio_telemetry),
             "hardware_observation": tk.StringVar(value=status.hardware_observation),
         }
+        self.value_labels: dict[str, tk.Label] = {}
         self._build()
+
+    def _color_for_value(self, key: str, value: str) -> str:
+        colors = theme.COLORS
+        if key == "midi_out":
+            return colors["lime"] if value == "OPEN" else colors["danger"]
+        if key == "midi_in":
+            if value == "OPEN / LISTENING":
+                return colors["lime"]
+            if value == "OPEN / NOT LISTENING":
+                return colors["warning"]
+            return colors["danger"]
+        return colors["text_secondary"]
 
     def _build(self) -> None:
         colors = theme.COLORS
@@ -61,13 +74,17 @@ class StatusBar(tk.Frame):
                 bg=colors["background_alt"],
             ).pack(side="left", padx=(0, 6))
 
-            tk.Label(
+            val_fg = self._color_for_value(key, value)
+
+            lbl = tk.Label(
                 fields,
                 textvariable=self.values[key],
                 font=self.fonts["status_value"],
-                fg=colors["text_secondary"],
+                fg=val_fg,
                 bg=colors["background_alt"],
-            ).pack(side="left")
+            )
+            lbl.pack(side="left")
+            self.value_labels[key] = lbl
 
         tk.Label(
             self,
@@ -85,19 +102,30 @@ class StatusBar(tk.Frame):
         midi_in_listening: bool = False,
     ) -> None:
         """Render each port independently; opening MIDI is not hardware confirmation."""
-        self.values["midi_out"].set("OPEN" if midi_out_open else "CLOSED")
+        out_status = "OPEN" if midi_out_open else "CLOSED"
+        self.values["midi_out"].set(out_status)
         if midi_in_open and midi_in_listening:
-            midi_in_status = "OPEN / LISTENING"
+            in_status = "OPEN / LISTENING"
         elif midi_in_open:
-            midi_in_status = "OPEN / NOT LISTENING"
+            in_status = "OPEN / NOT LISTENING"
         else:
-            midi_in_status = "CLOSED"
-        self.values["midi_in"].set(midi_in_status)
+            in_status = "CLOSED"
+        self.values["midi_in"].set(in_status)
         self.values["midi_error"].set((error or "NONE")[:48])
         # These capabilities remain unintegrated regardless of MIDI port state.
         self.values["usb_audio"].set("NOT INTEGRATED")
         self.values["audio_telemetry"].set("NO TELEMETRY")
         self.values["hardware_observation"].set("UNKNOWN")
+
+        # Synchronize dynamic foreground colors with current endpoint states
+        if "midi_out" in self.value_labels:
+            self.value_labels["midi_out"].configure(
+                fg=self._color_for_value("midi_out", out_status)
+            )
+        if "midi_in" in self.value_labels:
+            self.value_labels["midi_in"].configure(
+                fg=self._color_for_value("midi_in", in_status)
+            )
 
     # -- inspection ---------------------------------------------------------
 
