@@ -40,6 +40,7 @@ class Flow8App:
         self._closed = False
         self.connect_hardware = connect_hardware
         self.show_placeholder = show_placeholder
+        self._service_error: Optional[str] = None
 
         # Hardware Service initialization
         if service is not None:
@@ -47,8 +48,10 @@ class Flow8App:
         elif connect_hardware:
             try:
                 self.service = Flow8Service(auto_connect=True)
-            except Exception:
+            except Exception as error:
                 self.service = None
+                self._service_error = str(error)
+                logger.exception("FLOW 8 service initialization failed")
         else:
             self.service = None
 
@@ -187,7 +190,7 @@ class Flow8App:
             midi_out_open = False
             midi_in_open = False
             midi_in_listening = False
-            error = None
+            error = self._service_error
         else:
             midi_out_open = self.service.midi_out_open
             midi_in_open = self.service.midi_in_open
