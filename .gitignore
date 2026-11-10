@@ -1,4 +1,45 @@
+# ---------------------------------------------------------------------------
+# FLOW 8 — repository ignore rules
+# ---------------------------------------------------------------------------
+# Rationale: this repository tracks the FLOW 8 Python control library, its
+# tests, and its engineering documentation. It deliberately does NOT track
+# third-party vendor payloads, local caches, or environment/secret files.
+# ---------------------------------------------------------------------------
+
+# --- Local environment and secrets (never commit) --------------------------
+.env
+.env.*
+*.key
+*.pem
+*.pfx
+*.p12
+
+# --- Python ---------------------------------------------------------------
 __pycache__/
-.pytest_cache/
 *.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+build/
+dist/
 .venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# --- Third-party installer payload (390 MB reference material) -------------
+# app/ is an extracted Mixing Station MSI used only as reverse-engineering
+# evidence. It is not project source, is third-party licensed, and must never
+# be committed, bundled, or shipped.
+app/
+
+# --- Reverse-engineering tool artefacts -----------------------------------
+investigation.cany/
+
+# --- OS / editor noise ----------------------------------------------------
+Thumbs.db
+desktop.ini
+.DS_Store
+*.swp
+*~
