@@ -139,10 +139,11 @@ class Flow8Service:
                 if not self.midi_out.is_connected:
                     self.midi_out.open()
 
-                # Open and start MIDI In
+                # Open MIDI In if needed, then independently ensure it is listening.
                 if not self.midi_in.is_connected:
                     self.midi_in.open()
                     self.midi_in.register_callback(self._on_midi_in_event)
+                if not self.midi_in.is_listening:
                     self.midi_in.start()
 
                 self._connected = True
