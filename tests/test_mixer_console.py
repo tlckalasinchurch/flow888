@@ -127,17 +127,23 @@ class MixerConsoleTests(unittest.TestCase):
         console = MixerConsole(self.root, self.fonts, service=service)
 
         service.set_fader(1, 95)
+        service.set_mute(1, True)
         self.root.update()
 
         rows = console.command_log_panel.tree.get_children()
-        self.assertEqual(len(rows), 1)
-        values = console.command_log_panel.tree.item(rows[0], "values")
-        self.assertEqual(values[1], "ch1.fader")
-        self.assertEqual(values[2], "95")
-        self.assertEqual(values[3], "UNKNOWN")
-        self.assertIn("Ch 1 / CC 7 · prepared 95", values[4])
-        self.assertEqual(values[5], "ACCEPTED_OFFLINE")
-        self.assertEqual(values[6], "UNKNOWN")
+        self.assertEqual(len(rows), 2)
+        newest = console.command_log_panel.tree.item(rows[0], "values")
+        older = console.command_log_panel.tree.item(rows[1], "values")
+        self.assertEqual(newest[1], "ch1.mute")
+        self.assertIn("Ch 1 / CC 5 · prepared 127", newest[4])
+        self.assertEqual(newest[5], "ACCEPTED_OFFLINE")
+        self.assertEqual(newest[6], "UNKNOWN")
+        self.assertEqual(older[1], "ch1.fader")
+        self.assertEqual(older[2], "95")
+        self.assertEqual(older[3], "UNKNOWN")
+        self.assertIn("Ch 1 / CC 7 · prepared 95", older[4])
+        self.assertEqual(older[5], "ACCEPTED_OFFLINE")
+        self.assertEqual(older[6], "UNKNOWN")
 
 
 class Flow8ServiceTests(unittest.TestCase):
