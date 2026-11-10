@@ -101,12 +101,17 @@ class TestDomainAndState(unittest.TestCase):
     # -----------------------------------------------------------------------
     def test_state_store_verification_levels(self):
         store = Flow8StateStore()
-        # Phase C.2: evidence for these four is a WinMM return code only, so they
-        # are API_ACKNOWLEDGED -- never HARDWARE_TESTED without physical confirmation.
-        self.assertEqual(store.get_parameter("main.fader").verification_level, VerificationLevel.API_ACKNOWLEDGED)
-        self.assertEqual(store.get_parameter("ch1.fader").verification_level, VerificationLevel.API_ACKNOWLEDGED)
-        self.assertEqual(store.get_parameter("ch1.mute").verification_level, VerificationLevel.API_ACKNOWLEDGED)
-        self.assertEqual(store.get_parameter("ch1.pan").verification_level, VerificationLevel.API_ACKNOWLEDGED)
+        # WinMM driver acceptance is not an application-level acknowledgement.
+        # No code path may produce API_ACKNOWLEDGED without that evidence.
+        for param_id in ("main.fader", "ch1.fader", "ch1.mute", "ch1.pan"):
+            self.assertEqual(
+                store.get_parameter(param_id).verification_level,
+                VerificationLevel.UNKNOWN,
+            )
+        self.assertFalse(any(
+            record["verification_level"] == VerificationLevel.API_ACKNOWLEDGED.value
+            for record in store.get_all_parameters().values()
+        ))
 
         # Nothing may be graded HARDWARE_TESTED without a recorded observation.
         for param_id, record in store.get_all_parameters().items():
