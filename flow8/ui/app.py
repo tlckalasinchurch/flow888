@@ -186,14 +186,20 @@ class Flow8App:
         if self.service is None:
             midi_out_open = False
             midi_in_open = False
+            midi_in_listening = False
             error = None
         else:
             midi_out_open = self.service.midi_out_open
             midi_in_open = self.service.midi_in_open
+            midi_in_listening = self.service.midi_in_listening
             error = self.service.connection_error
 
-        self.header.set_midi_port_status(midi_out_open, midi_in_open, error)
-        self.status_bar.set_midi_port_status(midi_out_open, midi_in_open, error)
+        self.header.set_midi_port_status(
+            midi_out_open, midi_in_open, error, midi_in_listening,
+        )
+        self.status_bar.set_midi_port_status(
+            midi_out_open, midi_in_open, error, midi_in_listening,
+        )
 
     def _poll_hardware_state(self) -> None:
         """Refresh MIDI port state and retry incomplete endpoint connections."""
