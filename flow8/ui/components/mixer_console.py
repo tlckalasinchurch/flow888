@@ -117,9 +117,10 @@ class ChannelStripWidget(tk.Frame):
 
         initial_db = format_db(self.fader_val.get())
         db_text, midi_text = initial_db.split(" · ", 1)
-        # Nothing has been commanded or observed yet: say so next to the value.
-        self.db_label_var = tk.StringVar(value=f"{db_text} (DEFAULT)")
-        self.midi_label_var = tk.StringVar(value=midi_text)
+        self.db_label_var = tk.StringVar(value=db_text)
+        # Nothing commanded or observed yet: say so on the (short) MIDI line. A longer
+        # dB line would widen every strip and push the last ones off screen.
+        self.midi_label_var = tk.StringVar(value=f"{midi_text} · DEFAULT")
         self.pan_label_var = tk.StringVar(value=format_pan(self.pan_val.get()))
 
         self._build(title, subtitle, kind_badge, pan_label)
@@ -316,9 +317,9 @@ class ChannelStripWidget(tk.Frame):
         if self._fader_after_id is None:
             self._fader_after_id = self.after(30, self._flush_fader)
 
-    def _set_fader_labels(self, raw: int, default: bool = False) -> None:
+    def _set_fader_labels(self, raw: int) -> None:
         db_text, midi_text = format_db(raw).split(" · ", 1)
-        self.db_label_var.set(f"{db_text} (DEFAULT)" if default else db_text)
+        self.db_label_var.set(db_text)
         self.midi_label_var.set(midi_text)
 
     def _begin_gesture(self, _event: Optional[tk.Event] = None) -> None:

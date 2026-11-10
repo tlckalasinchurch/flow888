@@ -87,11 +87,23 @@ class MixerConsoleTests(unittest.TestCase):
 
     def test_initial_fader_is_marked_as_default(self):
         console = MixerConsole(self.root, self.fonts)
-        self.assertIn("DEFAULT", console.strips[1].db_label_var.get())
+        self.assertIn("DEFAULT", console.strips[1].midi_label_var.get())
         self.assertEqual(
             console.strips[1].fader_provenance,
             ValueProvenance.UNSYNCED_DEFAULT,
         )
+
+    def test_all_strips_fit_the_window_at_the_minimum_size(self):
+        console = MixerConsole(self.root, self.fonts)
+        console.pack(fill="both", expand=True)
+        self.root.deiconify()
+        self.root.geometry("1366x768")
+        self.root.update()
+        right_edge = console.winfo_rootx() + console.winfo_width()
+        for index, strip in console.strips.items():
+            end = strip.winfo_rootx() + strip.winfo_width()
+            self.assertLessEqual(end, right_edge, f"strip {index} runs off the right edge")
+            self.assertGreaterEqual(strip.winfo_width(), strip.winfo_reqwidth(), f"strip {index} clipped")
 
     def test_failed_fader_dispatch_is_visible_and_rolls_back(self):
         service = mock.Mock()
