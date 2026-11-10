@@ -60,6 +60,18 @@ class CommandLogPanel(tk.Frame):
                 pady=3,
             ).pack(side="left", padx=(0, 5))
 
+        # Connection events are not mixer commands, so they get their own line
+        # instead of being mixed into the audited command table.
+        self.notice_var = tk.StringVar(value="")
+        self.notice_label = tk.Label(
+            heading,
+            textvariable=self.notice_var,
+            font=self.fonts["caption"],
+            fg=colors["text_secondary"],
+            bg=colors["surface"],
+        )
+        self.notice_label.pack(side="left", padx=(12, 0))
+
         self.count_var = tk.StringVar(value="0 EVENTS")
         tk.Label(
             heading,
@@ -196,6 +208,15 @@ class CommandLogPanel(tk.Frame):
             applied,
             (entry.error_message or "—")[:160],
         )
+
+    NOTICE_LIMIT = 90
+
+    def set_notice(self, text: str, problem: bool = False) -> None:
+        """Show the latest connection event (full text stays in the status bar)."""
+        shown = text if len(text) <= self.NOTICE_LIMIT else text[: self.NOTICE_LIMIT - 1] + "…"
+        colors = theme.COLORS
+        self.notice_var.set(shown)
+        self.notice_label.configure(fg=colors["danger"] if problem else colors["text_secondary"])
 
     def set_entries(self, entries: Iterable[Any]) -> None:
         """Replace the visible snapshot, keeping the newest command at the top."""

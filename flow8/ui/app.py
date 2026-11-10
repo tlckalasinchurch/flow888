@@ -7,7 +7,9 @@ and real-time hardware status management.
 from __future__ import annotations
 
 import logging
+import queue
 import sys
+import threading
 import tkinter as tk
 from typing import Optional
 
@@ -42,12 +44,24 @@ class Flow8App:
         self.show_placeholder = show_placeholder
         self._service_error: Optional[str] = None
 
+        # Connection attempts run on a worker thread. The worker never touches Tk: it
+        # only puts a result on this queue, which the Tk thread drains with after().
+        self._connection_events: queue.Queue = queue.Queue()
+        self._connection_busy = False
+        self._auto_connect = connect_hardware
+        self._last_connection_failed = False
+        self._last_reported_error: Optional[str] = None
+        self._queue_poll_id: Optional[str] = None
+        self._state_poll_id: Optional[str] = None
+
         # Hardware Service initialization
         if service is not None:
             self.service = service
         elif connect_hardware:
             try:
-                self.service = Flow8Service(auto_connect=True)
+                # Ports are opened off the UI thread below, so a slow or hung MIDI
+                # driver can never stop the window from appearing.
+                self.service = Flow8Service(auto_connect=False)
             except Exception as error:
                 self.service = None
                 self._service_error = str(error)
@@ -65,8 +79,10 @@ class Flow8App:
         # Report each MIDI endpoint independently; an open port is not hardware confirmation.
         self._refresh_hardware_status()
 
+        self._queue_poll_id = self.root.after(50, self._poll_connection_events)
         if self.connect_hardware:
-            self.root.after(2500, self._poll_hardware_state)
+            self._start_connection("connect", user_initiated=False)
+            self._state_poll_id = self.root.after(2500, self._poll_hardware_state)
 
     # -- window -------------------------------------------------------------
 
@@ -104,7 +120,14 @@ class Flow8App:
         self.root.grid_rowconfigure(1, weight=1)
         self.root.grid_columnconfigure(0, weight=1)
 
-        self.header = Header(self.root, self.fonts, self.status)
+        self.header = Header(
+            self.root,
+            self.fonts,
+            self.status,
+            on_connect=self.connect_hardware_async,
+            on_disconnect=self.disconnect_hardware,
+            on_retry=self.connect_hardware_async,
+        )
         self.header.grid(row=0, column=0, sticky="ew")
 
         body = tk.Frame(self.root, bg=colors["background"])
@@ -219,23 +242,130 @@ class Flow8App:
         self.status_bar.set_midi_port_status(
             midi_out_open, midi_in_open, error, midi_in_listening,
         )
+        self._update_connection_controls()
 
-    def _poll_hardware_state(self) -> None:
-        """Refresh MIDI port state and retry incomplete endpoint connections."""
+    # -- connection (worker thread + queue) ---------------------------------
+
+    def connect_hardware_async(self) -> bool:
+        """CONNECT / RETRY: open the MIDI ports without blocking the UI."""
+        self._auto_connect = True
+        return self._start_connection("connect", user_initiated=True)
+
+    def disconnect_hardware(self) -> bool:
+        """DISCONNECT: close the ports and stop automatic reconnecting."""
+        self._auto_connect = False
+        return self._start_connection("disconnect", user_initiated=True)
+
+    def _start_connection(self, action: str, user_initiated: bool) -> bool:
+        if self._closed or self._connection_busy:
+            return False
+        if self.service is None:
+            if user_initiated:
+                self._report(
+                    f"{action.upper()} UNAVAILABLE — "
+                    f"{self._service_error or 'NO COMMAND SERVICE (OFFLINE MODE)'}",
+                    problem=True,
+                )
+            return False
+        self._connection_busy = True
+        self.header.set_connection_busy(
+            "CONNECTING…" if action == "connect" else "DISCONNECTING…"
+        )
+        self._update_connection_controls()
+        threading.Thread(
+            target=self._connection_worker,
+            args=(action, user_initiated),
+            name=f"flow8-{action}",
+            daemon=True,
+        ).start()
+        return True
+
+    def _connection_worker(self, action: str, user_initiated: bool) -> None:
+        """Runs off the Tk thread. Touches no widget; reports through the queue."""
+        service = self.service
+        try:
+            if action == "connect":
+                ok = bool(service.connect())
+                error = None if ok else (
+                    service.connection_error or "connection failed; no reason was reported"
+                )
+            else:
+                service.disconnect()
+                ok, error = True, None
+        except Exception as exc:
+            logger.exception("FLOW 8 %s failed", action)
+            ok, error = False, str(exc) or exc.__class__.__name__
+        self._connection_events.put((action, ok, error, user_initiated))
+
+    def _poll_connection_events(self) -> None:
+        """Tk thread: apply finished connection attempts to the UI."""
+        self._queue_poll_id = None
         if self._closed:
             return
-
-        if self.service:
-            try:
-                if not self.service.is_connected:
-                    self.service.connect()
-            except Exception:
-                logger.exception("FLOW 8 connection poll failed")
-            finally:
-                self._refresh_hardware_status()
-
+        try:
+            while True:
+                action, ok, error, user_initiated = self._connection_events.get_nowait()
+                self._on_connection_result(action, ok, error, user_initiated)
+        except queue.Empty:
+            pass
         if not self._closed:
-            self.root.after(2500, self._poll_hardware_state)
+            self._queue_poll_id = self.root.after(50, self._poll_connection_events)
+
+    def _on_connection_result(
+        self, action: str, ok: bool, error: Optional[str], user_initiated: bool
+    ) -> None:
+        self._connection_busy = False
+        if action == "connect":
+            self._last_connection_failed = not ok
+        self._refresh_hardware_status()
+
+        if action == "disconnect":
+            self._report("DISCONNECTED — MIDI PORTS CLOSED")
+        elif ok:
+            self._last_reported_error = None
+            # Open ports are not proof that a FLOW 8 is answering.
+            self._report("MIDI PORTS OPEN — HARDWARE NOT CONFIRMED")
+        elif user_initiated or error != self._last_reported_error:
+            # Automatic retries repeat the same failure; only report it when it changes.
+            self._last_reported_error = error
+            self._report(f"CONNECT FAILED — {error}", problem=True)
+
+    def _report(self, message: str, problem: bool = False) -> None:
+        """Surface a connection event in the status bar and the command log panel."""
+        self.status_bar.show_feedback(message)
+        console = getattr(self, "mixer_console", None)
+        if console is not None:
+            console.command_log_panel.set_notice(message, problem=problem)
+
+    def _update_connection_controls(self) -> None:
+        service = self.service
+        if service is None:
+            self.header.set_connection_controls(False, False, False)
+            return
+        if self._connection_busy:
+            # The worker holds the MIDI locks while ports open; reading service state
+            # here would block the UI thread behind it.
+            self.header.set_connection_controls(False, False, False)
+            return
+        connected = service.is_connected
+        any_open = service.midi_out_open or service.midi_in_open
+        self.header.set_connection_controls(
+            connect=not connected,
+            disconnect=any_open,
+            retry=not connected and self._last_connection_failed,
+        )
+
+    def _poll_hardware_state(self) -> None:
+        """Refresh port state; retry an incomplete connection off the UI thread."""
+        self._state_poll_id = None
+        if self._closed:
+            return
+        if self.service is not None and not self._connection_busy:
+            if self._auto_connect and not self.service.is_connected:
+                self._start_connection("connect", user_initiated=False)
+            else:
+                self._refresh_hardware_status()
+        self._state_poll_id = self.root.after(2500, self._poll_hardware_state)
 
     # -- navigation ---------------------------------------------------------
 
@@ -259,16 +389,31 @@ class Flow8App:
             return
         self._closed = True
 
+        for timer_id in (self._queue_poll_id, self._state_poll_id):
+            if timer_id is not None:
+                try:
+                    self.root.after_cancel(timer_id)
+                except tk.TclError:
+                    pass
+        self._queue_poll_id = self._state_poll_id = None
+
         if self.service:
-            try:
-                self.service.disconnect()
-            except Exception:
-                pass
+            if self._connection_busy:
+                # An attempt still holds the service lock; do not wait for it on the UI thread.
+                threading.Thread(target=self._safe_disconnect, daemon=True).start()
+            else:
+                self._safe_disconnect()
 
         try:
             self.root.destroy()
         except tk.TclError:
             pass
+
+    def _safe_disconnect(self) -> None:
+        try:
+            self.service.disconnect()
+        except Exception:
+            logger.exception("FLOW 8 disconnect on close failed")
 
     # -- inspection ---------------------------------------------------------
 

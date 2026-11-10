@@ -93,17 +93,34 @@ class MixerConsoleTests(unittest.TestCase):
             ValueProvenance.UNSYNCED_DEFAULT,
         )
 
+    @classmethod
+    def _descendants(cls, widget):
+        for child in widget.winfo_children():
+            yield child
+            yield from cls._descendants(child)
+
     def test_all_strips_fit_the_window_at_the_minimum_size(self):
-        console = MixerConsole(self.root, self.fonts)
-        console.pack(fill="both", expand=True)
+        # Measured in the real app window: the 232 px navigation rail leaves the
+        # console far less room than a bare MixerConsole on a 1366 px root.
+        app = Flow8App(root=self.root, show_placeholder=False)
         self.root.deiconify()
         self.root.geometry("1366x768")
         self.root.update()
+        console = app.mixer_console
         right_edge = console.winfo_rootx() + console.winfo_width()
         for index, strip in console.strips.items():
-            end = strip.winfo_rootx() + strip.winfo_width()
-            self.assertLessEqual(end, right_edge, f"strip {index} runs off the right edge")
+            strip_right = strip.winfo_rootx() + strip.winfo_width()
+            self.assertLessEqual(strip_right, right_edge, f"strip {index} runs off the right edge")
             self.assertGreaterEqual(strip.winfo_width(), strip.winfo_reqwidth(), f"strip {index} clipped")
+            # No label may be wider than the room it was given inside the strip.
+            for label in (w for w in self._descendants(strip) if isinstance(w, tk.Label)):
+                text = label.cget("text") or self.root.getvar(str(label.cget("textvariable")))
+                self.assertGreaterEqual(
+                    label.winfo_width(), label.winfo_reqwidth(), f"strip {index}: {text!r} clipped"
+                )
+                self.assertLessEqual(
+                    label.winfo_rootx() + label.winfo_width(), strip_right, f"strip {index}: {text!r}"
+                )
 
     def test_failed_fader_dispatch_is_visible_and_rolls_back(self):
         service = mock.Mock()

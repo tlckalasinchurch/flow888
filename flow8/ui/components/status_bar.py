@@ -22,6 +22,7 @@ class StatusBar(tk.Frame):
         self.fonts = fonts
         self.status = status
         self.feedback_var = tk.StringVar(value="")
+        self.last_feedback_full = ""
         self.values: dict[str, tk.StringVar] = {
             "midi_out": tk.StringVar(value=status.midi_out),
             "midi_in": tk.StringVar(value=status.midi_in),
@@ -54,6 +55,7 @@ class StatusBar(tk.Frame):
         )
 
         fields = tk.Frame(self, bg=colors["background_alt"])
+        self._fields = fields
         fields.pack(side="left", fill="both", expand=True, padx=(spacing["spacing_large"], 0))
 
         for index, (label, value) in enumerate(self.status.transport_rows()):
@@ -87,24 +89,58 @@ class StatusBar(tk.Frame):
             lbl.pack(side="left")
             self.value_labels[key] = lbl
 
-        tk.Label(
+        self._feedback_label = tk.Label(
             self,
             textvariable=self.feedback_var,
             font=self.fonts["status_key"],
             fg=colors["warning"],
             bg=colors["background_alt"],
-        ).pack(side="right", padx=(0, spacing["spacing_medium"]))
-        tk.Label(
-            self,
-            text="WORKSTATION UI.2",
-            font=self.fonts["status_key"],
-            fg=colors["cyan_soft"],
-            bg=colors["background_alt"],
-        ).pack(side="right", padx=(0, spacing["spacing_large"]))
+        )
+        self._feedback_label.pack(side="right", padx=(0, spacing["spacing_medium"]))
+        # (The "WORKSTATION UI.2" tag that used to sit here duplicated the header and
+        # took ~100 px that the feedback line needs at 1366 px.)
+        self.bind("<Configure>", lambda _e: self._fit_feedback(), add="+")
 
     def show_feedback(self, message: str) -> None:
-        """Show the latest truthful command feedback (software command, not hardware)."""
-        self.feedback_var.set(message)
+        """Show the latest truthful command feedback (software command, not hardware).
+
+        The full text is kept in ``last_feedback_full``; the label shows as much as
+        fits beside the port fields and ends with an ellipsis when it was cut.
+        """
+        self.last_feedback_full = message
+        self._fit_feedback()
+
+    def _fit_feedback(self) -> None:
+        message = self.last_feedback_full
+        # Field text may have just changed (e.g. a long MIDI error): let Tk recompute
+        # their requested width before measuring the room that is left.
+        self.update_idletasks()
+        if self.winfo_width() <= 1:  # not laid out yet: nothing to measure against
+            self.feedback_var.set(message)
+            return
+        used = (
+            self._fields.winfo_reqwidth()
+            + theme.TOKENS["spacing_large"]   # left padding of the field block
+            + theme.TOKENS["spacing_medium"]  # right padding of this label
+        )
+        label = self._feedback_label
+        # The label's own padding and border are part of its requested width.
+        overhead = 2 * sum(
+            int(float(str(label.cget(option))))
+            for option in ("padx", "borderwidth", "highlightthickness")
+        )
+        available = self.winfo_width() - used - overhead
+
+        def width(text: str) -> int:
+            return int(self.tk.call("font", "measure", label.cget("font"), text))
+
+        if width(message) <= available:
+            self.feedback_var.set(message)
+            return
+        keep = len(message)
+        while keep > 0 and width(message[:keep].rstrip() + "…") > available:
+            keep -= 1
+        self.feedback_var.set(message[:keep].rstrip() + "…" if keep else "")
 
     def set_midi_port_status(
         self,
@@ -138,6 +174,7 @@ class StatusBar(tk.Frame):
             self.value_labels["midi_in"].configure(
                 fg=self._color_for_value("midi_in", in_status)
             )
+        self._fit_feedback()  # the error field may now be wider or narrower
 
     # -- inspection ---------------------------------------------------------
 

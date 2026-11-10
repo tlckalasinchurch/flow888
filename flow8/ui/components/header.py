@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import tkinter as tk
+from typing import Callable, Optional
 
 from flow8.ui import theme
 from flow8.ui.components import widget_texts
@@ -12,7 +13,15 @@ from flow8.ui.status import SessionStatus
 class Header(tk.Frame):
     """Top identity band for the FLOW 8 Cyber Neon shell."""
 
-    def __init__(self, master: tk.Misc, fonts: dict, status: SessionStatus) -> None:
+    def __init__(
+        self,
+        master: tk.Misc,
+        fonts: dict,
+        status: SessionStatus,
+        on_connect: Optional[Callable[[], None]] = None,
+        on_disconnect: Optional[Callable[[], None]] = None,
+        on_retry: Optional[Callable[[], None]] = None,
+    ) -> None:
         super().__init__(
             master,
             bg=theme.COLORS["background"],
@@ -21,6 +30,12 @@ class Header(tk.Frame):
         self.grid_propagate(False)
         self.fonts = fonts
         self.status = status
+        self._callbacks = {
+            "CONNECT": on_connect,
+            "DISCONNECT": on_disconnect,
+            "RETRY": on_retry,
+        }
+        self.connection_buttons: dict[str, tk.Button] = {}
         self.device_status_var = tk.StringVar(
             value="MIDI PORTS CLOSED"
         )
@@ -73,6 +88,7 @@ class Header(tk.Frame):
         ).pack(side="left")
 
         self._build_device_pill()
+        self._build_connection_controls()
 
         # Hairline closing the band
         tk.Frame(self, bg=colors["border"], height=1).place(
@@ -115,6 +131,47 @@ class Header(tk.Frame):
             pady=6,
         )
         self.status_label.pack(side="left", padx=(0, 10))
+
+    def _build_connection_controls(self) -> None:
+        """CONNECT / DISCONNECT / RETRY, packed left of the status pill."""
+        colors = theme.COLORS
+        controls = tk.Frame(self, bg=colors["background"])
+        controls.pack(side="right", padx=(0, theme.TOKENS["spacing_medium"]), pady=16)
+        for label in ("CONNECT", "DISCONNECT", "RETRY"):
+            callback = self._callbacks[label]
+            button = tk.Button(
+                controls,
+                text=label,
+                font=self.fonts["caption"],
+                bg=colors["surface_alt"],
+                fg=colors["text"],
+                activebackground=colors["cyan"],
+                activeforeground=colors["background"],
+                disabledforeground=colors["text_muted"],
+                bd=0,
+                relief="flat",
+                cursor="hand2",
+                padx=8,
+                pady=5,
+                state="normal" if callback else "disabled",
+                command=callback or (lambda: None),
+            )
+            button.pack(side="left", padx=(0, 4))
+            self.connection_buttons[label] = button
+
+    def set_connection_controls(self, connect: bool, disconnect: bool, retry: bool) -> None:
+        """Enable only the actions that make sense for the current connection state."""
+        for label, enabled in (("CONNECT", connect), ("DISCONNECT", disconnect), ("RETRY", retry)):
+            allowed = enabled and self._callbacks[label] is not None
+            self.connection_buttons[label].configure(state="normal" if allowed else "disabled")
+
+    def set_connection_busy(self, text: str) -> None:
+        """Show an attempt in progress; the next port-status update replaces it."""
+        colors = theme.COLORS
+        self.device_status_var.set(text)
+        self.pill.configure(highlightbackground=colors["warning"])
+        self.status_label.configure(fg=colors["warning"])
+        self.dot.itemconfig(self.dot_oval, fill=colors["warning"])
 
     def set_midi_port_status(
         self,

@@ -17,6 +17,7 @@ from flow8.parameter_mapping import fader_midi_to_db, pan_midi_to_percent
 from flow8.ui import theme
 from flow8.ui.components.controls import HorizontalSlider, VerticalFader
 from flow8.ui.components.command_log import CommandLogPanel
+from flow8.ui.components.scene_bar import SceneBar, slot_name
 from flow8.ui.components.channel_detail import (
     MAIN_TARGET,
     ChannelDetailPanel,
@@ -119,9 +120,9 @@ class ChannelStripWidget(tk.Frame):
         initial_db = format_db(self.fader_val.get())
         db_text, midi_text = initial_db.split(" · ", 1)
         self.db_label_var = tk.StringVar(value=db_text)
-        # Nothing commanded or observed yet: say so on the (short) MIDI line. A longer
-        # dB line would widen every strip and push the last ones off screen.
-        self.midi_label_var = tk.StringVar(value=f"{midi_text} · DEFAULT")
+        # Nothing commanded or observed yet: say so on the (short) MIDI line. Kept to
+        # 20 characters ("MIDI 101/127 DEFAULT"): longer text is clipped in a strip.
+        self.midi_label_var = tk.StringVar(value=f"{midi_text} DEFAULT")
         self.pan_label_var = tk.StringVar(value=format_pan(self.pan_val.get()))
 
         self._build(title, subtitle, kind_badge, pan_label)
@@ -615,6 +616,8 @@ class MixerConsole(tk.Frame):
         self.bind("<Configure>", self._on_console_resize, add="+")
         self._key_bindings: list[tuple[str, str]] = []
         self._bind_history_keys()
+        self.scene_bar.set_enabled(callable(getattr(self.service, "capture_scene", None)))
+        self._refresh_scene_slots()
 
         self.command_log_panel = CommandLogPanel(self, self.fonts)
         self.command_log_panel.pack(
@@ -664,6 +667,12 @@ class MixerConsole(tk.Frame):
             bg=colors["background"],
         ).pack(side="right")
 
+        # Scene slots live in this row, so they cost no vertical space at 1366x768.
+        self.scene_bar = SceneBar(
+            banner, self.fonts, on_capture=self.capture_scene, on_recall=self.recall_scene
+        )
+        self.scene_bar.pack(side="right", padx=(0, spacing["spacing_large"]))
+
         # Middle band: strips on the left, the Channel Detail Inspector docks on
         # the right while a target is selected.
         self._middle = tk.Frame(self, bg=colors["background"])
@@ -674,7 +683,7 @@ class MixerConsole(tk.Frame):
         self._strips_container = strips_container
         strips_container.pack(
             side="left", fill="both", expand=True,
-            padx=spacing["spacing_large"], pady=(0, spacing["spacing_large"]),
+            padx=spacing["spacing_medium"], pady=(0, spacing["spacing_large"]),
         )
 
         # Grid configuration: 8 columns (1-7 strips + 8 main)
@@ -874,6 +883,73 @@ class MixerConsole(tk.Frame):
     def _refresh_strips(self) -> None:
         for strip in self.strips.values():
             strip.refresh_commanded()
+
+    # -- scenes ----------------------------------------------------------------
+
+    def _saved_slots(self) -> set[int]:
+        try:
+            names = set(self.service.scenes.names())
+        except Exception:
+            return set()
+        return {slot for slot in range(1, 9) if slot_name(slot) in names}
+
+    def _refresh_scene_slots(self) -> None:
+        self.scene_bar.set_populated(self._saved_slots())
+
+    def capture_scene(self, slot: int) -> bool:
+        """Store the known fader, pan and mute values in *slot* (never +48V)."""
+        name = slot_name(slot)
+        capture = getattr(self.service, "capture_scene", None)
+        if not callable(capture):
+            self._feedback("SCENE CAPTURE UNAVAILABLE — NO COMMAND SERVICE")
+            return False
+        replacing = slot in self._saved_slots()
+        try:
+            snapshot = capture(name)
+        except ValueError:
+            # Nothing has been commanded or observed yet: only app defaults exist.
+            self._feedback("SCENE CAPTURE REJECTED — NO KNOWN PARAMETERS")
+            return False
+        except Exception as error:
+            logging.getLogger(__name__).exception("Scene capture failed")
+            self._feedback(f"SCENE CAPTURE FAILED — {error}")
+            return False
+        self._refresh_scene_slots()
+        values = sum(len(entry) for entry in snapshot.parameters.values())
+        verb = "OVERWRITTEN" if replacing else "CAPTURED"
+        self._feedback(f"SCENE {verb} — {name} · {values} VALUES")
+        return True
+
+    def recall_scene(self, slot: int) -> bool:
+        """Send a saved scene through the command boundary as one undoable step."""
+        name = slot_name(slot)
+        recall = getattr(self.service, "recall_scene", None)
+        if not callable(recall):
+            self._feedback("SCENE RECALL UNAVAILABLE — NO COMMAND SERVICE")
+            return False
+        try:
+            result = recall(name)
+        except KeyError:
+            self._refresh_scene_slots()
+            self._feedback(f"SCENE RECALL REJECTED — {name} IS EMPTY")
+            return False
+        except Exception as error:
+            logging.getLogger(__name__).exception("Scene recall failed")
+            self._refresh_strips()
+            self._feedback(f"SCENE RECALL FAILED — NOT SENT: {error}")
+            return False
+        self._refresh_strips()
+        failed = len(result.failed)
+        if failed and not result.applied:
+            self._feedback(f"SCENE RECALL FAILED — NOT SENT ({failed} REJECTED)")
+            return False
+        if failed:
+            self._feedback(
+                f"SCENE RECALLED — {name} · {result.applied} SENT · {failed} NOT SENT"
+            )
+        else:
+            self._feedback(f"SCENE RECALLED — {name}")
+        return True
 
     def _on_phantom_changed(self, channel_index: int, commanded: bool) -> None:
         strip = self.strips.get(channel_index)
