@@ -100,6 +100,8 @@ class CommandLogEntry:
     dispatch_status: str = DispatchStatus.ACCEPTED_OFFLINE
     observed_value: Any = None
     verification_level: Optional[VerificationLevel] = None
+    midi_channel: Optional[int] = None
+    midi_cc: Optional[int] = None
 
 
 def _expected_channel_for_param(param_id: str) -> Optional[int]:
@@ -391,6 +393,8 @@ class Flow8CommandBoundary:
                 dispatch_status=DispatchStatus.VALIDATION_FAILED,
                 observed_value=state.observed_value if state else None,
                 verification_level=state.verification_level if state else None,
+                midi_channel=spec["channel"],
+                midi_cc=spec["cc"],
             )
             with self._lock:
                 self._log.append(entry)
@@ -448,6 +452,8 @@ class Flow8CommandBoundary:
             dispatch_status=dispatch_status,
             observed_value=state.observed_value if state else None,
             verification_level=state.verification_level if state else None,
+            midi_channel=spec["channel"],
+            midi_cc=spec["cc"],
         )
 
         with self._lock:
