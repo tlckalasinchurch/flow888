@@ -4,14 +4,13 @@ Every value here describes what the software actually knows at shell start-up:
 no port has been opened, no parameter has been dispatched, and no observation
 path exists yet (decision D-4 keeps observation out of UI.2).
 
-Dispatch vocabulary that must stay distinct once commands exist — see
-``flow8.command_boundary.DispatchStatus``::
+Dispatch lifecycle is defined only by
+``flow8.command_boundary.DispatchStatus``. Verification grades are a separate
+concept and must never be mixed into dispatch status. In particular,
+``API_ACKNOWLEDGED`` is reserved for a genuine application-level acknowledgement;
+a successful WinMM return code means only that the driver accepted dispatch.
 
-    ACCEPTED_OFFLINE | DRIVER_DISPATCHED | DISPATCH_FAILED
-    | API_ACKNOWLEDGED | UNKNOWN
-
-None of those may ever be rendered as physical hardware confirmation. This
-build performs no dispatch at all, so it renders none of them.
+No dispatch outcome or verification grade is physical hardware confirmation.
 
 ``FORBIDDEN_CLAIMS`` lists the statements the shell must never make. The UI
 test suite asserts that none of them appears in any rendered string.
@@ -45,7 +44,9 @@ class SessionStatus:
     """
 
     device: str = DEVICE_NOT_VERIFIED
-    midi: str = MIDI_UNKNOWN
+    midi_out: str = "CLOSED"
+    midi_in: str = "CLOSED"
+    midi_error: str = "NONE"
     usb_audio: str = USB_AUDIO_NOT_INTEGRATED
     audio_telemetry: str = AUDIO_TELEMETRY_NONE
     hardware_observation: str = OBSERVATION_UNKNOWN
@@ -53,7 +54,9 @@ class SessionStatus:
     def transport_rows(self) -> tuple[tuple[str, str], ...]:
         """Return ``(label, value)`` pairs for the status bar."""
         return (
-            ("MIDI", self.midi),
+            ("MIDI OUT", self.midi_out),
+            ("MIDI IN", self.midi_in),
+            ("MIDI ERROR", self.midi_error),
             ("USB AUDIO", self.usb_audio),
             ("AUDIO TELEMETRY", self.audio_telemetry),
             ("HARDWARE OBSERVATION", self.hardware_observation),
