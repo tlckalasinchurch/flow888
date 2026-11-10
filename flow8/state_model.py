@@ -21,9 +21,9 @@ class VerificationLevel(Enum):
 
     HARDWARE_SPECIFIED   documented hardware feature, no control address evidence
     PROTOCOL_VERIFIED    mapping supported by protocol documentation
-    API_ACKNOWLEDGED     only proof is that the Windows MIDI driver accepted a
-                         message (midiOutShortMsg returned 0). Says nothing about
-                         USB transmission, mixer application, or audio change.
+    API_ACKNOWLEDGED     reserved for a genuine application-level acknowledgement
+                         from the receiving application. A WinMM driver return code
+                         is NOT an application-level acknowledgement.
     IMPLEMENTED          implemented in software
     HARDWARE_TESTED      physical mixer behaviour actually observed
     UNKNOWN              capability asserted but evidence absent/unresolved
@@ -113,10 +113,9 @@ class Flow8StateStore:
         now = time.time()
 
         # Phase 2A initial 4 parameters.
-        # Phase C.2 correction: the only retained evidence for these is that
-        # midiOutShortMsg returned MMSYSERR_NOERROR. No inbound confirmation was
-        # ever captured and no operator observation is recorded, so they are
-        # graded API_ACKNOWLEDGED -- never HARDWARE_TESTED.
+        # A successful WinMM dispatch is transport evidence only. No application-level
+        # acknowledgement or hardware observation exists for these baseline values,
+        # so keep their verification grade UNKNOWN.
         self._parameters["main.fader"] = ParameterState(
             param_id="main.fader",
             channel_index=8,
@@ -126,7 +125,7 @@ class Flow8StateStore:
             sync_status=SyncStatus.UNKNOWN,
             source=EventSource.INITIALIZATION,
             timestamp=now,
-            verification_level=VerificationLevel.API_ACKNOWLEDGED,
+            verification_level=VerificationLevel.UNKNOWN,
             raw_midi_value=0,
             unit="raw"
         )
@@ -139,7 +138,7 @@ class Flow8StateStore:
             sync_status=SyncStatus.UNKNOWN,
             source=EventSource.INITIALIZATION,
             timestamp=now,
-            verification_level=VerificationLevel.API_ACKNOWLEDGED,
+            verification_level=VerificationLevel.UNKNOWN,
             raw_midi_value=0,
             unit="raw"
         )
@@ -152,7 +151,7 @@ class Flow8StateStore:
             sync_status=SyncStatus.UNKNOWN,
             source=EventSource.INITIALIZATION,
             timestamp=now,
-            verification_level=VerificationLevel.API_ACKNOWLEDGED,
+            verification_level=VerificationLevel.UNKNOWN,
             raw_midi_value=0,
             unit="bool"
         )
@@ -165,7 +164,7 @@ class Flow8StateStore:
             sync_status=SyncStatus.UNKNOWN,
             source=EventSource.INITIALIZATION,
             timestamp=now,
-            verification_level=VerificationLevel.API_ACKNOWLEDGED,
+            verification_level=VerificationLevel.UNKNOWN,
             raw_midi_value=64,
             unit="raw"
         )
