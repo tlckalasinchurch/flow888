@@ -318,6 +318,166 @@ class Flow8Service:
                 bool(enabled),
             )
 
+    def set_gain(self, channel_index: int, value: Union[int, float], unit: str = "raw") -> None:
+        """Set Preamp Gain (Channels 1 to 4 only).
+
+        Unit: 'raw' (0-127) or 'dB' (-20.0 to +60.0 dB).
+        """
+        if 1 <= channel_index <= 4:
+            previous = self._known_value("gain", channel_index)
+            log_entry = self._dispatch_and_notify(
+                self.parameter_engine.channel(channel_index).set_gain,
+                value, unit=unit,
+            )
+            raw = log_entry.raw_midi_prepared if log_entry else None
+            if raw is not None:
+                self._record("gain", channel_index, previous, raw)
+
+    def set_low_cut(self, channel_index: int, value: Union[int, float], unit: str = "raw") -> None:
+        """Set Low Cut filter frequency (Channels 1 to 4 only).
+
+        Unit: 'raw' (0-127) or 'Hz' (20.0 to 600.0 Hz).
+        """
+        if 1 <= channel_index <= 4:
+            previous = self._known_value("low_cut", channel_index)
+            if previous is None:
+                previous = 0
+            log_entry = self._dispatch_and_notify(
+                self.parameter_engine.channel(channel_index).set_low_cut,
+                value, unit=unit,
+            )
+            raw = log_entry.raw_midi_prepared if log_entry else None
+            if raw is not None:
+                self._record("low_cut", channel_index, previous, raw)
+
+    def set_compressor(self, channel_index: int, value: Union[int, float], unit: str = "raw") -> None:
+        """Set 1-Knob Dynamics Compressor intensity (Channels 1 to 4 only).
+
+        Unit: 'raw' (0-127) or '%' (0.0 to 100.0%).
+        """
+        if 1 <= channel_index <= 4:
+            previous = self._known_value("compressor", channel_index)
+            if previous is None:
+                previous = 0
+            log_entry = self._dispatch_and_notify(
+                self.parameter_engine.channel(channel_index).set_compressor,
+                value, unit=unit,
+            )
+            raw = log_entry.raw_midi_prepared if log_entry else None
+            if raw is not None:
+                self._record("compressor", channel_index, previous, raw)
+
+    def set_eq_band(
+        self,
+        channel_index: int,
+        band: str,
+        value: Union[int, float],
+        unit: str = "raw"
+    ) -> None:
+        """Set 4-Band Parametric EQ gain (Channels 1 to 7).
+
+        Band: 'low', 'low_mid', 'hi_mid', or 'hi'.
+        Unit: 'raw' (0-127) or 'dB' (-15.0 to +15.0 dB).
+        """
+        b_key = band.lower().replace("-", "_")
+        param_type = f"eq_{b_key}"
+        if 1 <= channel_index <= 7:
+            previous = self._known_value(param_type, channel_index)
+            if previous is None:
+                previous = 64
+            log_entry = self._dispatch_and_notify(
+                self.parameter_engine.channel(channel_index).set_eq_band,
+                band, value, unit=unit,
+            )
+            raw = log_entry.raw_midi_prepared if log_entry else None
+            if raw is not None:
+                self._record(param_type, channel_index, previous, raw)
+
+    def set_send(
+        self,
+        channel_index: int,
+        target: str,
+        value: Union[int, float],
+        unit: str = "raw"
+    ) -> None:
+        """Set auxiliary send level to monitor or FX (Channels 1 to 7).
+
+        Target: 'mon1', 'mon2', 'fx1', or 'fx2'.
+        Unit: 'raw' (0-127) or 'dB' (-70.0 to +10.0 dB).
+        """
+        t_key = target.lower()
+        param_type = f"send_{t_key}"
+        if 1 <= channel_index <= 7:
+            previous = self._known_value(param_type, channel_index)
+            log_entry = self._dispatch_and_notify(
+                self.parameter_engine.channel(channel_index).set_send,
+                target, value, unit=unit,
+            )
+            raw = log_entry.raw_midi_prepared if log_entry else None
+            if raw is not None:
+                self._record(param_type, channel_index, previous, raw)
+
+    # -- Presets & FX Profiles (CueAir adaptation) ----------------------------
+
+    def list_channel_presets(self, category: Optional[str] = None):
+        """List available curated channel presets, optionally filtered by category."""
+        from .presets import list_channel_presets
+        return list_channel_presets(category)
+
+    def get_channel_preset(self, preset_id: str):
+        """Retrieve a channel preset definition by ID."""
+        from .presets import get_channel_preset
+        return get_channel_preset(preset_id)
+
+    def apply_channel_preset(
+        self,
+        channel_index: int,
+        preset_id: str,
+        preserve_levels: bool = True
+    ) -> bool:
+        """Apply an audio engineering preset to a channel strip.
+
+        Level Preservation Guarantee:
+        When preserve_levels is True, the channel's fader volume, pan/balance,
+        and analog preamp gain are left unchanged, ensuring acoustic stability.
+        All modified parameters are grouped into an atomic batch for full undo/redo.
+        """
+        from .presets import get_channel_preset
+        preset = get_channel_preset(preset_id)
+        if preset is None or not (1 <= channel_index <= 7):
+            return False
+
+        with self._ledger_lock:
+            self.begin_batch()
+            try:
+                # Apply 4-band Parametric EQ
+                self.set_eq_band(channel_index, "low", preset.eq_low_db, unit="dB")
+                self.set_eq_band(channel_index, "low_mid", preset.eq_low_mid_db, unit="dB")
+                self.set_eq_band(channel_index, "hi_mid", preset.eq_hi_mid_db, unit="dB")
+                self.set_eq_band(channel_index, "hi", preset.eq_hi_db, unit="dB")
+
+                # Apply Low Cut (Channels 1-4)
+                if channel_index <= 4 and preset.low_cut_hz is not None:
+                    self.set_low_cut(channel_index, preset.low_cut_hz, unit="Hz")
+
+                # Apply Compressor (Channels 1-4)
+                if channel_index <= 4 and preset.compressor_percent is not None:
+                    self.set_compressor(channel_index, preset.compressor_percent, unit="%")
+            finally:
+                self.end_batch()
+
+        return True
+
+    def list_fx_presets(self, group: Optional[str] = None):
+        """List available FX starting points, optionally filtered by group."""
+        from .presets import list_fx_presets
+        return list_fx_presets(group)
+
+    def get_fx_preset(self, preset_id: str):
+        """Retrieve an FX preset definition by ID."""
+        from .presets import get_fx_preset
+        return get_fx_preset(preset_id)
+
     # -- Undo / redo ledger ---------------------------------------------------
 
     @staticmethod
@@ -368,6 +528,18 @@ class Flow8Service:
             self.set_pan(channel_index, value)
         elif parameter_type == "mute":
             self.set_mute(channel_index, bool(value))
+        elif parameter_type == "gain":
+            self.set_gain(channel_index, value)
+        elif parameter_type == "low_cut":
+            self.set_low_cut(channel_index, value)
+        elif parameter_type == "compressor":
+            self.set_compressor(channel_index, value)
+        elif parameter_type.startswith("eq_"):
+            band = parameter_type[3:]
+            self.set_eq_band(channel_index, band, value)
+        elif parameter_type.startswith("send_"):
+            target = parameter_type[5:]
+            self.set_send(channel_index, target, value)
         else:
             raise ValueError(f"{parameter_type!r} cannot be replayed")
 

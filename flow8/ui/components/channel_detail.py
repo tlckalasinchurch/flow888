@@ -238,6 +238,25 @@ class ChannelDetailPanel(tk.Frame):
                     fg="text", fill="x", pady=(6, 0))
         self._label(self.body, textvariable=self.subtitle_var, font="caption",
                     fg="text_muted", fill="x")
+
+        # Preset Launcher Button (CueAir integration)
+        self.preset_button = tk.Button(
+            self.body,
+            text="★ ACOUSTIC PRESETS (CueAir)",
+            font=self.fonts["eyebrow"],
+            bg=colors["purple_soft"],
+            fg=colors["background"],
+            activebackground=colors["purple"],
+            activeforeground=colors["text"],
+            disabledforeground=colors["text_muted"],
+            bd=0,
+            relief="flat",
+            cursor="hand2",
+            pady=4,
+            state="disabled",
+            command=self._on_open_presets,
+        )
+        self.preset_button.pack(fill="x", pady=(6, 2))
         self._divider()
 
         # --- +48V phantom --------------------------------------------------
@@ -360,21 +379,37 @@ class ChannelDetailPanel(tk.Frame):
         if target.kind == "main":
             self.title_var.set("MAIN L/R")
             self.subtitle_var.set("Master output bus · separate from the 7 input strips")
+            self.preset_button.configure(state="disabled")
             index = None
         else:
             index = target.index
             spec = LOGICAL_CHANNELS[index]
             self.title_var.set(f"CHANNEL {index:02d}")
             self.subtitle_var.set(f"{spec.name} · MIDI CH {spec.midi_channel}")
+            self.preset_button.configure(state="normal")
 
         self._configure_phantom(index)
         self._configure_gain(index)
+
+    def _on_open_presets(self) -> None:
+        if self.target is None or self.target.kind != "input" or self.target.index is None:
+            return
+        from flow8.ui.components.preset_picker import PresetPickerDialog
+        spec = LOGICAL_CHANNELS[self.target.index]
+        PresetPickerDialog(
+            master=self.winfo_toplevel(),
+            fonts=self.fonts,
+            channel_index=self.target.index,
+            channel_name=spec.name,
+            service=self._service,
+        )
 
     def clear(self) -> None:
         """Forget the target, cancel any pending dialog, release subscriptions."""
         self._dismiss_dialog()
         self.detach()
         self.target = None
+        self.preset_button.configure(state="disabled")
         self.title_var.set("NO SELECTION")
         self.subtitle_var.set("")
         self.error_var.set("")

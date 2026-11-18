@@ -36,6 +36,8 @@ app/
 
 # --- Reverse-engineering tool artefacts -----------------------------------
 investigation.cany/
+cueair_extracted/
+rea_setup_output.json
 
 # --- OS / editor noise ----------------------------------------------------
 Thumbs.db
