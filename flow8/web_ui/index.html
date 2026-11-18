@@ -3,21 +3,37 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-  <title>FLOW 8 — CueAir Gen Z/Alpha</title>
+  <title>FLOW 8 Live Console</title>
+  <meta name="theme-color" content="#16181C" />
   <link rel="stylesheet" href="/styles.css" />
 </head>
 <body data-view="faders">
 <div class="app-shell">
-  <!-- Top Console Bar -->
-  <header class="topbar">
-    <div class="brand-group">
-      <div class="brand-mark">
-        <span class="brand-led"></span>
-        <span>FLOW 8</span>
-      </div>
-      <span class="brand-sub">CueAir Gen Z/Alpha · iPad Remote</span>
+  <!-- Status strip: what is live right now -->
+  <div class="status-strip">
+    <span class="brand-mark">FLOW 8</span>
+    <div class="link-lamps" aria-label="Link status">
+      <span class="link" title="USB MIDI out: commands can reach the mixer"><span class="lamp lamp-link" id="lamp-usb"></span>USB</span>
+      <span class="link" title="MIDI in: the app hears hardware moves"><span class="lamp lamp-link" id="lamp-midi-in"></span>MIDI IN</span>
+      <span class="link" title="Live link from this device to the host computer"><span class="lamp lamp-link" id="lamp-hub"></span>HUB</span>
+      <span class="link" title="Flashes when the mixer reports a change"><span class="lamp lamp-rx" id="lamp-rx"></span>RX</span>
+      <span class="link" title="Lit while a measured audio meter feed is running. The FLOW 8 does not send meters over MIDI."><span class="lamp lamp-link" id="lamp-meter"></span>METERS</span>
     </div>
+    <div class="status-spacer"></div>
+    <div class="scene-display empty" id="scene-display" role="status">
+      <span class="scene-label">Scene</span>
+      <span class="scene-name">No scene</span>
+      <span class="scene-edited">EDITED</span>
+    </div>
+    <time class="clock" id="clock" aria-label="Time"></time>
+    <div class="status-pill" id="status-pill" role="status">
+      <span class="status-dot"></span>
+      <span id="status-text">CONNECTING</span>
+    </div>
+  </div>
 
+  <!-- Control row -->
+  <header class="topbar">
     <div class="layer-bar" id="layer-bar" role="group" aria-label="Fader layer">
       <span class="layer-label">FADERS</span>
       <button class="layer-btn active" data-layer="main" aria-pressed="true">MAIN</button>
@@ -28,14 +44,11 @@
     </div>
 
     <div class="toolbar-actions">
+      <button class="hw-btn lock-btn" id="btn-lock" aria-pressed="false" title="Lock all controls against stray touches."><span class="lock-text">LOCK</span></button>
       <button class="hw-btn danger" id="btn-mute-all">MUTE ALL</button>
-      <button class="hw-btn" id="btn-undo">↶ UNDO</button>
-      <button class="hw-btn" id="btn-redo">↷ REDO</button>
+      <button class="hw-btn" id="btn-undo" aria-label="Undo">↶ UNDO</button>
+      <button class="hw-btn" id="btn-redo" aria-label="Redo">↷ REDO</button>
       <button class="hw-btn accent" id="btn-presets">★ PRESETS</button>
-      <div class="status-pill" id="status-pill" role="status">
-        <span class="status-dot"></span>
-        <span id="status-text">UNSYNCED</span>
-      </div>
     </div>
   </header>
 

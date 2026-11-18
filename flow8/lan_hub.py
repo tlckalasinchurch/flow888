@@ -13,6 +13,7 @@ import http.server
 import json
 import logging
 import queue
+import re
 import socket
 import threading
 import time
@@ -29,6 +30,20 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_LAN_PORT = 8844
 WEB_UI_DIR = Path(__file__).resolve().parent / "web_ui"
+FONT_PATH = re.compile(r"^/fonts/([a-z0-9-]+\.woff2)$")
+
+# Meter frames: at most one SSE frame per interval; the feed counts as live
+# while frames arrive within METER_STALE_S.
+METER_MIN_INTERVAL_S = 1.0 / 30.0
+METER_STALE_S = 2.0
+
+# Actions that change the mix. After a scene recall, any of these marks the
+# current scene as edited. Scene, scribble and preset-list actions do not.
+_MIX_ACTIONS = frozenset({
+    "setFader", "setPan", "setMute", "muteAll", "setBusFader", "setEqBand",
+    "setLowCut", "setCompressor", "setSend", "undo", "redo", "applyPreset",
+    "resetEqFlat",
+})
 
 
 def get_lan_ips() -> list[str]:
@@ -75,6 +90,11 @@ class Flow8LanHub:
         self._subscribers: list[tuple[queue.Queue[bytes], Optional[str]]] = []
         self._listening = False
         self._scribbles: dict[int, dict[str, str]] = {}
+        self._scene_lock = threading.Lock()
+        self._current_scene: Optional[str] = None
+        self._scene_edited = False
+        self._last_meter_frame = 0.0
+        self._last_meter_sent = 0.0
 
     @property
     def is_running(self) -> bool:
@@ -133,6 +153,10 @@ class Flow8LanHub:
                     return
                 if self.path == "/app.js":
                     self._send_asset("app.js", "application/javascript; charset=utf-8")
+                    return
+                font = FONT_PATH.match(self.path)
+                if font:
+                    self._send_asset(f"fonts/{font.group(1)}", "font/woff2")
                     return
 
                 if self.path.startswith("/api/status"):
@@ -240,15 +264,60 @@ class Flow8LanHub:
             self._thread = None
 
     def _on_service_event(self, param_id: str, value: Any) -> None:
-        self.broadcast({"paramId": param_id, "value": value})
+        # The service reports a real parameter id only for values the mixer sent
+        # over MIDI IN (hardware moves). "__name__" ids are internal state events.
+        if param_id.startswith("__"):
+            kind = "link" if param_id == "__reconcile__" else "state"
+            self.broadcast({"type": kind})
+            return
+        with self._scene_lock:
+            if self._current_scene is not None:
+                self._scene_edited = True
+        self.broadcast({"type": "rx", "paramId": param_id, "value": value})
 
-    def broadcast(self, event: dict[str, Any]) -> None:
+    def publish_meters(self, levels: dict[str, dict[str, float]]) -> bool:
+        """Publish one meter frame from a measured audio source.
+
+        ``levels`` maps a strip id ("ch1".."ch7", "main", "mon1".."fx2") to
+        ``{"peak": dBFS, "rms": dBFS}``. Call this only with levels measured
+        from audio (for example the FLOW 8 USB capture stream). The FLOW 8 does
+        not send meter data over MIDI, so the hub never creates levels itself.
+        Returns False when the frame was dropped by the rate limit.
+        """
+        now = time.monotonic()
+        self._last_meter_frame = now
+        if now - self._last_meter_sent < METER_MIN_INTERVAL_S:
+            return False
+        self._last_meter_sent = now
+        clean = {
+            str(k): {
+                "peak": round(float(v.get("peak", -120.0)), 1),
+                "rms": round(float(v.get("rms", -120.0)), 1),
+            }
+            for k, v in levels.items()
+        }
+        self.broadcast({"type": "meters", "levels": clean}, droppable=True)
+        return True
+
+    @property
+    def meter_feed_live(self) -> bool:
+        return self._last_meter_frame > 0 and time.monotonic() - self._last_meter_frame < METER_STALE_S
+
+    def broadcast(self, event: dict[str, Any], droppable: bool = False) -> None:
+        """Send one SSE event to every client.
+
+        A full client queue drops a ``droppable`` event (meter frames) but
+        disconnects the client for any other event, so it reloads its state.
+        """
         payload = f"data: {json.dumps(event, default=str)}\n\n".encode("utf-8")
         dead: list[tuple[queue.Queue[bytes], Optional[str]]] = []
         with self._sse_lock:
             for item in self._subscribers:
                 try:
                     item[0].put_nowait(payload)
+                except queue.Full:
+                    if not droppable:
+                        dead.append(item)
                 except Exception:
                     dead.append(item)
             for item in dead:
@@ -261,6 +330,7 @@ class Flow8LanHub:
             "midiConnected": self.service.is_connected,
             "midiOutOpen": self.service.midi_out_open,
             "midiInOpen": self.service.midi_in_open,
+            "meterFeed": self.meter_feed_live,
             "lanUrls": self.lan_urls(),
             "port": self.port,
         }
@@ -330,8 +400,15 @@ class Flow8LanHub:
                 "fader": int(bf),
                 "faderProvenance": bf_prov,
             })
+        with self._scene_lock:
+            current_scene, scene_edited = self._current_scene, self._scene_edited
         return {
             "midiConnected": self.service.is_connected,
+            "midiOutOpen": self.service.midi_out_open,
+            "midiInOpen": self.service.midi_in_open,
+            "meterFeed": self.meter_feed_live,
+            "currentScene": current_scene,
+            "sceneEdited": scene_edited,
             "channels": channels,
             "buses": buses,
             "scenes": list(self.service.scenes.names()),
@@ -430,7 +507,21 @@ class Flow8LanHub:
         except Exception as exc:
             return 400, {"ok": False, "error": str(exc)}
 
-        self.broadcast({"type": "action", "action": action, "clientId": msg.get("clientId")})
+        with self._scene_lock:
+            if action in ("captureScene", "recallScene"):
+                self._current_scene = str(msg["name"])
+                self._scene_edited = False
+            elif action in _MIX_ACTIONS and self._current_scene is not None:
+                self._scene_edited = True
+        # "tx" tells every client which strip a command went to, for the TX lamp.
+        self.broadcast({
+            "type": "tx",
+            "action": action,
+            "channel": msg.get("channel"),
+            "bus": msg.get("bus"),
+            "target": msg.get("target"),
+            "clientId": msg.get("clientId"),
+        })
         return 200, {"ok": True, "action": action}
 
 

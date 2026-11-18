@@ -129,6 +129,7 @@
   // The value is sent 300 ms after the last key press.
   function attachSliderKeys(el, { label, min, max, get, set, text, onCommit }) {
     el.tabIndex = 0;
+    el.dataset.focusKey = el.dataset.focusKey || `slider:${label}`;
     el.setAttribute('role', 'slider');
     el.setAttribute('aria-label', label);
     el.setAttribute('aria-valuemin', min);
@@ -154,6 +155,71 @@
       commitTimer = setTimeout(() => onCommit(v), 300);
     });
     return sync;
+  }
+
+  // ---------- Live lamps and meters ----------
+  // Lamp timestamps live outside the DOM, so a re-render never loses a flash.
+  const LAMP_MS = 220;
+  const lamps = {};   // stripId -> { rx: ms, tx: ms }
+  const meters = {};  // stripId -> { peak, rms, hold, holdAt, clipAt }
+  // -Infinity: nothing has happened yet, so no lamp or meter starts lit.
+  let lastRxAny = -Infinity;
+  let lastMeterFrame = -Infinity;
+  const stripIdForChannel = (idx) => (idx === 8 ? 'main' : `ch${idx}`);
+  const stripIdForParam = (pid) => String(pid).split('.')[0].replace('balance', 'main');
+  function markLamp(id, kind) {
+    if (!id) return;
+    (lamps[id] = lamps[id] || {})[kind] = performance.now();
+    if (kind === 'rx') lastRxAny = performance.now();
+  }
+  // Meter scale: 0 dBFS at the top, -60 dBFS at the bottom.
+  const meterFrac = (db) => Math.max(0, Math.min(1, (db + 60) / 60));
+  function onMeterFrame(levels) {
+    const now = performance.now();
+    lastMeterFrame = now;
+    Object.entries(levels).forEach(([id, l]) => {
+      const m = meters[id] = meters[id] || { peak: -120, rms: -120, hold: -120, holdAt: 0, clipAt: 0 };
+      m.peak = l.peak;
+      m.rms = l.rms;
+      if (l.peak >= m.hold || now - m.holdAt > 1500) { m.hold = l.peak; m.holdAt = now; }
+      if (l.peak >= -0.5) m.clipAt = now;
+    });
+  }
+  function frame() {
+    const now = performance.now();
+    document.querySelectorAll('[data-lamp]').forEach((el) => {
+      const [id, kind] = el.dataset.lamp.split(':');
+      const t = (lamps[id] || {})[kind] ?? -Infinity;
+      el.classList.toggle('on', now - t < LAMP_MS);
+    });
+    document.getElementById('lamp-rx').classList.toggle('on', now - lastRxAny < LAMP_MS);
+    const live = now - lastMeterFrame < 2000;
+    document.body.classList.toggle('meters-live', live);
+    document.getElementById('lamp-meter').classList.toggle('on', live);
+    if (live) {
+      document.querySelectorAll('[data-meter]').forEach((el) => {
+        const m = meters[el.dataset.meter];
+        if (!m) return;
+        el.style.setProperty('--rms', meterFrac(m.rms));
+        el.style.setProperty('--peak', meterFrac(m.peak));
+        el.style.setProperty('--hold', meterFrac(m.hold));
+        el.classList.toggle('sig', m.peak > -50);
+        el.classList.toggle('clip', now - m.clipAt < 1500);
+      });
+    }
+    requestAnimationFrame(frame);
+  }
+
+  // Overview EQ curve for a strip, drawn from the known band values.
+  function eqThumbPath(ch, w = 60, h = 18) {
+    const gains = BANDS.map((b) => eqRawToDb(ch.eq ? ch.eq[b.key] : 64));
+    const pts = [];
+    for (let i = 0; i <= 24; i++) {
+      const f = 20 * Math.pow(1000, i / 24);
+      const db = Math.max(-15, Math.min(15, eqResponseAt(f, gains)));
+      pts.push(`${((i / 24) * w).toFixed(1)},${(h / 2 - (db / 15) * (h / 2 - 1)).toFixed(1)}`);
+    }
+    return `M${pts.join(' L')}`;
   }
 
   // ---------- Rotary SVG Knob Builder ----------
@@ -555,6 +621,18 @@
       .map(([t, raw]) => `<div class="fader-tick" style="bottom:${((raw / 127) * 100).toFixed(2)}%">${t}</div>`).join('')
   }</div>`;
 
+  // RX: the mixer reported a change. TX: a command went to the mixer.
+  // The third lamp is steady and shows where the fader value comes from.
+  const LAMPS = (sid, prov) => `
+    <span class="lamp lamp-rx" data-lamp="${sid}:rx" title="RX: the mixer reported a change on this strip"></span>
+    <span class="lamp lamp-tx" data-lamp="${sid}:tx" title="TX: a command went to the mixer"></span>
+    <span class="lamp lamp-state state-${prov}" title="${esc(provTitle(prov))}"></span>`;
+  // Meter: shown only while a measured meter feed is live (body.meters-live).
+  const METER = (sid) => `
+    <div class="meter" data-meter="${sid}" aria-hidden="true">
+      <div class="meter-rms"></div><div class="meter-hold"></div><span class="meter-clip"></span>
+    </div>`;
+
   // ---------- Vertical Fader Pointer Engine ----------
   function attachVerticalFader(well, initialVal, onMove, onCommit, label) {
     let val = initialVal;
@@ -568,6 +646,7 @@
       const px = 14 + (v / 127) * usable;
       fill.style.height = `${px - 14}px`;
       cap.style.bottom = `${px}px`;
+      cap.dataset.v = midiToDbStr(v);
       unity.style.bottom = `${14 + (101 / 127) * usable}px`;
     };
     requestAnimationFrame(() => updatePos(val));
@@ -589,6 +668,7 @@
 
     well.onpointerdown = (e) => {
       well.setPointerCapture(e.pointerId);
+      well.classList.add('grab');
       val = valFromEvent(e);
       updatePos(val);
       onMove(val);
@@ -602,6 +682,7 @@
     well.onpointerup = (e) => {
       if (!well.hasPointerCapture(e.pointerId)) return;
       well.releasePointerCapture(e.pointerId);
+      well.classList.remove('grab');
       syncKeys();
       onCommit(val);
     };
@@ -630,33 +711,42 @@
         const name = ch.label || ch.name;
         const notInLayer = isMaster && activeLayer !== 'main';
 
+        const sid = stripIdForChannel(ch.index);
+        const prov = isSendLayer ? (ch.sends ? 'COMMANDED' : 'UNSYNCED') : ch.faderProvenance;
         const strip = document.createElement('div');
+        strip.dataset.strip = sid;
         strip.className = 'strip' + (isMaster ? ' master' : '') + (selectedCh === ch.index ? ' selected' : '') + (isSendLayer ? layerClass : '') + (notInLayer ? ' not-in-layer' : '');
         if (notInLayer) strip.title = `Main L/R is not part of the ${activeLayer.toUpperCase()} mix. Its fader sets the main level.`;
         const tagColor = ch.color || '#38bdf8';
 
         strip.innerHTML = `
-          <div class="scribble" role="button" tabindex="0" aria-label="Select ${esc(name)}">
-            <div class="scribble-bar" style="background:${tagColor}"></div>
+          <div class="scribble" role="button" tabindex="0" data-focus-key="scribble:${sid}" aria-label="Select ${esc(name)}" style="--lcd:${tagColor}">
             <div class="scribble-top">
               <span class="scribble-num">${isMaster ? 'MAIN' : String(ch.index).padStart(2, '0')}</span>
               <span class="scribble-prov" title="${esc(provHint)}">${faderProv}</span>
             </div>
             <div class="scribble-name" title="${esc(name)}">${esc(name)}</div>
           </div>
+          <div class="lamp-row">
+            ${LAMPS(sid, prov)}
+          </div>
+          ${isMaster ? '<div class="eq-thumb eq-thumb-none">MAIN L/R</div>' : `<svg class="eq-thumb" viewBox="0 0 60 18" preserveAspectRatio="none" aria-hidden="true"><line x1="0" y1="9" x2="60" y2="9" class="eq-thumb-zero"/><path d="${eqThumbPath(ch)}"/></svg>`}
           <div class="strip-pan${!isMaster && selectedCh === ch.index ? ' has-edit' : ''}">
             ${!isMaster && selectedCh === ch.index ? `<button class="scribble-edit" aria-label="Rename ${esc(name)}" title="Rename channel">✎</button>` : ''}
             <span class="strip-pan-val">${notInLayer ? 'MAIN MIX' : panText(ch.pan)}</span>
           </div>
           ${isMaster
             ? '<div class="mute-na" title="The FLOW 8 has no MIDI mute for Main L/R. Use MUTE ALL or the main fader.">NO MUTE</div>'
-            : `<button class="mute-switch ${ch.mute ? 'muted' : ''}" aria-pressed="${ch.mute}" aria-label="Mute ${esc(name)}">${ch.mute ? 'MUTED' : 'MUTE'}</button>`}
-          <div class="fader-well">
-            ${FADER_TICKS}
-            <div class="fader-slot"></div>
-            <div class="unity-mark"></div>
-            <div class="fader-fill"></div>
-            <div class="fader-cap"></div>
+            : `<button class="mute-switch ${ch.mute ? 'muted' : ''}" data-focus-key="mute:${sid}" aria-pressed="${ch.mute}" aria-label="Mute ${esc(name)}">${ch.mute ? 'MUTED' : 'MUTE'}</button>`}
+          <div class="fader-zone">
+            ${METER(sid)}
+            <div class="fader-well" data-focus-key="fader:${sid}:${activeLayer}">
+              ${FADER_TICKS}
+              <div class="fader-slot"></div>
+              <div class="unity-mark"></div>
+              <div class="fader-fill"></div>
+              <div class="fader-cap"></div>
+            </div>
           </div>
           <div class="strip-readout">${midiToDbStr(faderVal)}</div>
         `;
@@ -676,7 +766,7 @@
 
         if (!isMaster) {
           strip.querySelector('.mute-switch').onclick = () =>
-            postAction({ action: 'setMute', channel: ch.index, value: !ch.mute }).then(loadSession);
+            postAction({ action: 'setMute', channel: ch.index, value: !ch.mute }).then(scheduleReload);
         }
 
         const readout = strip.querySelector('.strip-readout');
@@ -699,20 +789,27 @@
       session.buses.forEach((b) => {
         const strip = document.createElement('div');
         strip.className = 'strip bus-strip' + (b.id.startsWith('fx') ? ' layer-fx' : ' layer-mon');
+        strip.dataset.strip = b.id;
         strip.innerHTML = `
-          <div class="scribble">
-            <div class="scribble-bar" style="background:${b.id.startsWith('fx') ? '#a78bfa' : '#f59e0b'}"></div>
+          <div class="scribble" style="--lcd:${b.id.startsWith('fx') ? '#BC71FF' : '#FFB45B'}">
             <div class="scribble-top"><span class="scribble-num">BUS</span><span class="scribble-prov" title="${esc(provTitle(b.faderProvenance))}">${provCode(b.faderProvenance)}</span></div>
-            <div class="scribble-name">${b.id.toUpperCase()}</div>
+            <div class="scribble-name">${b.id.toUpperCase().replace(/(\d)/, ' $1')}</div>
           </div>
+          <div class="lamp-row">
+            ${LAMPS(b.id, b.faderProvenance)}
+          </div>
+          <div class="eq-thumb eq-thumb-none">${b.id.startsWith('fx') ? 'FX SEND' : 'MONITOR'}</div>
           <div class="strip-pan"><span class="strip-pan-val">MASTER</span></div>
-          <div style="height:26px"></div>
-          <div class="fader-well">
-            ${FADER_TICKS}
-            <div class="fader-slot"></div>
-            <div class="unity-mark"></div>
-            <div class="fader-fill"></div>
-            <div class="fader-cap"></div>
+          <div class="mute-na mute-spacer" aria-hidden="true"></div>
+          <div class="fader-zone">
+            ${METER(b.id)}
+            <div class="fader-well" data-focus-key="fader:${b.id}">
+              ${FADER_TICKS}
+              <div class="fader-slot"></div>
+              <div class="unity-mark"></div>
+              <div class="fader-fill"></div>
+              <div class="fader-cap"></div>
+            </div>
           </div>
           <div class="strip-readout">${midiToDbStr(b.fader)}</div>
         `;
@@ -738,6 +835,60 @@
   }
   document.getElementById('console-bank').addEventListener('scroll', updateScrollHint, { passive: true });
   window.addEventListener('resize', updateScrollHint);
+
+  function renderStatusBar() {
+    if (!session) return;
+    const set = (id, on) => document.getElementById(id).classList.toggle('on', !!on);
+    set('lamp-usb', session.midiOutOpen);
+    set('lamp-midi-in', session.midiInOpen);
+    const scene = document.getElementById('scene-display');
+    const cur = session.currentScene;
+    scene.querySelector('.scene-name').textContent = cur ? cur.replace('SCENE ', 'S') : 'No scene';
+    scene.classList.toggle('edited', !!(cur && session.sceneEdited));
+    scene.classList.toggle('empty', !cur);
+    scene.title = !cur
+      ? 'No scene recalled or saved in this session.'
+      : session.sceneEdited
+        ? `The mix changed after ${cur} was recalled or saved. Hold the pad to save it again.`
+        : `The mix matches ${cur}.`;
+  }
+  const clockEl = document.getElementById('clock');
+  const tickClock = () => {
+    clockEl.textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+  };
+  tickClock();
+  setInterval(tickClock, 1000);
+
+  // ---------- Panel lock ----------
+  // Tap LOCK to lock all controls. Hold it for 0.8 s to unlock, so a stray touch
+  // during a show cannot change the mix.
+  (() => {
+    const btn = document.getElementById('btn-lock');
+    let holdTimer = null;
+    const setLocked = (on) => {
+      document.body.classList.toggle('locked', on);
+      btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+      btn.querySelector('.lock-text').textContent = on ? 'LOCKED' : 'LOCK';
+      btn.title = on ? 'Hold for 0.8 s to unlock the controls.' : 'Lock all controls against stray touches.';
+      showToast(on ? 'Controls locked. Hold LOCK to unlock.' : 'Controls unlocked.');
+    };
+    btn.onpointerdown = () => {
+      if (!document.body.classList.contains('locked')) { setLocked(true); return; }
+      btn.classList.add('holding');
+      holdTimer = setTimeout(() => { holdTimer = null; btn.classList.remove('holding'); setLocked(false); }, 800);
+    };
+    const cancel = () => {
+      btn.classList.remove('holding');
+      if (holdTimer) { clearTimeout(holdTimer); holdTimer = null; showToast('Hold LOCK for 0.8 s to unlock.'); }
+    };
+    btn.onpointerup = cancel;
+    btn.onpointerleave = () => { btn.classList.remove('holding'); if (holdTimer) { clearTimeout(holdTimer); holdTimer = null; } };
+    btn.onkeydown = (e) => {
+      if (e.key !== 'Enter' && e.key !== ' ') return;
+      e.preventDefault();
+      setLocked(!document.body.classList.contains('locked'));
+    };
+  })();
 
   // ---------- Modals ----------
   async function openPresetsModal() {
@@ -854,6 +1005,8 @@
       document.querySelectorAll('.layer-btn').forEach((b) => { b.classList.remove('active'); b.setAttribute('aria-pressed', 'false'); });
       btn.classList.add('active');
       btn.setAttribute('aria-pressed', 'true');
+      document.body.classList.toggle('layer-mon', activeLayer.startsWith('mon'));
+      document.body.classList.toggle('layer-fx', activeLayer.startsWith('fx'));
       renderConsole();
     };
   });
@@ -881,8 +1034,8 @@
     if (res.ok) showToast(allMuted ? 'All inputs unmuted.' : 'All inputs muted. Press UNMUTE ALL to restore.');
     loadSession();
   };
-  document.getElementById('btn-undo').onclick = () => postAction({ action: 'undo' }).then(loadSession);
-  document.getElementById('btn-redo').onclick = () => postAction({ action: 'redo' }).then(loadSession);
+  document.getElementById('btn-undo').onclick = () => postAction({ action: 'undo' }).then(scheduleReload);
+  document.getElementById('btn-redo').onclick = () => postAction({ action: 'redo' }).then(scheduleReload);
   document.getElementById('btn-presets').onclick = openPresetsModal;
   document.getElementById('btn-close-presets').onclick = () => closeModal('preset-modal');
   document.getElementById('btn-close-scribble').onclick = () => closeModal('scribble-modal');
@@ -891,7 +1044,34 @@
     postAction({ action: 'resetEqFlat', channel: target }).then(loadSession);
   };
 
+  // While a finger or mouse holds a control, a re-render would drop the drag.
+  // Reloads wait until the pointer is released.
+  let pointerBusy = false;
+  let reloadPending = false;
+  let reloadTimer = null;
+  function scheduleReload() {
+    reloadPending = true;
+    if (pointerBusy) return;
+    clearTimeout(reloadTimer);
+    reloadTimer = setTimeout(() => {
+      if (pointerBusy) return; // a drag started after scheduling; release will reload
+      reloadPending = false;
+      loadSession();
+    }, 120);
+  }
+  document.addEventListener('pointerdown', (e) => {
+    if (e.target.closest('.fader-well, .knob-svg, #eq-canvas, .studio-range')) pointerBusy = true;
+  }, true);
+  const releasePointer = () => {
+    if (!pointerBusy) return;
+    pointerBusy = false;
+    if (reloadPending) setTimeout(scheduleReload, 60);
+  };
+  window.addEventListener('pointerup', releasePointer, true);
+  window.addEventListener('pointercancel', releasePointer, true);
+
   async function loadSession() {
+    const focusKey = document.activeElement && document.activeElement.dataset ? document.activeElement.dataset.focusKey : null;
     try {
       const res = await fetch('/api/session');
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -903,6 +1083,11 @@
     }
     renderConsole();
     renderDsp();
+    renderStatusBar();
+    if (focusKey) {
+      const el = document.querySelector(`[data-focus-key="${CSS.escape(focusKey)}"]`);
+      if (el) el.focus({ preventScroll: true });
+    }
   }
 
   setupEqCanvasInteraction();
@@ -918,5 +1103,20 @@
     }
   }, 3000);
   const es = new EventSource('/api/events?clientId=' + clientId);
-  es.onmessage = () => loadSession();
+  es.onopen = () => document.getElementById('lamp-hub').classList.add('on');
+  es.onerror = () => document.getElementById('lamp-hub').classList.remove('on');
+  es.onmessage = (msg) => {
+    let ev = {};
+    try { ev = JSON.parse(msg.data); } catch (_) { return; }
+    if (ev.type === 'meters') { onMeterFrame(ev.levels || {}); return; }
+    if (ev.type === 'connected') return;
+    if (ev.type === 'rx') markLamp(stripIdForParam(ev.paramId), 'rx');
+    if (ev.type === 'tx') {
+      if (ev.action === 'muteAll') for (let i = 1; i <= 7; i++) markLamp(`ch${i}`, 'tx');
+      else if (ev.bus) markLamp(ev.bus, 'tx');
+      else if (ev.channel != null) markLamp(stripIdForChannel(+ev.channel), 'tx');
+    }
+    scheduleReload();
+  };
+  requestAnimationFrame(frame);
 })();

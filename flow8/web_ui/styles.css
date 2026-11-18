@@ -1,23 +1,33 @@
+@font-face { font-family: "Barlow Condensed"; src: url("/fonts/barlow-condensed-500.woff2") format("woff2"); font-weight: 500; font-display: swap; }
+@font-face { font-family: "Barlow Condensed"; src: url("/fonts/barlow-condensed-600.woff2") format("woff2"); font-weight: 600; font-display: swap; }
+@font-face { font-family: "Barlow Condensed"; src: url("/fonts/barlow-condensed-700.woff2") format("woff2"); font-weight: 700 800; font-display: swap; }
+
+/* Live console: anodized graphite panel, silkscreen legends, real LED colours. */
 :root {
-  --bg-chassis: #070B14;
-  --bg-panel: #0C1421;
-  --bg-card: #101827;
-  --bg-well: #060911;
-  --bg-elevated: #14243A;
-  --border-dark: #1A2639;
-  --border-light: #293951;
-  --text-primary: #F5F7FB;
-  --text-secondary: #93A2B8;
-  --text-muted: #5C6B84;
-  --accent-cyan: #2EF2E2;
-  --accent-amber: #FFB45B;
-  --accent-emerald: #52E59A;
+  --bg-chassis: #16181C;
+  --bg-panel: #1C1F24;
+  --bg-card: #202329;
+  --bg-well: #0F1114;
+  --bg-elevated: #2A2E35;
+  --border-dark: #2A2E35;
+  --border-light: #3A3F48;
+  --text-primary: #E6E8EB;
+  --text-secondary: #A3A9B2;
+  --text-muted: #79808A;
+  --accent-cyan: #3FD2E0;
+  --accent-amber: #FFB020;
+  --accent-emerald: #3BE36F;
   --accent-purple: #BC71FF;
   --accent-pink: #FF6BAA;
-  --accent-red: #FF4D6D;
+  --accent-red: #FF3B30;
   --accent-lime: #C5FF4A;
-  --font-sans: "Inter", -apple-system, "Segoe UI", system-ui, sans-serif;
-  --font-mono: "JetBrains Mono", "Cascadia Mono", "Consolas", monospace;
+  --led-green: #3BE36F;
+  --led-amber: #FFB020;
+  --led-red: #FF3B30;
+  --led-blue: #4FA8FF;
+  --lcd-ink: #0D1014;
+  --font-sans: "Barlow Condensed", "Arial Narrow", "Roboto Condensed", system-ui, sans-serif;
+  --font-mono: "Barlow Condensed", "Arial Narrow", system-ui, sans-serif;
 }
 
 * {
@@ -976,4 +986,300 @@ input, textarea { user-select: text; }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition: none !important; animation: none !important; }
+}
+
+
+/* =====================================================================
+   Live console skin
+   ===================================================================== */
+body { font-feature-settings: "tnum" 1; letter-spacing: 0.01em; }
+.strip-readout, .knob-val, .band-chip .b-val, .send-top .s-val, .clock { font-variant-numeric: tabular-nums; }
+
+/* ---- Status strip ---- */
+.status-strip {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 5px 14px;
+  background: #101215;
+  border-bottom: 1px solid #000;
+  flex-shrink: 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+.status-strip .brand-mark { font-size: 16px; font-weight: 700; letter-spacing: 0.12em; color: var(--text-primary); }
+.status-spacer { flex: 1; }
+.link-lamps { display: flex; gap: 12px; align-items: center; }
+.link { display: inline-flex; align-items: center; gap: 5px; letter-spacing: 0.06em; }
+.clock { font-size: 15px; font-weight: 600; color: var(--text-primary); min-width: 64px; text-align: right; }
+
+/* ---- LED lens: visibly dark when off, lit with a tight glow when on ---- */
+.lamp {
+  --c: var(--led-green);
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: radial-gradient(circle at 35% 35%, #3a3f47 0%, #1a1d22 70%);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.7);
+}
+.lamp.on {
+  background: radial-gradient(circle at 35% 35%, #fff 0%, var(--c) 45%, var(--c) 100%);
+  box-shadow: 0 0 6px var(--c), 0 0 1px var(--c);
+}
+.lamp-rx { --c: var(--led-amber); }
+.lamp-tx { --c: var(--led-blue); }
+.lamp-link { --c: var(--led-green); }
+.lamp-state.state-OBSERVED { --c: var(--led-green); }
+.lamp-state.state-COMMANDED { --c: var(--led-blue); }
+.lamp-state.state-DISPATCH_FAILED { --c: var(--led-red); }
+.lamp-state.state-OBSERVED,
+.lamp-state.state-COMMANDED,
+.lamp-state.state-DISPATCH_FAILED {
+  background: radial-gradient(circle at 35% 35%, #fff 0%, var(--c) 45%, var(--c) 100%);
+  box-shadow: 0 0 5px var(--c);
+}
+.lamp-state.state-COMMANDED { opacity: 0.75; box-shadow: none; }
+
+/* ---- Scene display (like a console's scene LCD) ---- */
+.scene-display {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 2px 10px;
+  border-radius: 3px;
+  background: #0B0D10;
+  border: 1px solid #2A2E35;
+}
+.scene-label { font-size: 11px; color: var(--text-muted); letter-spacing: 0.08em; }
+.scene-name { font-size: 15px; font-weight: 700; color: var(--led-green); }
+.scene-display.empty .scene-name { color: var(--text-muted); font-weight: 600; }
+.scene-edited { display: none; font-size: 11px; font-weight: 700; color: var(--led-amber); letter-spacing: 0.08em; }
+.scene-display.edited .scene-edited { display: inline; }
+.scene-display.edited .scene-name { color: var(--led-amber); }
+
+/* ---- Control row ---- */
+.topbar {
+  padding: 8px 14px;
+  background: linear-gradient(180deg, #23262C 0%, #1B1E22 100%);
+  border-bottom: 1px solid #0C0D10;
+  box-shadow: 0 2px 0 rgba(255, 255, 255, 0.03) inset, 0 6px 14px rgba(0, 0, 0, 0.45);
+}
+.layer-label { font-size: 11px; }
+.layer-btn, .hw-btn, .mobile-tab { font-family: var(--font-sans); font-size: 13px; font-weight: 700; letter-spacing: 0.06em; }
+
+/* Keys look like rubber console keys: matte, a lit legend when active. */
+.hw-btn {
+  background: linear-gradient(180deg, #34383F 0%, #2A2D33 100%);
+  border: 1px solid #0E0F12;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 1px 2px rgba(0, 0, 0, 0.6);
+  color: var(--text-primary);
+}
+.hw-btn.danger { color: #FFD9D6; background: linear-gradient(180deg, #5A2421 0%, #431A18 100%); border-color: #200907; }
+.hw-btn.accent { color: var(--accent-cyan); border-color: #0E0F12; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 1px 2px rgba(0, 0, 0, 0.6); }
+.lock-btn { position: relative; overflow: hidden; }
+.lock-btn[aria-pressed="true"] { color: #111; background: linear-gradient(180deg, #FFC24D 0%, #E89A0C 100%); border-color: #5C3A00; }
+.lock-btn::after { content: ""; position: absolute; left: 0; bottom: 0; height: 3px; width: 0; background: #111; }
+.lock-btn.holding::after { width: 100%; transition: width 0.8s linear; }
+
+/* ---- Rack cards: quieter, flatter panels ---- */
+.rack-card {
+  background: var(--bg-panel);
+  border: 1px solid #2A2E35;
+  border-top-color: #353A42;
+  box-shadow: none;
+}
+.rack-title { font-size: 13px; letter-spacing: 0.06em; }
+.rack-meta { font-size: 11px; }
+
+/* ---- Channel strips ---- */
+.console-bank { background: #121417; }
+.strip {
+  background: linear-gradient(180deg, #202329 0%, #1A1D21 100%);
+  border: 1px solid #0E0F12;
+  border-top-color: #33373F;
+  border-radius: 4px;
+  gap: 5px;
+}
+.strip.selected { border-color: var(--accent-cyan); box-shadow: 0 0 0 1px var(--accent-cyan) inset; }
+.strip.master { background: linear-gradient(180deg, #23272E 0%, #1C1F24 100%); border-color: #0E0F12; border-top-color: #3A3F48; }
+.strip.master.selected { border-color: var(--accent-cyan); }
+.strip.bus-strip { border-color: #0E0F12; }
+
+/* Backlit LCD scribble strip: channel colour as backlight, dark ink. */
+.scribble {
+  --lcd: #3FD2E0;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.22) 0%, rgba(255, 255, 255, 0) 45%),
+    var(--lcd);
+  border: 2px solid #0B0C0F;
+  border-radius: 3px;
+  padding: 3px 5px 4px;
+  box-shadow: 0 0 10px color-mix(in srgb, var(--lcd) 35%, transparent), inset 0 0 0 1px rgba(0, 0, 0, 0.25);
+}
+.scribble-bar { display: none; }
+.scribble-top { padding-left: 0; color: var(--lcd-ink); font-family: var(--font-sans); font-size: 11px; font-weight: 700; opacity: 0.85; }
+.scribble-num { color: var(--lcd-ink); }
+.scribble-name { padding-left: 0; color: var(--lcd-ink); font-size: 15px; font-weight: 700; line-height: 1.05; min-height: 2.1em; }
+.strip.layer-mon .scribble, .strip.layer-fx .scribble { filter: saturate(0.85); }
+.strip.not-in-layer .scribble { filter: grayscale(1) brightness(0.6); }
+
+/* Lamp row: RX, TX, value source. */
+.lamp-row { display: flex; justify-content: center; gap: 9px; padding: 2px 0; }
+
+/* Overview EQ curve per strip. */
+.eq-thumb {
+  display: block;
+  width: 100%;
+  height: 22px;
+  background: #0E1013;
+  border: 1px solid #2A2E35;
+  border-radius: 2px;
+}
+.eq-thumb path { fill: none; stroke: var(--accent-cyan); stroke-width: 1.4; vector-effect: non-scaling-stroke; }
+.eq-thumb .eq-thumb-zero { stroke: #2C3038; stroke-width: 1; vector-effect: non-scaling-stroke; }
+.eq-thumb-none { display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 600; color: var(--text-muted); letter-spacing: 0.06em; }
+.strip-pan-val { font-family: var(--font-sans); font-size: 12px; font-weight: 600; color: var(--text-secondary); }
+
+/* Mute key: dark rubber when off, lit red legend and body when on. */
+.mute-switch {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 700;
+  background: linear-gradient(180deg, #34383F 0%, #2A2D33 100%);
+  border: 1px solid #0E0F12;
+  color: #C9CDD3;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 1px 2px rgba(0, 0, 0, 0.6);
+  border-radius: 3px;
+}
+.mute-switch.muted {
+  color: #fff;
+  background: linear-gradient(180deg, #FF4A3D 0%, #D6261B 100%);
+  border-color: #5A0C07;
+  box-shadow: 0 0 12px rgba(255, 59, 48, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.35);
+}
+.mute-na { font-family: var(--font-sans); font-size: 12px; border-radius: 3px; }
+.mute-spacer { visibility: hidden; }
+
+/* Meter + fader side by side. The meter shows only with a live meter feed. */
+.fader-zone { flex: 1; display: flex; gap: 4px; min-height: 150px; }
+.fader-zone .fader-well { flex: 1; }
+.meter {
+  display: none;
+  position: relative;
+  width: 8px;
+  border-radius: 2px;
+  background: #07080A;
+  border: 1px solid #23262C;
+  overflow: hidden;
+  --rms: 0; --peak: 0; --hold: 0;
+}
+body.meters-live .meter { display: block; }
+/* The colour scale is fixed to the full meter height; clip-path reveals the level. */
+.meter-rms {
+  position: absolute; inset: 0;
+  background: linear-gradient(0deg, var(--led-green) 0%, var(--led-green) 70%, var(--led-amber) 85%, var(--led-red) 100%);
+  clip-path: inset(calc((1 - var(--rms)) * 100%) 0 0 0);
+}
+.meter-hold { position: absolute; left: 0; right: 0; height: 2px; bottom: calc(var(--hold) * 100%); background: #fff; opacity: 0.85; }
+.meter-clip { position: absolute; left: 0; right: 0; top: 0; height: 5px; background: #2a0d0b; }
+.meter.clip .meter-clip { background: var(--led-red); box-shadow: 0 0 6px var(--led-red); }
+
+/* Fader: printed scale, machined cap, value bubble while held. */
+.fader-well { background: #0B0C0F; border: 1px solid #23262C; border-radius: 3px; }
+.fader-tick { font-family: var(--font-sans); font-size: 11px; color: #5D646E; }
+.fader-tick::after { background: #3A3F48; }
+.unity-mark { background: rgba(255, 255, 255, 0.35); height: 1px; }
+.fader-cap {
+  width: 46px;
+  height: 30px;
+  border-radius: 3px;
+  background: linear-gradient(180deg, #5A606A 0%, #3A3F47 18%, #2A2E34 48%, #1F2226 52%, #2E3238 82%, #4A5059 100%);
+  border: 1px solid #0B0C0F;
+  box-shadow: 0 6px 10px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+}
+.fader-cap::after { left: 4px; right: 4px; height: 2px; background: #F2F4F7; box-shadow: none; }
+.strip.layer-mon .fader-cap::after, .strip.bus-strip.layer-mon .fader-cap::after { background: var(--accent-amber); box-shadow: none; }
+.strip.layer-fx .fader-cap::after, .strip.bus-strip.layer-fx .fader-cap::after { background: var(--accent-purple); box-shadow: none; }
+.fader-fill { background: linear-gradient(180deg, #F2F4F7 0%, #8E959F 100%); width: 3px; }
+.strip.master .fader-fill { background: linear-gradient(180deg, var(--accent-cyan) 0%, #1B7E88 100%); }
+.fader-well.grab .fader-cap::before {
+  content: attr(data-v);
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 6px);
+  transform: translateX(-50%);
+  padding: 2px 6px;
+  border-radius: 3px;
+  background: #F2F4F7;
+  color: #111;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.fader-well { overflow: visible; }
+.strip-readout {
+  font-family: var(--font-sans);
+  font-size: 15px;
+  font-weight: 700;
+  background: #0B0D10;
+  color: var(--led-green);
+  border: 1px solid #23262C;
+  border-radius: 2px;
+}
+.strip.layer-mon .strip-readout, .strip.bus-strip.layer-mon .strip-readout { color: var(--accent-amber); }
+.strip.layer-fx .strip-readout, .strip.bus-strip.layer-fx .strip-readout { color: var(--accent-purple); }
+
+/* Sends on faders: tint the bank edge with the mix colour (as on large consoles). */
+body.layer-mon .console-bank { box-shadow: inset 0 3px 0 var(--accent-amber); }
+body.layer-fx .console-bank { box-shadow: inset 0 3px 0 var(--accent-purple); }
+
+/* ---- Panel lock ---- */
+body.locked .fader-well,
+body.locked .mute-switch,
+body.locked .knob-cell,
+body.locked .studio-range,
+body.locked .scene-pad,
+body.locked .band-chip,
+body.locked .scribble,
+body.locked #eq-canvas,
+body.locked .layer-btn,
+body.locked .mobile-tab,
+body.locked .ch-pick,
+body.locked #btn-mute-all,
+body.locked #btn-undo,
+body.locked #btn-redo,
+body.locked #btn-presets,
+body.locked #btn-eq-flat { pointer-events: none; }
+body.locked .console-bank, body.locked .dsp-rack { filter: saturate(0.7); }
+body.locked .status-strip { box-shadow: inset 0 -2px 0 var(--led-amber); }
+
+/* ---- Small screens ---- */
+@media (max-width: 1180px) {
+  .link-lamps { gap: 9px; }
+  .status-strip { gap: 10px; }
+  .scribble-name { font-size: 14px; }
+}
+@media (max-width: 760px) {
+  .status-strip { padding: 5px 10px; gap: 8px; font-size: 11px; }
+  .link-lamps .link:nth-child(n+4) { display: none; }
+  .status-strip .status-pill { display: none; }
+  .scene-label { display: none; }
+  .clock { font-size: 13px; min-width: 0; }
+  .topbar { padding: 6px 10px; }
+  .eq-thumb { height: 18px; }
+}
+
+/* Same key height on every strip, so all fader wells start on one line. */
+.mute-switch, .mute-na { min-height: 32px; padding: 0; display: flex; align-items: center; justify-content: center; }
+@media (pointer: coarse) { .mute-switch, .mute-na { min-height: 40px; } }
+
+/* iPad and smaller: give the height to the faders. */
+@media (max-width: 1180px) and (min-width: 761px) {
+  canvas#eq-canvas { height: 92px; }
+  .knob-svg { width: 48px; height: 48px; }
+  .rack-card { padding: 8px 10px; gap: 6px; }
 }
