@@ -13,6 +13,7 @@
     { key: 'hi', label: 'HI', freq: 8000, color: '#BC71FF' },
   ];
   const SCRIBBLE_PALETTE = ['#2EF2E2', '#52E59A', '#FFB45B', '#BC71FF', '#FF6BAA', '#C5FF4A'];
+  const SCRIBBLE_NAMES = { '#2EF2E2': 'cyan', '#52E59A': 'green', '#FFB45B': 'amber', '#BC71FF': 'purple', '#FF6BAA': 'pink', '#C5FF4A': 'lime' };
 
   let hubDown = false;
   let toastTimer = null;
@@ -58,10 +59,13 @@
     const pill = document.getElementById('status-pill');
     pill.classList.toggle('online', connected);
     pill.classList.toggle('offline', !connected);
-    document.getElementById('status-text').textContent = connected ? 'MIDI OPEN' : 'DISCONNECTED';
+    document.getElementById('status-text').textContent = connected ? 'MIXER ONLINE' : 'DISCONNECTED';
+    pill.title = connected
+      ? 'The FLOW 8 is connected by USB MIDI. SENT values are what this app sent; the mixer does not report every value back.'
+      : 'No USB MIDI link to the FLOW 8. Commands are not sent.';
   }
 
-  function confirmAction(title, text, okLabel) {
+  function confirmAction(title, text, okLabel, style = 'danger') {
     return new Promise((resolve) => {
       const modal = document.getElementById('confirm-modal');
       document.getElementById('confirm-title').textContent = title;
@@ -69,16 +73,17 @@
       const ok = document.getElementById('btn-confirm-ok');
       const cancel = document.getElementById('btn-confirm-cancel');
       ok.textContent = okLabel;
+      ok.className = `hw-btn ${style}`;
       const done = (v) => {
-        modal.classList.remove('open');
-        ok.onclick = cancel.onclick = modal.onclick = null;
+        ok.onclick = cancel.onclick = null;
+        modal.onModalClose = null;
+        closeModal('confirm-modal');
         resolve(v);
       };
       ok.onclick = () => done(true);
       cancel.onclick = () => done(false);
-      modal.onclick = (e) => { if (e.target === modal) done(false); };
-      modal.classList.add('open');
-      cancel.focus();
+      modal.onModalClose = () => done(false); // Escape or backdrop click
+      openModal('confirm-modal', cancel);
     });
   }
 
@@ -105,6 +110,50 @@
   function hpfHz(raw) {
     if (raw <= 0) return 'OFF';
     return `${Math.round(20 + (raw / 127) * 580)} Hz`;
+  }
+
+  // Short provenance codes fit a narrow strip header. The title gives the full meaning.
+  const PROV = {
+    UNSYNCED: ['UNSYNC', 'Unsynced: the app does not know the mixer value yet.'],
+    COMMANDED: ['SENT', 'Sent: this app sent the value. The mixer does not report it back.'],
+    OBSERVED: ['LIVE', 'Live: the mixer reported this value.'],
+    DISPATCH_FAILED: ['FAILED', 'Failed: the last command was rejected.'],
+    UNSUPPORTED: ['N/A', 'Not available on the FLOW 8.'],
+  };
+  const provCode = (p) => (PROV[p] ? PROV[p][0] : p);
+  const provTitle = (p) => (PROV[p] ? PROV[p][1] : p);
+  const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+  // Keyboard control for a custom slider (fader, knob, EQ band).
+  // Arrow keys step 1, Page keys step 10, Home/End go to the limits.
+  // The value is sent 300 ms after the last key press.
+  function attachSliderKeys(el, { label, min, max, get, set, text, onCommit }) {
+    el.tabIndex = 0;
+    el.setAttribute('role', 'slider');
+    el.setAttribute('aria-label', label);
+    el.setAttribute('aria-valuemin', min);
+    el.setAttribute('aria-valuemax', max);
+    const sync = () => {
+      el.setAttribute('aria-valuenow', get());
+      el.setAttribute('aria-valuetext', text(get()));
+    };
+    sync();
+    let commitTimer = null;
+    el.addEventListener('keydown', (e) => {
+      const steps = { ArrowUp: 1, ArrowRight: 1, ArrowDown: -1, ArrowLeft: -1, PageUp: 10, PageDown: -10 };
+      let v = get();
+      if (e.key in steps) v += steps[e.key];
+      else if (e.key === 'Home') v = min;
+      else if (e.key === 'End') v = max;
+      else return;
+      e.preventDefault();
+      v = Math.max(min, Math.min(max, v));
+      set(v);
+      sync();
+      clearTimeout(commitTimer);
+      commitTimer = setTimeout(() => onCommit(v), 300);
+    });
+    return sync;
   }
 
   // ---------- Rotary SVG Knob Builder ----------
@@ -176,6 +225,14 @@
         svg.releasePointerCapture(e.pointerId);
         onCommit(current);
       };
+      const syncKeys = attachSliderKeys(svg, {
+        label, min, max,
+        get: () => current,
+        set: (v) => { current = v; updateVisual(v); },
+        text: (v) => onMove(v),
+        onCommit,
+      });
+      svg.addEventListener('pointerup', syncKeys);
       svg.ondblclick = () => {
         current = bipolar ? Math.round((min + max) / 2) : min;
         updateVisual(current);
@@ -337,9 +394,38 @@
         <div class="b-name" style="color:${b.color}">${b.label}</div>
         <div class="b-val" id="eq-val-${b.key}">${eqRawToDb(raw).toFixed(1)} dB</div>
       `;
+      if (ch.eq && ch.index <= 7) {
+        let bandRaw = raw;
+        attachSliderKeys(chip, {
+          label: `${b.label} EQ gain, CH ${ch.index}`,
+          min: 0, max: 127,
+          get: () => bandRaw,
+          set: (v) => {
+            bandRaw = v;
+            ch.eq[b.key] = v;
+            chip.querySelector('.b-val').textContent = `${eqRawToDb(v).toFixed(1)} dB`;
+            drawEqCanvas(ch);
+          },
+          text: (v) => `${eqRawToDb(v).toFixed(1)} dB`,
+          onCommit: (v) => postAction({ action: 'setEqBand', channel: ch.index, band: b.key, value: v }),
+        });
+      }
       eqRow.appendChild(chip);
     });
     drawEqCanvas(ch);
+
+    const picker = document.getElementById('ch-picker');
+    picker.innerHTML = '';
+    session.channels.forEach((c) => {
+      const btn = document.createElement('button');
+      btn.className = 'ch-pick' + (c.index === ch.index ? ' active' : '');
+      btn.textContent = c.index === 8 ? 'MAIN' : String(c.index);
+      btn.title = c.label || c.name;
+      btn.setAttribute('aria-label', `Edit ${c.label || c.name}`);
+      btn.setAttribute('aria-pressed', c.index === ch.index ? 'true' : 'false');
+      btn.onclick = () => { selectedCh = c.index; renderConsole(); renderDsp(); };
+      picker.appendChild(btn);
+    });
 
     // Rotary Knobs: Pan/Bal, Low Cut (HPF), Compressor
     const knobsRow = document.getElementById('knobs-row');
@@ -398,32 +484,44 @@
         pad.classList.remove('holding');
         if (timer) { clearTimeout(timer); timer = null; }
       };
-      pad.setAttribute('aria-label', saved ? `Scene ${i}: tap to recall, hold to overwrite` : `Scene ${i}: empty, hold to save`);
+      pad.setAttribute('aria-label', saved
+        ? `Scene ${i}: tap or Enter to recall, hold or Shift+Enter to overwrite`
+        : `Scene ${i}: empty, hold or Shift+Enter to save`);
+      const saveScene = async () => {
+        if (saved && !(await confirmAction(`OVERWRITE S${i}?`, `Scene S${i} already holds a saved mix. Save the current mix over it?`, 'OVERWRITE'))) return;
+        const res = await postAction({ action: 'captureScene', name });
+        if (res.ok) showToast(`Saved current mix to S${i}.`);
+        loadSession();
+      };
+      const recallScene = async () => {
+        if (!saved) { showToast(`S${i} is empty. Hold the pad (or press Shift+Enter) to save the current mix.`); return; }
+        const res = await postAction({ action: 'recallScene', name });
+        if (res.ok) showToast(`Recalled S${i}.`);
+        loadSession();
+      };
+      pad.onkeydown = (e) => {
+        if (e.key !== 'Enter' && e.key !== ' ') return;
+        e.preventDefault();
+        if (e.shiftKey) saveScene(); else recallScene();
+      };
       pad.onpointerdown = () => {
         cancelHold();
         void pad.offsetWidth; // restart the progress animation
         pad.classList.add('holding');
-        timer = setTimeout(async () => {
+        timer = setTimeout(() => {
           timer = null;
           pad.classList.remove('holding');
           held = true;
-          if (saved && !(await confirmAction(`OVERWRITE S${i}?`, `Scene S${i} already holds a saved mix. Save the current mix over it?`, 'OVERWRITE'))) return;
-          const res = await postAction({ action: 'captureScene', name });
-          if (res.ok) showToast(`Saved current mix to S${i}.`);
-          loadSession();
+          saveScene();
         }, HOLD_MS);
       };
       let held = false;
-      pad.onpointerup = async () => {
+      pad.onpointerup = () => {
         // The hold timer is still pending only when the finger lifted before the hold time.
         const wasTap = !!timer;
         cancelHold();
         if (held) { held = false; return; }
-        if (!wasTap) return;
-        if (!saved) { showToast(`S${i} is empty. Hold the pad to save the current mix.`); return; }
-        const res = await postAction({ action: 'recallScene', name });
-        if (res.ok) showToast(`Recalled S${i}.`);
-        loadSession();
+        if (wasTap) recallScene();
       };
       pad.onpointercancel = cancelHold;
       pad.onpointerleave = cancelHold;
@@ -439,17 +537,26 @@
       box.className = 'send-box';
       box.innerHTML = `
         <div class="send-top"><span>${t.toUpperCase()}</span><span class="s-val">${midiToDbStr(val)}</span></div>
-        <input class="studio-range" type="range" min="0" max="127" value="${val}" ${ch.index === 8 ? 'disabled' : ''} />
+        <input class="studio-range" type="range" min="0" max="127" value="${val}" aria-label="${t.toUpperCase()} send, CH ${ch.index}" aria-valuetext="${midiToDbStr(val)}" ${ch.index === 8 ? 'disabled' : ''} />
       `;
       const rng = box.querySelector('input');
-      rng.oninput = () => { box.querySelector('.s-val').textContent = midiToDbStr(+rng.value); };
+      rng.oninput = () => {
+        box.querySelector('.s-val').textContent = midiToDbStr(+rng.value);
+        rng.setAttribute('aria-valuetext', midiToDbStr(+rng.value));
+      };
       rng.onchange = () => postAction({ action: 'setSend', channel: ch.index, target: t, value: +rng.value });
       sendsList.appendChild(box);
     });
   }
 
+  // Tick labels at the raw values that midiToDbStr() maps to +10, 0, -20 and -40 dB.
+  const FADER_TICKS = `<div class="fader-ticks" aria-hidden="true">${
+    [['+10', 127], ['0', 101], ['-20', 72], ['-40', 43], ['-∞', 0]]
+      .map(([t, raw]) => `<div class="fader-tick" style="bottom:${((raw / 127) * 100).toFixed(2)}%">${t}</div>`).join('')
+  }</div>`;
+
   // ---------- Vertical Fader Pointer Engine ----------
-  function attachVerticalFader(well, initialVal, onMove, onCommit) {
+  function attachVerticalFader(well, initialVal, onMove, onCommit, label) {
     let val = initialVal;
     const fill = well.querySelector('.fader-fill');
     const cap = well.querySelector('.fader-cap');
@@ -464,6 +571,14 @@
       unity.style.bottom = `${14 + (101 / 127) * usable}px`;
     };
     requestAnimationFrame(() => updatePos(val));
+
+    const syncKeys = attachSliderKeys(well, {
+      label, min: 0, max: 127,
+      get: () => val,
+      set: (v) => { val = v; updatePos(v); onMove(v); },
+      text: (v) => midiToDbStr(v),
+      onCommit,
+    });
 
     const valFromEvent = (e) => {
       const rect = well.getBoundingClientRect();
@@ -487,6 +602,7 @@
     well.onpointerup = (e) => {
       if (!well.hasPointerCapture(e.pointerId)) return;
       well.releasePointerCapture(e.pointerId);
+      syncKeys();
       onCommit(val);
     };
   }
@@ -509,32 +625,34 @@
         const isMaster = ch.index === 8;
         const isSendLayer = !isMaster && activeLayer !== 'main';
         const faderVal = isSendLayer ? (ch.sends ? ch.sends[activeLayer] : 0) : ch.fader;
-        const faderProv = isSendLayer ? activeLayer.toUpperCase() : ch.faderProvenance;
+        const faderProv = isSendLayer ? activeLayer.toUpperCase() : provCode(ch.faderProvenance);
+        const provHint = isSendLayer ? `Send level to ${activeLayer.toUpperCase()}` : provTitle(ch.faderProvenance);
+        const name = ch.label || ch.name;
+        const notInLayer = isMaster && activeLayer !== 'main';
 
         const strip = document.createElement('div');
-        strip.className = 'strip' + (isMaster ? ' master' : '') + (selectedCh === ch.index ? ' selected' : '') + (isSendLayer ? layerClass : '');
+        strip.className = 'strip' + (isMaster ? ' master' : '') + (selectedCh === ch.index ? ' selected' : '') + (isSendLayer ? layerClass : '') + (notInLayer ? ' not-in-layer' : '');
+        if (notInLayer) strip.title = `Main L/R is not part of the ${activeLayer.toUpperCase()} mix. Its fader sets the main level.`;
         const tagColor = ch.color || '#38bdf8';
 
         strip.innerHTML = `
-          <div class="scribble">
+          <div class="scribble" role="button" tabindex="0" aria-label="Select ${esc(name)}">
             <div class="scribble-bar" style="background:${tagColor}"></div>
             <div class="scribble-top">
               <span class="scribble-num">${isMaster ? 'MAIN' : String(ch.index).padStart(2, '0')}</span>
-              <span>${faderProv}</span>
+              <span class="scribble-prov" title="${esc(provHint)}">${faderProv}</span>
             </div>
-            <div class="scribble-name">${ch.label || ch.name}</div>
+            <div class="scribble-name" title="${esc(name)}">${esc(name)}</div>
           </div>
-          <div class="strip-pan">
-            <span class="strip-pan-val">${panText(ch.pan)}</span>
+          <div class="strip-pan${!isMaster && selectedCh === ch.index ? ' has-edit' : ''}">
+            ${!isMaster && selectedCh === ch.index ? `<button class="scribble-edit" aria-label="Rename ${esc(name)}" title="Rename channel">✎</button>` : ''}
+            <span class="strip-pan-val">${notInLayer ? 'MAIN MIX' : panText(ch.pan)}</span>
           </div>
-          ${isMaster ? '<div style="height:26px"></div>' : `<button class="mute-switch ${ch.mute ? 'muted' : ''}">${ch.mute ? 'MUTED' : 'MUTE'}</button>`}
+          ${isMaster
+            ? '<div class="mute-na" title="The FLOW 8 has no MIDI mute for Main L/R. Use MUTE ALL or the main fader.">NO MUTE</div>'
+            : `<button class="mute-switch ${ch.mute ? 'muted' : ''}" aria-pressed="${ch.mute}" aria-label="Mute ${esc(name)}">${ch.mute ? 'MUTED' : 'MUTE'}</button>`}
           <div class="fader-well">
-            <div class="fader-ticks">
-              <div class="fader-tick">+10</div>
-              <div class="fader-tick">0</div>
-              <div class="fader-tick">-20</div>
-              <div class="fader-tick">-∞</div>
-            </div>
+            ${FADER_TICKS}
             <div class="fader-slot"></div>
             <div class="unity-mark"></div>
             <div class="fader-fill"></div>
@@ -544,9 +662,16 @@
         `;
 
         const scribble = strip.querySelector('.scribble');
+        const editBtn = strip.querySelector('.scribble-edit');
+        if (editBtn) editBtn.onclick = () => openScribbleModal(ch);
         scribble.onclick = () => {
           if (selectedCh === ch.index && !isMaster) openScribbleModal(ch);
           else { selectedCh = ch.index; renderConsole(); renderDsp(); }
+        };
+        scribble.onkeydown = (e) => {
+          if (e.target !== scribble || (e.key !== 'Enter' && e.key !== ' ')) return;
+          e.preventDefault();
+          scribble.click();
         };
 
         if (!isMaster) {
@@ -562,7 +687,8 @@
           (v) => {
             if (isSendLayer) postAction({ action: 'setSend', channel: ch.index, target: activeLayer, value: v });
             else postAction({ action: 'setFader', channel: ch.index, value: v });
-          }
+          },
+          isSendLayer ? `${name} send to ${activeLayer.toUpperCase()}` : `${name} fader`
         );
         bank.appendChild(strip);
       });
@@ -576,18 +702,13 @@
         strip.innerHTML = `
           <div class="scribble">
             <div class="scribble-bar" style="background:${b.id.startsWith('fx') ? '#a78bfa' : '#f59e0b'}"></div>
-            <div class="scribble-top"><span class="scribble-num">BUS</span><span>${b.faderProvenance}</span></div>
+            <div class="scribble-top"><span class="scribble-num">BUS</span><span class="scribble-prov" title="${esc(provTitle(b.faderProvenance))}">${provCode(b.faderProvenance)}</span></div>
             <div class="scribble-name">${b.id.toUpperCase()}</div>
           </div>
           <div class="strip-pan"><span class="strip-pan-val">MASTER</span></div>
           <div style="height:26px"></div>
           <div class="fader-well">
-            <div class="fader-ticks">
-              <div class="fader-tick">+10</div>
-              <div class="fader-tick">0</div>
-              <div class="fader-tick">-20</div>
-              <div class="fader-tick">-∞</div>
-            </div>
+            ${FADER_TICKS}
             <div class="fader-slot"></div>
             <div class="unity-mark"></div>
             <div class="fader-fill"></div>
@@ -600,12 +721,23 @@
           strip.querySelector('.fader-well'),
           b.fader,
           (v) => { readout.textContent = midiToDbStr(v); },
-          (v) => postAction({ action: 'setBusFader', bus: b.id, value: v })
+          (v) => postAction({ action: 'setBusFader', bus: b.id, value: v }),
+          `${b.id.toUpperCase()} master fader`
         );
         bank.appendChild(strip);
       });
     }
+    requestAnimationFrame(updateScrollHint);
   }
+
+  // Fade the right edge while more strips are off screen.
+  function updateScrollHint() {
+    const bank = document.getElementById('console-bank');
+    const more = bank.scrollWidth - bank.clientWidth - bank.scrollLeft > 4;
+    bank.classList.toggle('scroll-more', more);
+  }
+  document.getElementById('console-bank').addEventListener('scroll', updateScrollHint, { passive: true });
+  window.addEventListener('resize', updateScrollHint);
 
   // ---------- Modals ----------
   async function openPresetsModal() {
@@ -623,53 +755,105 @@
       item.className = 'preset-item';
       item.innerHTML = `
         <div>
-          <h4>[${p.category}] ${p.name}</h4>
-          <p>${p.summary}</p>
+          <h4>[${esc(p.category)}] ${esc(p.name)}</h4>
+          <p>${esc(p.summary)}</p>
         </div>
-        <button class="hw-btn accent">APPLY</button>
+        <button class="hw-btn accent" aria-label="Apply ${esc(p.name)} to CH ${targetIdx}">APPLY</button>
       `;
       item.querySelector('button').onclick = async () => {
-        await postAction({ action: 'applyPreset', channel: targetIdx, presetId: p.id });
-        document.getElementById('preset-modal').classList.remove('open');
+        const replaces = targetIdx <= 4 ? 'the 4-band EQ, low cut and compressor' : 'the 4-band EQ';
+        const okay = await confirmAction(
+          `APPLY TO CH ${targetIdx}?`,
+          `"${p.name}" replaces ${replaces} on CH ${targetIdx}. Fader, pan, mute and sends do not change. Press UNDO to go back.`,
+          'APPLY',
+          'accent'
+        );
+        if (!okay) return;
+        const res = await postAction({ action: 'applyPreset', channel: targetIdx, presetId: p.id });
+        if (res.ok) {
+          closeModal('preset-modal');
+          showToast(`Applied "${p.name}" to CH ${targetIdx}.`);
+        }
         loadSession();
       };
       list.appendChild(item);
     });
-    document.getElementById('preset-modal').classList.add('open');
+    openModal('preset-modal');
   }
 
   let scribbleTarget = null;
   function openScribbleModal(ch) {
     scribbleTarget = ch;
     const inp = document.getElementById('scribble-input');
-    inp.value = ch.label || ch.name;
+    inp.value = (ch.label || ch.name).slice(0, 14);
+    const counter = document.getElementById('scribble-count');
+    const count = () => { counter.textContent = `${inp.value.length}/14`; };
+    inp.oninput = count;
+    count();
+    document.getElementById('scribble-title').textContent = `RENAME CH ${String(ch.index).padStart(2, '0')}`;
     let chosenColor = ch.color || '#38bdf8';
     const box = document.getElementById('scribble-colors');
     box.innerHTML = '';
     SCRIBBLE_PALETTE.forEach((col) => {
       const dot = document.createElement('button');
-      dot.style.cssText = `width:26px;height:26px;border-radius:50%;border:2px solid ${col === chosenColor ? '#fff' : 'transparent'};background:${col};cursor:pointer;`;
+      dot.className = 'color-dot';
+      dot.style.background = col;
+      dot.setAttribute('aria-label', `Color ${SCRIBBLE_NAMES[col] || col}`);
+      dot.setAttribute('aria-pressed', col === chosenColor ? 'true' : 'false');
       dot.onclick = () => {
         chosenColor = col;
-        [...box.children].forEach((c) => { c.style.borderColor = 'transparent'; });
-        dot.style.borderColor = '#fff';
+        [...box.children].forEach((c) => c.setAttribute('aria-pressed', 'false'));
+        dot.setAttribute('aria-pressed', 'true');
       };
       box.appendChild(dot);
     });
-    document.getElementById('btn-save-scribble').onclick = async () => {
-      await postAction({ action: 'setScribble', channel: ch.index, label: inp.value, color: chosenColor });
-      document.getElementById('scribble-modal').classList.remove('open');
+    const save = async () => {
+      const res = await postAction({ action: 'setScribble', channel: ch.index, label: inp.value.trim(), color: chosenColor });
+      if (res.ok) closeModal('scribble-modal');
       loadSession();
     };
-    document.getElementById('scribble-modal').classList.add('open');
+    document.getElementById('btn-save-scribble').onclick = save;
+    inp.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); save(); } };
+    openModal('scribble-modal', inp);
+    inp.select();
   }
+
+  const modalReturnFocus = {};
+  function openModal(id, focusEl) {
+    const modal = document.getElementById(id);
+    modalReturnFocus[id] = document.activeElement;
+    modal.classList.add('open');
+    (focusEl || modal.querySelector('input, button')).focus();
+  }
+  function closeModal(id) {
+    const modal = document.getElementById(id);
+    if (!modal.classList.contains('open')) return;
+    modal.classList.remove('open');
+    const back = modalReturnFocus[id];
+    if (back && document.contains(back)) back.focus();
+  }
+  // Escape or a click on the dark backdrop closes the top modal.
+  // The confirm modal resolves as "cancel" through its onModalClose hook.
+  function dismissModal(modal) {
+    if (modal.onModalClose) modal.onModalClose();
+    else closeModal(modal.id);
+  }
+  document.querySelectorAll('.modal-backdrop').forEach((m) => {
+    m.addEventListener('click', (e) => { if (e.target === m) dismissModal(m); });
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape') return;
+    const open = [...document.querySelectorAll('.modal-backdrop.open')];
+    if (open.length) { e.preventDefault(); dismissModal(open[open.length - 1]); }
+  });
 
   // ---------- Event Wiring ----------
   document.getElementById('layer-bar').querySelectorAll('.layer-btn').forEach((btn) => {
     btn.onclick = () => {
       activeLayer = btn.dataset.layer;
-      document.querySelectorAll('.layer-btn').forEach((b) => b.classList.remove('active'));
+      document.querySelectorAll('.layer-btn').forEach((b) => { b.classList.remove('active'); b.setAttribute('aria-pressed', 'false'); });
       btn.classList.add('active');
+      btn.setAttribute('aria-pressed', 'true');
       renderConsole();
     };
   });
@@ -677,8 +861,11 @@
   document.getElementById('mobile-nav').querySelectorAll('.mobile-tab').forEach((btn) => {
     btn.onclick = () => {
       mobileView = btn.dataset.view;
-      document.querySelectorAll('.mobile-tab').forEach((b) => b.classList.remove('active'));
+      document.querySelectorAll('.mobile-tab').forEach((b) => { b.classList.remove('active'); b.setAttribute('aria-selected', 'false'); });
       btn.classList.add('active');
+      btn.setAttribute('aria-selected', 'true');
+      // Fader layers apply to the FADERS view only.
+      document.body.dataset.view = mobileView;
       document.getElementById('dsp-rack').classList.toggle('mobile-show', mobileView === 'dsp');
       document.getElementById('console-bank').classList.toggle('mobile-hide', mobileView === 'dsp');
       renderConsole();
@@ -697,8 +884,8 @@
   document.getElementById('btn-undo').onclick = () => postAction({ action: 'undo' }).then(loadSession);
   document.getElementById('btn-redo').onclick = () => postAction({ action: 'redo' }).then(loadSession);
   document.getElementById('btn-presets').onclick = openPresetsModal;
-  document.getElementById('btn-close-presets').onclick = () => document.getElementById('preset-modal').classList.remove('open');
-  document.getElementById('btn-close-scribble').onclick = () => document.getElementById('scribble-modal').classList.remove('open');
+  document.getElementById('btn-close-presets').onclick = () => closeModal('preset-modal');
+  document.getElementById('btn-close-scribble').onclick = () => closeModal('scribble-modal');
   document.getElementById('btn-eq-flat').onclick = () => {
     const target = selectedCh <= 7 ? selectedCh : 1;
     postAction({ action: 'resetEqFlat', channel: target }).then(loadSession);

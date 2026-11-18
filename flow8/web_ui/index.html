@@ -2,11 +2,11 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
   <title>FLOW 8 — CueAir Gen Z/Alpha</title>
   <link rel="stylesheet" href="/styles.css" />
 </head>
-<body>
+<body data-view="faders">
 <div class="app-shell">
   <!-- Top Console Bar -->
   <header class="topbar">
@@ -18,13 +18,13 @@
       <span class="brand-sub">CueAir Gen Z/Alpha · iPad Remote</span>
     </div>
 
-    <div class="layer-bar" id="layer-bar">
+    <div class="layer-bar" id="layer-bar" role="group" aria-label="Fader layer">
       <span class="layer-label">FADERS</span>
-      <button class="layer-btn active" data-layer="main">MAIN</button>
-      <button class="layer-btn" data-layer="mon1">MON 1</button>
-      <button class="layer-btn" data-layer="mon2">MON 2</button>
-      <button class="layer-btn" data-layer="fx1">FX 1</button>
-      <button class="layer-btn" data-layer="fx2">FX 2</button>
+      <button class="layer-btn active" data-layer="main" aria-pressed="true">MAIN</button>
+      <button class="layer-btn" data-layer="mon1" aria-pressed="false">MON 1</button>
+      <button class="layer-btn" data-layer="mon2" aria-pressed="false">MON 2</button>
+      <button class="layer-btn" data-layer="fx1" aria-pressed="false">FX 1</button>
+      <button class="layer-btn" data-layer="fx2" aria-pressed="false">FX 2</button>
     </div>
 
     <div class="toolbar-actions">
@@ -32,7 +32,7 @@
       <button class="hw-btn" id="btn-undo">↶ UNDO</button>
       <button class="hw-btn" id="btn-redo">↷ REDO</button>
       <button class="hw-btn accent" id="btn-presets">★ PRESETS</button>
-      <div class="status-pill" id="status-pill">
+      <div class="status-pill" id="status-pill" role="status">
         <span class="status-dot"></span>
         <span id="status-text">UNSYNCED</span>
       </div>
@@ -42,25 +42,27 @@
   <div class="conn-banner" id="conn-banner" role="alert" hidden></div>
 
   <!-- Phone Navigation Switcher -->
-  <nav class="mobile-nav" id="mobile-nav">
-    <button class="mobile-tab active" data-view="faders">FADERS</button>
-    <button class="mobile-tab" data-view="buses">BUS MASTERS</button>
-    <button class="mobile-tab" data-view="dsp">CH DSP / EQ</button>
+  <nav class="mobile-nav" id="mobile-nav" role="tablist" aria-label="View">
+    <button class="mobile-tab active" data-view="faders" role="tab" aria-selected="true">FADERS</button>
+    <button class="mobile-tab" data-view="buses" role="tab" aria-selected="false">BUS MASTERS</button>
+    <button class="mobile-tab" data-view="dsp" role="tab" aria-selected="false">CH DSP / EQ</button>
   </nav>
 
   <!-- Top Channel Strip DSP Rack -->
   <section class="dsp-rack" id="dsp-rack">
+    <!-- Phone only: pick the channel to edit without leaving this view -->
+    <div class="ch-picker" id="ch-picker" role="group" aria-label="Channel to edit"></div>
     <!-- Card 1: 4-Band Parametric EQ -->
     <div class="rack-card">
       <div class="rack-hdr">
         <span class="rack-title" id="eq-title">CH 01 · 4-BAND EQ</span>
         <div style="display:flex;align-items:center;gap:8px;">
           <span class="rack-meta" id="eq-prov">COMMANDED — not measured</span>
-          <button class="hw-btn" id="btn-eq-flat" style="padding:2px 7px;font-size:10px;">FLAT</button>
+          <button class="hw-btn" id="btn-eq-flat" style="padding:2px 7px;font-size:10px;" aria-label="Reset EQ to flat">FLAT</button>
         </div>
       </div>
       <div class="eq-canvas-wrap">
-        <canvas id="eq-canvas" width="520" height="118"></canvas>
+        <canvas id="eq-canvas" width="520" height="118" aria-label="EQ curve. Drag a band point, or use the band boxes below with the arrow keys."></canvas>
       </div>
       <div class="eq-band-row" id="eq-band-row"></div>
     </div>
@@ -98,7 +100,7 @@
 
 <!-- Preset Modal -->
 <div class="modal-backdrop" id="preset-modal">
-  <div class="modal">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="preset-modal-title">
     <div class="modal-hdr">
       <span class="rack-title" id="preset-modal-title">CHANNEL PRESETS (LEVELS ALWAYS PRESERVED)</span>
       <button class="hw-btn" id="btn-close-presets">CLOSE</button>
@@ -109,16 +111,16 @@
 
 <!-- Scribble Edit Modal -->
 <div class="modal-backdrop" id="scribble-modal">
-  <div class="modal" style="max-width:340px;">
+  <div class="modal" style="max-width:340px;" role="dialog" aria-modal="true" aria-labelledby="scribble-title">
     <div class="modal-hdr">
-      <span class="rack-title">EDIT CHANNEL SCRIBBLE</span>
+      <span class="rack-title" id="scribble-title">RENAME CHANNEL</span>
       <button class="hw-btn" id="btn-close-scribble">CLOSE</button>
     </div>
     <div class="modal-body">
-      <label style="font-size:11px;color:var(--text-secondary);">Label</label>
-      <input id="scribble-input" type="text" maxlength="14" style="padding:8px;background:var(--bg-well);color:var(--text-primary);border:1px solid var(--border-light);border-radius:5px;" />
-      <label style="font-size:11px;color:var(--text-secondary);margin-top:4px;">Color Tag</label>
-      <div style="display:flex;gap:8px;" id="scribble-colors"></div>
+      <label for="scribble-input" style="font-size:11px;color:var(--text-secondary);display:flex;justify-content:space-between;">Name <span id="scribble-count">0/14</span></label>
+      <input id="scribble-input" type="text" maxlength="14" autocomplete="off" style="padding:8px;background:var(--bg-well);color:var(--text-primary);border:1px solid var(--border-light);border-radius:5px;" />
+      <span style="font-size:11px;color:var(--text-secondary);margin-top:4px;">Color tag</span>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;" id="scribble-colors" role="group" aria-label="Color tag"></div>
       <button class="hw-btn accent" id="btn-save-scribble" style="margin-top:8px;">SAVE</button>
     </div>
   </div>
