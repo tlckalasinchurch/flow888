@@ -203,6 +203,7 @@
         el.style.setProperty('--rms', meterFrac(m.rms));
         el.style.setProperty('--peak', meterFrac(m.peak));
         el.style.setProperty('--hold', meterFrac(m.hold));
+        el.classList.add('has-data');
         el.classList.toggle('sig', m.peak > -50);
         el.classList.toggle('clip', now - m.clipAt < 1500);
       });
@@ -628,8 +629,9 @@
     <span class="lamp lamp-tx" data-lamp="${sid}:tx" title="TX: a command went to the mixer"></span>
     <span class="lamp lamp-state state-${prov}" title="${esc(provTitle(prov))}"></span>`;
   // Meter: shown only while a measured meter feed is live (body.meters-live).
+  const METER_TITLE = { main: 'Main L/R mix level from the USB capture' };
   const METER = (sid) => `
-    <div class="meter" data-meter="${sid}" aria-hidden="true">
+    <div class="meter" data-meter="${sid}" aria-hidden="true" title="${METER_TITLE[sid] || 'Input level before the fader (USB capture). The fader does not change it.'}">
       <div class="meter-rms"></div><div class="meter-hold"></div><span class="meter-clip"></span>
     </div>`;
 
@@ -840,6 +842,12 @@
     if (!session) return;
     const set = (id, on) => document.getElementById(id).classList.toggle('on', !!on);
     set('lamp-usb', session.midiOutOpen);
+    const ms = session.meterStatus || {};
+    const meterLink = document.getElementById('lamp-meter').parentElement;
+    meterLink.title = ms.detail
+      ? `${ms.detail}${ms.device ? ` (${ms.device})` : ''}`
+      : 'No meter source. The FLOW 8 does not send meters over MIDI.';
+    meterLink.classList.toggle('fault', ms.state === 'error' || ms.state === 'no_device' || ms.state === 'unavailable');
     set('lamp-midi-in', session.midiInOpen);
     const scene = document.getElementById('scene-display');
     const cur = session.currentScene;

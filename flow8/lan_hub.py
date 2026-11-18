@@ -95,6 +95,9 @@ class Flow8LanHub:
         self._scene_edited = False
         self._last_meter_frame = 0.0
         self._last_meter_sent = 0.0
+        self._meter_status: dict[str, Any] = {
+            "state": "stopped", "detail": "Meters are off.", "device": None, "mode": None,
+        }
 
     @property
     def is_running(self) -> bool:
@@ -299,6 +302,20 @@ class Flow8LanHub:
         self.broadcast({"type": "meters", "levels": clean}, droppable=True)
         return True
 
+    def set_meter_status(self, status: dict[str, Any]) -> None:
+        """Store the meter source state (see Flow8AudioMeter) and tell clients."""
+        self._meter_status = {
+            "state": str(status.get("state", "stopped")),
+            "detail": str(status.get("detail", "")),
+            "device": status.get("device"),
+            "mode": status.get("mode"),
+        }
+        self.broadcast({"type": "state"})
+
+    @property
+    def meter_status(self) -> dict[str, Any]:
+        return dict(self._meter_status)
+
     @property
     def meter_feed_live(self) -> bool:
         return self._last_meter_frame > 0 and time.monotonic() - self._last_meter_frame < METER_STALE_S
@@ -331,6 +348,7 @@ class Flow8LanHub:
             "midiOutOpen": self.service.midi_out_open,
             "midiInOpen": self.service.midi_in_open,
             "meterFeed": self.meter_feed_live,
+            "meterStatus": self.meter_status,
             "lanUrls": self.lan_urls(),
             "port": self.port,
         }
@@ -407,6 +425,7 @@ class Flow8LanHub:
             "midiOutOpen": self.service.midi_out_open,
             "midiInOpen": self.service.midi_in_open,
             "meterFeed": self.meter_feed_live,
+            "meterStatus": self.meter_status,
             "currentScene": current_scene,
             "sceneEdited": scene_edited,
             "channels": channels,
@@ -525,11 +544,20 @@ class Flow8LanHub:
         return 200, {"ok": True, "action": action}
 
 
-def main() -> int:
-    """Run standalone headless FLOW 8 LAN Remote Hub with auto-reconnect."""
+def main(argv: Optional[list[str]] = None) -> int:
+    """Run standalone headless FLOW 8 LAN Remote Hub with auto-reconnect.
+
+    Pass --no-meters to skip the USB audio meter stream.
+    """
+    import sys
+
+    from flow8.audio_meter import Flow8AudioMeter
+
+    args = sys.argv[1:] if argv is None else argv
     service = Flow8Service(auto_connect=True)
     hub = Flow8LanHub(service, port=DEFAULT_LAN_PORT)
     hub.start()
+    meter = None if "--no-meters" in args else Flow8AudioMeter(hub.publish_meters, hub.set_meter_status)
     print(f"FLOW 8 LAN Remote Hub active (MIDI connected={service.is_connected})")
     for url in hub.lan_urls():
         print(f"  Mobile URL: {url}")
@@ -539,10 +567,14 @@ def main() -> int:
                 service.check_connection_health()
             else:
                 service.connect()
+            if meter is not None:
+                meter.ensure_running()
             time.sleep(3.0)
     except KeyboardInterrupt:
         pass
     finally:
+        if meter is not None:
+            meter.stop()
         hub.stop()
         service.disconnect()
     return 0

@@ -25,7 +25,7 @@ Scope: the browser remote served by the LAN hub (desktop, iPad, phone).
 
 ### Constraints
 
-- The FLOW 8 sends **no meter data over USB MIDI** (see `FLOW8_AUDIO_ENGINE_SPEC.md` §2.3). Meters need audio capture from the USB stream. No audio engine exists in the code yet.
+- The FLOW 8 sends **no meter data over USB MIDI** (see `FLOW8_AUDIO_ENGINE_SPEC.md` §2.3). Meters come from the USB audio capture stream (`flow8/audio_meter.py`, section 4a).
 - MIDI IN reports some hardware moves (faders, mute, pan, bus faders). The mixer does not echo commands back.
 - No build step. The page is plain HTML, CSS and JS served from the hub.
 
@@ -104,6 +104,54 @@ Lamp timestamps live in a JS map, not in the DOM. One `requestAnimationFrame` lo
 - While a pointer holds a fader, knob, EQ canvas or send slider, reloads wait. The reload runs after release.
 - Keyboard focus is restored after each re-render through `data-focus-key`.
 
+## 4a. Meter source: USB audio capture (`flow8/audio_meter.py`)
+
+### Capture map (Recording Mode, endpoint "Multi In 1-10", `FLOW8_USB_AUDIO_CAPABILITIES.md` §4)
+
+| Capture channel (0-based) | FLOW 8 input | Strip | Meter |
+|---|---|---|---|
+| 0 | Mic 1 | ch1 | input, before the fader |
+| 1 | Mic 2 | ch2 | input, before the fader |
+| 2 | Mic/Line 3 | ch3 | input, before the fader |
+| 3 | Mic/Line 4 | ch4 | input, before the fader |
+| 4, 5 | Line 5/6 | ch5 | louder side of the pair |
+| 6, 7 | Line 7/8 | ch6 | louder side of the pair |
+| 8, 9 | Main L/R | main | main mix |
+| — | USB/BT return | ch7 | none (not in the capture) |
+| — | MON 1/2, FX 1/2 | buses | none (not in the capture) |
+
+Streaming Mode exposes only a 2-channel main mix. The module then meters `main` only and says so in the status.
+
+The input meters are **before the fader**: moving a fader does not move its meter. This matches a console's input meter.
+
+### Pipeline
+
+```
+FLOW 8 USB ─▶ PortAudio (WASAPI) ─▶ audio callback ─▶ LevelMeter.process()   (audio thread: numbers only)
+                                                         │
+                         publisher thread, 25 Hz ◀───────┘  LevelMeter.read()
+                                     │
+                                     ▼
+                           hub.publish_meters() ─▶ SSE "meters" ─▶ browsers
+```
+
+- Block size 512 frames (~10.7 ms at 48 kHz), float32.
+- Peak: largest sample since the last read, so a transient between two reads is not lost.
+- RMS: exponential smoothing, 300 ms time constant.
+- Device choice: a FLOW 8 endpoint with 10 inputs, preferring WASAPI; else a 2-input FLOW 8 endpoint (Streaming Mode).
+- Status (`/api/status` and `/api/session` → `meterStatus`): `running`, `no_device`, `unavailable` (no audio library), `error`, `stopped`, with a plain-language `detail`. The METERS lamp tooltip shows it.
+- Recovery: the launchers call `ensure_running()` in their loop; it retries every 5 s, so meters start when the FLOW 8 is plugged in later. A stream the driver stops (cable pulled) is closed and reported as `error`, then retried.
+
+### Setup on the host computer
+
+```
+pip install sounddevice numpy
+```
+
+`sounddevice` bundles PortAudio on Windows. Set the FLOW 8 to Recording Mode on the mixer. Start with `python launch_studio_ui.py` (or `python -m flow8.lan_hub`). Add `--no-meters` to run without the audio stream.
+
+Only one program at a time may hold some WASAPI endpoints in exclusive mode. If a DAW holds "Multi In 1-10" exclusively, the meter status shows `error` with the driver message.
+
 ## 5. Visual system
 
 | Token | Value | Use |
@@ -130,7 +178,7 @@ Principle: the backlit scribble strips and the LED lenses carry the identity. Th
 
 ## 7. Revisit as the system grows
 
-1. **Audio engine (Phase 3A):** capture the FLOW 8 USB input stream (WASAPI/ASIO), compute peak and RMS per strip, and call `hub.publish_meters()` at 30 Hz.
+1. **Hardware check of the meter module:** confirm the PortAudio device name and channel order on the real FLOW 8, and compare the meter readings with the mixer's own LEDs. The module has only been tested with a simulated audio backend.
 2. **Incremental rendering:** update only the strips that changed, when more clients or more frequent RX events make full re-renders expensive.
 3. **Hub-wide lock:** one lock for all clients, if the venue uses several tablets.
 4. **Scene names:** user-defined scene names in the scene display.

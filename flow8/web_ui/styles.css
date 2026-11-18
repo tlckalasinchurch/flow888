@@ -1176,7 +1176,9 @@ body { font-feature-settings: "tnum" 1; letter-spacing: 0.01em; }
   overflow: hidden;
   --rms: 0; --peak: 0; --hold: 0;
 }
-body.meters-live .meter { display: block; }
+/* Only strips with a measured source get a meter (no capture for CH 7 and the buses). */
+body.meters-live .meter.has-data { display: block; }
+.link.fault { color: var(--led-amber); }
 /* The colour scale is fixed to the full meter height; clip-path reveals the level. */
 .meter-rms {
   position: absolute; inset: 0;
