@@ -1,4 +1,6 @@
 # FLOW 8 USB MIDI Protocol Specification
+
+> **S1.1 EVIDENCE CORRECTION (2026-11-18) — historical document, the original text below is unchanged.** Statements in this document about hardware verification (section 6 "VERIFIED" column (means read from a chart, not tested on hardware)) are re-graded under the evidence ladder of `docs/product/FLOW8_EVIDENCE_REGISTER.md`. No raw evidence of a physical effect or of mixer-originated MIDI was found for them. The strongest evidence found is Windows driver acceptance (`midiOutShortMsg` returned 0), which is not hardware verification, DSP confirmation or USB delivery (see `FLOW8_PHASE_C2_IMPLEMENTATION.md`). Read "VERIFIED", "HARDWARE_TESTED" and "passed on physical hardware" here as **PROTOCOL SUPPORTED, driver accepted, not hardware verified**. No inbound telemetry was ever received (evidence E07, E08, E17). Per-claim table: `docs/product/S1_1_HISTORICAL_EVIDENCE_CORRECTIONS.md`.
 **Target:** Behringer FLOW 8 Digital Mixer  
 **Phase:** Phase 0.5 — Hardware & Protocol Verification  
 **Date:** 2026-11-09  
@@ -34,10 +36,12 @@ The Behringer FLOW 8 exposes a standard class-compliant USB MIDI interface (`FLO
 | **Ch 10** | MON 2 Bus | Monitor 2 Master Level, 9-Band GEQ, Limiter |
 | **Ch 11** | FX 1 Send Bus | Effects 1 Master Send Level |
 | **Ch 12** | FX 2 Send Bus | Effects 2 Master Send Level |
-| **Ch 13** | *Reserved* | Unused |
-| **Ch 14** | FX 1 Slot | Engine 1 Algorithm Selector (PC 1–16) & Parameter Tweaks |
-| **Ch 15** | FX 2 Slot | Engine 2 Algorithm Selector (PC 1–16) & Parameter Tweaks |
-| **Ch 16** | Global Controls & Snapshots | Snapshot Recall (PC 1–15), Reset (PC 16), Tap Tempo (Note 0) |
+| **Ch 13** | FX 1 Slot | Engine 1 effect preset (Program Change 1–16), Parameter 1 (CC 1), Parameter 2 (CC 2) |
+| **Ch 14** | FX 2 Slot | Engine 2 effect preset (Program Change 1–16), Parameter 1 (CC 1), Parameter 2 (CC 2) |
+| **Ch 15** | *Unused* | Official chart: "MIDI-Ch. 15 = not used" |
+| **Ch 16** | Global Controls & Snapshots | Snapshot Recall (PC 1–15), **Mixer Reset (PC 16): DANGEROUS, never sent by this application**, FX mute (CC 1), Tap Tempo (Note On 0) |
+
+> **S0 CORRECTION (2026-11-18)** — Ch 13/14/15 rows corrected from the Behringer Quick Start Guide V 1.0 MIDI chart (PDF page 8). Previous text: Ch 13 "Reserved/Unused"; Ch 14 "FX 1 Slot ... (PC 1–16) & Parameter Tweaks"; Ch 15 "FX 2 Slot ...". See `docs/product/S0_MIDI_MAPPING_ERRATA.md`.
 
 ---
 
@@ -87,18 +91,21 @@ Output busses are addressed via MIDI Channels 8 through 12:
 
 ---
 
-## 4. FX Slot Engines (Channels 14 & 15)
+## 4. FX Slot Engines (Channels 13 & 14)
 
-The two multi-effects engines are controlled independently via Channels 14 and 15:
+The two multi-effects engines are controlled independently via Channels 13 (FX 1) and 14 (FX 2):
+
+> **S0 CORRECTION (2026-11-18)** — heading and channels corrected (previously "Channels 14 & 15", FX 1 on 14, FX 2 on 15).
 
 ### 4.1 Algorithm Selection (Program Change)
 - **Message:** Program Change (`0xC0` – `0xCF`)
 - **Range:** Values 1 to 16 select one of the 16 onboard DSP algorithms:
-  - **FX 1 (Channel 14):** 16 Reverbs, Delays, and Ambience models (Hall, Room, Plate, Spring, Echo, etc.).
-  - **FX 2 (Channel 15):** 16 Modulation and Tempo models (Chorus, Flanger, Phaser, Pitch Shift, Delay, Tremolo).
+  - **FX 1 (Channel 13)** and **FX 2 (Channel 14)**: effect preset 1 to 16.
+  - **UNCONFIRMED:** the names and types of the presets. The official chart lists none. The earlier text here (FX 1 = 16 reverbs/delays/ambience, FX 2 = 16 modulation/tempo models incl. Phaser, Pitch Shift, Tremolo) has no source. The chart says tap tempo works on FX 2 presets 1–12 (delay/echo). A third-party review (not read directly) reports FX 1 reverbs, FX 2 delays and four chorus/flanger per engine.
 
 ### 4.2 FX Parameter Continuous Controllers
-- **CC 1 to CC 4:** Modify algorithm-specific tweak parameters (decay time, pre-delay, modulation depth, feedback).
+- **CC 1** = Parameter 1 (0–100 %; 101–127 = 100 %). **CC 2** = Parameter 2 (switch: 0 = "Value A", 1–127 = "Value B"). Only these two are documented.
+- **UNCONFIRMED:** what Parameter 1 and 2 control for each preset. Previous text claimed "CC 1 to CC 4 ... decay time, pre-delay, modulation depth, feedback"; CC 3 and CC 4 are not documented and the parameter meanings have no source.
 
 ---
 
@@ -109,7 +116,8 @@ MIDI Channel 16 provides whole-mixer utilities and scene management:
 ### 5.1 Snapshot Recall & Reset
 - **Message:** Program Change (`0xCF`) on MIDI Channel 16
 - **PC 1 to PC 15:** Recalls hardware **Snapshot 1 through Snapshot 15**.
-- **PC 16:** Triggers **Full Mixer Hardware Reset** (returns all parameters to initial factory default).
+- **PC 16:** Triggers **Full Mixer Hardware Reset** (official chart: "Loading #16 = RESET!"). **DANGEROUS. This application must never send Program Change 16 on channel 16.** Effect on names and stored snapshots is not stated (UNCONFIRMED).
+- **Numbering:** the chart says "Program Change 0 & 17-127 = ignored", so the numbers are the raw Program Change data-byte values 0–127 (preset N = data byte N, reset = data byte 16). That reading is inferred from the wording (ASSUMPTION, Medium); a tool that shows program numbers as 1–128 would display data byte 15 as "16".
 
 ### 5.2 Global Tap Tempo
 - **Message:** Note On (`0x9F`) on MIDI Channel 16
@@ -133,8 +141,9 @@ MIDI Channel 16 provides whole-mixer utilities and scene management:
 | Monitor Sends (MON 1/2) | CC 14 & CC 15 on Ch 1–7 | VERIFIED | Complete coverage |
 | FX Sends (FX 1/2) | CC 16 & CC 17 on Ch 1–7 | VERIFIED | Complete coverage |
 | Master Output & 9-Band GEQ | CC 7, CC 11–19 on Ch 8–10 | VERIFIED | Complete coverage |
-| FX Algorithm & Tweaks | PC 1–16, CC 1–4 on Ch 14–15 | VERIFIED | Complete coverage |
-| Snapshots (1–15) & Reset | PC 1–16 on Ch 16 | VERIFIED | Complete coverage |
+| FX preset, Parameter 1/2 | PC 1–16, CC 1–2 on Ch 13 (FX 1) and Ch 14 (FX 2) | DOCUMENTED IN OFFICIAL CHART — not hardware verified | S0 correction (was "PC 1–16, CC 1–4 on Ch 14–15 ... VERIFIED") |
+| Snapshots 1–15 | PC 1–15 on Ch 16 | DOCUMENTED IN OFFICIAL CHART — not hardware verified | Recall only |
+| Mixer Reset | PC 16 on Ch 16 | **FORBIDDEN — never sent** | Was listed as part of "Snapshots (1–15) & Reset ... PC 1–16 ... VERIFIED" |
 | Tap Tempo | Note On 0 on Ch 16 | VERIFIED | Complete coverage |
 | Real-time Meter Streaming | N/A | **UNKNOWN / UNDOCUMENTED** | Not exposed via standard MIDI CC |
 | Bulk SysEx Memory Dump | SysEx `0xF0 ... 0xF7` | **UNKNOWN / UNDOCUMENTED** | Transport **not established**. BLE GATT, BLE MIDI and USB MIDI SysEx are three different transports; none is evidenced for memory dumps. Do not assume SysEx-over-GATT. |

@@ -49,6 +49,8 @@ class Navigation(tk.Frame):
             width=theme.NAVIGATION_WIDTH,
         )
         self.grid_propagate(False)
+        # Children are packed, so the fixed width needs pack propagation off too.
+        self.pack_propagate(False)
         self.fonts = fonts
         self._on_select = on_select
         self.items: dict[str, NavItem] = {item.key: item for item in NAV_ITEMS}
@@ -89,7 +91,7 @@ class Navigation(tk.Frame):
         row = tk.Frame(
             self,
             bg=colors["background_alt"],
-            height=theme.NAV_ITEM_HEIGHT,
+            height=theme.NAV_ITEM_HEIGHT + (14 if item.note else 0),
         )
         row.pack(fill="x")
         row.pack_propagate(False)
@@ -100,7 +102,7 @@ class Navigation(tk.Frame):
         self._accent_bars[item.key] = bar
 
         cell = tk.Frame(row, bg=colors["background_alt"])
-        cell.pack(side="left", fill="both", expand=True, padx=(6, 14), pady=(10, 6))
+        cell.pack(side="left", fill="both", expand=True, padx=(6, 2), pady=(8, 4))
 
         button = tk.Button(
             cell,
@@ -121,9 +123,9 @@ class Navigation(tk.Frame):
             state="normal" if item.enabled else "disabled",
             command=lambda key=item.key: self._activate(key),
         )
+        # Availability note shares the row with the label so it is never clipped.
         button.pack(fill="x")
         self.buttons[item.key] = button
-
         if item.note:
             tk.Label(
                 cell,

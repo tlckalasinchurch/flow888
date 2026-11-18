@@ -1,4 +1,6 @@
 # FLOW 8 Phase 1 — USB MIDI Hardware Proof Results
+
+> **S1.2 NOTE (2026-11-18) — historical document, the original text below is unchanged.** The harness named here (`flow8_midi_harness.py`) still exists unchanged at the repository root as evidence. A restricted copy now lives at `tools/flow8_midi_harness.py`: it sends nothing without `--allow-write`, validates every message with `flow8.safety` (control change only; no Program Change, Note, SysEx, gain or unauthorised +48V) and writes only new uniquely named files. Use the `tools/` copy. See `docs/product/S1_2_IMPLEMENTATION_REPORT.md`.
 **Target:** Behringer FLOW 8 Digital Mixer  
 **Phase:** Phase 1 — FLOW 8 USB MIDI Hardware Proof  
 **Date:** 2026-11-09  

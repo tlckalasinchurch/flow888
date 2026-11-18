@@ -82,10 +82,25 @@ class TestAllowlistBoundsEnforcement(unittest.TestCase):
             with self.subTest(param=param_id):
                 boundary, _, _, _ = make_boundary()
 
+                if spec["type"] == "gain":
+                    # S1.2 (D2): preamp gain is blocked absolutely, whatever the value.
+                    for value in (spec["min"] - 1, spec["min"], spec["max"], spec["max"] + 1):
+                        with self.assertRaises(Flow8CommandRejectedError):
+                            boundary.execute_command(param_id, value)
+                    continue
                 if spec.get("boolean"):
                     # Booleans accept only a genuine 0/1 and encode to 0/127.
-                    for good in (0, 1, True, False):
+                    # S1.2 (D1): +48V ON (True / 1) additionally needs a user-confirmation grant, so it is
+                    # refused here; OFF (False / 0) needs none.
+                    for good in (0, False):
                         self.assertTrue(boundary.execute_command(param_id, good).success)
+                    if param_id.endswith(".phantom"):
+                        for on in (1, True):
+                            with self.assertRaises(Flow8CommandRejectedError):
+                                boundary.execute_command(param_id, on)
+                    else:
+                        for good in (1, True):
+                            self.assertTrue(boundary.execute_command(param_id, good).success)
                     for bad in (-1, 2, 5, 128):
                         with self.assertRaises(Flow8ValidationError):
                             boundary.execute_command(param_id, bad)

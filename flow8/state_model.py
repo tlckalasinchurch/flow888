@@ -507,6 +507,11 @@ class Flow8StateStore:
                     param.sync_status = SyncStatus.UNKNOWN
                     param.observed_value = None
                     param.observed_raw_midi = None
+                    # COMMANDED values belong to the previous hardware session: the
+                    # mixer may have been power-cycled, so they are not current either.
+                    param.commanded_value = None
+                    param.commanded_raw_midi = None
+                    param.raw_midi_value = None
                     param.timestamp = now
 
         for cb in callbacks:

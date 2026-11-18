@@ -36,11 +36,15 @@ Status Byte | MIDI Ch | Mixer Subsystem / Strip Target
 0xB9        | Ch 10   | MON 2 Output Bus (Aux 2 Master, 9-Band GEQ)
 0xBA        | Ch 11   | FX 1 Send Bus Master Level
 0xBB        | Ch 12   | FX 2 Send Bus Master Level
-0xBC        | Ch 13   | Reserved
-0xBD        | Ch 14   | FX 1 DSP Slot Engine (Program Change 1..16 + CC Tweaks)
-0xBE        | Ch 15   | FX 2 DSP Slot Engine (Program Change 1..16 + CC Tweaks)
-0xBF        | Ch 16   | Global Snapshots (PC 1..15) & Tap Tempo (Note 0)
+0xBC        | Ch 13   | FX 1 slot (engine): Program Change 1..16 (status 0xCC), CC 1 = Parameter 1, CC 2 = Parameter 2
+0xBD        | Ch 14   | FX 2 slot (engine): Program Change 1..16 (status 0xCD), CC 1 = Parameter 1, CC 2 = Parameter 2
+0xBE        | Ch 15   | Unused (official chart: "MIDI-Ch. 15 = not used")
+0xBF        | Ch 16   | Global: Snapshot Program Change 1..15 = recall (status 0xCF); Program Change 16 = MIXER RESET, FORBIDDEN; FX mute CC 1; Tap Tempo Note On 0 (status 0x9F)
 ```
+
+> **S0 CORRECTION (2026-11-18)** — rows Ch 13-16 corrected from the Behringer Quick Start Guide V 1.0, MIDI Implementation chart (PDF page 8, printed pp. 14-15; SHA-256 of the retailer-hosted copy cfe98d5c...f29, see `docs/product/S0_MIDI_MAPPING_ERRATA.md`).
+> Previous text: `0xBC Ch 13 Reserved`, `0xBD Ch 14 FX 1 DSP Slot Engine (Program Change 1..16 + CC Tweaks)`, `0xBE Ch 15 FX 2 DSP Slot Engine (...)`, `0xBF Ch 16 Global Snapshots (PC 1..15) & Tap Tempo (Note 0)`.
+> **Safety:** Program Change 16 on channel 16 resets the mixer. The application must never send it. Not hardware verified: no FX or snapshot message has ever been sent by this project.
 
 ---
 
@@ -93,4 +97,4 @@ Status Byte | MIDI Ch | Mixer Subsystem / Strip Target
 - **Read-Back Capability:** The USB MIDI 1.0 protocol on FLOW 8 does not implement SysEx parameter interrogation requests. Mixer state synchronization relies on:
   1. Capturing continuous inbound CC messages during live manipulation.
   2. Maintaining authoritative application-side state.
-  3. Snapshot recall via Program Change on Channel 16.
+  3. Snapshot recall via Program Change 1-15 on Channel 16 (Program Change 16 = Mixer Reset: never sent by this application; S0 correction, see errata ledger).

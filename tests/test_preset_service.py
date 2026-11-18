@@ -2,6 +2,7 @@
 
 import unittest
 from flow8.service import Flow8Service
+from flow8.state_model import EventSource
 
 
 class TestPresetServiceIntegration(unittest.TestCase):
@@ -12,7 +13,8 @@ class TestPresetServiceIntegration(unittest.TestCase):
         # Set baseline fader, pan, gain
         self.service.set_fader(1, 80)
         self.service.set_pan(1, 64)
-        self.service.set_gain(1, 24.0, unit="dB")
+        # S1.2 (D2): gain cannot be sent, so the baseline is written to the state store only (nothing is sent).
+        self.service.state_store.set_commanded_value("ch1.gain", 24.0, EventSource.LOCAL_HOST, raw_midi_value=70)
 
         # Apply preset
         success = self.service.apply_channel_preset(1, "speech-mc-handheld", preserve_levels=True)
@@ -24,7 +26,7 @@ class TestPresetServiceIntegration(unittest.TestCase):
         ch1_pan = self.service.state_store.get_parameter("ch1.pan").commanded_raw_midi
         self.assertEqual(ch1_pan, 64)
         ch1_gain = self.service.state_store.get_parameter("ch1.gain").commanded_raw_midi
-        self.assertIsNotNone(ch1_gain)
+        self.assertEqual(ch1_gain, 70)  # the preset left gain exactly as it was
 
         # Verify DSP was applied
         eq_low = self.service.state_store.get_parameter("ch1.eq_low").commanded_value
@@ -66,7 +68,8 @@ class TestPresetServiceIntegration(unittest.TestCase):
         self.service.set_compressor(1, 0.0, unit="%")
         self.service.set_fader(1, 95)
         self.service.set_pan(1, 64)
-        self.service.set_gain(1, 30.0, unit="dB")
+        # S1.2 (D2): baseline written to the state store only (nothing is sent).
+        self.service.state_store.set_commanded_value("ch1.gain", 30.0, EventSource.LOCAL_HOST, raw_midi_value=79)
 
         # 2. Apply preset "speech-mc-handheld"
         self.service.apply_channel_preset(1, "speech-mc-handheld", preserve_levels=True)

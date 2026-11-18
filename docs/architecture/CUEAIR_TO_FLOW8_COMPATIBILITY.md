@@ -24,7 +24,7 @@
 | **Level-Preserving Preset Recall** | `preserveLevels: true` | Application logic | **Class C** | Apply EQ, Comp, HPF, Gate without changing Fader, Pan, or Preamp Gain. |
 | **Pre-Execution Snapshots** | Auto "BEFORE_AI" / "BEFORE_PRESET" | Application `SceneManager` | **Class C** | Capture snapshot to memory before batch changes; provide instant 1-click restore. |
 | **Multi-Tier Undo/Redo** | App state stack | Application `CommandLedger` | **Class C** | Bind all UI changes to `CommandLedger` with inverse MIDI command execution. |
-| **FX Starting Points** | `cuetone-fx-xair.json` | 16 FX1 Algorithms, 16 FX2 Algorithms | **Class B/C**| Program Change 1..16 on MIDI Ch 14 (FX1) and Ch 15 (FX2) with tailored FX presets. |
+| **FX Starting Points** | `cuetone-fx-xair.json` | 16 FX1 Algorithms, 16 FX2 Algorithms | **Class B/C**| Program Change 1..16 on MIDI Ch 13 (FX1) and Ch 14 (FX2) with tailored FX presets. *(S0 correction: was Ch 14 / Ch 15. Not hardware verified; sender disabled.)* |
 | **Multi-Track Recording** | macOS CoreAudio | 10-in / 4-out USB 2.0 Audio Driver | **Class A** | Class-compliant ASIO/WASAPI integration via Windows audio stack. |
 | **On-Mixer Wi-Fi / Ethernet** | UDP port 10023 | No on-board network interface | **Class D** | FLOW 8 is USB/BLE only; network bridging would require external companion host. |
 | **Deep SysEx State Interrogation**| OSC wildcard `/xremote` query | MIDI 1.0 CC write/listen only | **Class D** | Flow8 application maintains state cache, updated by inbound MIDI CC events from console faders. |

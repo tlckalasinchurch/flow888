@@ -8,6 +8,7 @@ from unittest import mock
 
 from flow8.command_boundary import Flow8CommandError
 from flow8.service import Flow8Service
+from tests._safety_helpers import authorize_phantom_on
 from flow8.ui import theme
 from flow8.ui.app import Flow8App
 from flow8.ui.components import widget_texts
@@ -198,7 +199,7 @@ class RecallTests(_Case):
 class PhantomSafetyTests(_Case):
     def test_scenes_never_touch_or_display_phantom(self):
         self.seed()
-        self.service.set_phantom(1, True)
+        authorize_phantom_on(self.service, 1)   # S1.2 (D1)
         strip1 = self.console.strips[1]
         strip1.sync_phantom(True)
         entries_before = len(self.phantom_entries())
@@ -223,7 +224,7 @@ class PhantomSafetyTests(_Case):
         self.bar.capture_button.invoke()
         strip1 = self.console.strips[1]
         strip1.sync_phantom(True)
-        self.service.set_phantom(1, True)
+        authorize_phantom_on(self.service, 1)   # S1.2 (D1)
         self.bar.recall_button.invoke()
         self.assertTrue(strip1.is_phantom.get())
         self.assertIs(self.commanded("ch1.phantom"), True)

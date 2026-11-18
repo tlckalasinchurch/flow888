@@ -27,6 +27,7 @@ from typing import Any, Dict, List, Optional
 from .domain_model import LOGICAL_CHANNELS
 from .state_model import Flow8StateStore, EventSource, VerificationLevel, SyncStatus
 from .midi_out import Flow8MidiOut, Flow8ValidationError, Flow8NotConnectedError
+from .safety import SafetyPolicyError, authorize_command
 from .parameter_mapping import (
     fader_db_to_midi,
     pan_percent_to_midi,
@@ -300,6 +301,38 @@ class Flow8CommandBoundary:
         spec = self.ACTIVE_ALLOWLIST[param_id]
         raw_midi: int = 0
 
+        # 1b. Safety policy (S1.2): gain is blocked absolutely; +48V ON needs a grant created by the
+        # user-confirmation flow. OFF and every other parameter pass. Applies to every caller (service,
+        # engine, ledger replay, direct calls) because this is the single choke point.
+        try:
+            dispatch_scope = authorize_command(param_id, value)
+        except SafetyPolicyError as policy_error:
+            err = f"Command refused by safety policy: {policy_error}"
+            state = self._get_state(param_id)
+            entry = CommandLogEntry(
+                timestamp=now,
+                param_id=param_id,
+                target_value=value,
+                raw_midi_sent=None,
+                source=source,
+                success=False,
+                latency_us=(time.perf_counter() - t0) * 1e6,
+                dispatched_to_hardware=False,
+                error_message=err,
+                command_accepted=False,
+                driver_dispatched=False,
+                hardware_applied=None,
+                raw_midi_prepared=None,
+                dispatch_status=DispatchStatus.REJECTED,
+                observed_value=state.observed_value if state else None,
+                verification_level=state.verification_level if state else None,
+                midi_channel=spec["channel"],
+                midi_cc=spec["cc"],
+            )
+            with self._lock:
+                self._log.append(entry)
+            raise Flow8CommandRejectedError(err) from policy_error
+
         # 2. Value Conversion & Validation
         try:
             ptype = spec["type"]
@@ -406,7 +439,8 @@ class Flow8CommandBoundary:
         err_msg = None
         if self._midi_out.is_connected:
             try:
-                self._midi_out.send_cc(spec["channel"], spec["cc"], raw_midi)
+                with dispatch_scope:
+                    self._midi_out.send_cc(spec["channel"], spec["cc"], raw_midi)
                 driver_dispatched = True
                 dispatch_status = DispatchStatus.DRIVER_DISPATCHED
             except Exception as e:

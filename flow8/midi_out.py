@@ -52,6 +52,7 @@ from .midi_constants import (
     MUTE_VAL_OFF,
     MUTE_VAL_ON,
 )
+from .safety import SafetyPolicyError, validate_outbound
 from .parameter_mapping import (
     fader_db_to_midi,
     pan_percent_to_midi,
@@ -231,32 +232,15 @@ class Flow8MidiOut:
         if not (0 <= value <= 127):
             raise Flow8ValidationError(f"Invalid CC value: {value} (must be 0–127)")
 
-        # Phase C Verified FLOW 8 Parameter Scope
-        is_verified = False
-        if 1 <= channel <= 4:
-            is_verified = cc in (
-                CC_EQ_LOW, CC_EQ_LOW_MID, CC_EQ_HI_MID, CC_EQ_HI,
-                CC_MUTE, CC_SOLO, CC_VOLUME_FADER, CC_GAIN, CC_LOW_CUT,
-                CC_PAN, CC_COMPRESSOR, CC_SEND_MON1, CC_SEND_MON2,
-                CC_SEND_FX1, CC_SEND_FX2
-            ) or (channel in (1, 2) and cc == CC_PHANTOM)
-        elif channel in (5, 6, 7):
-            is_verified = cc in (
-                CC_EQ_LOW, CC_EQ_LOW_MID, CC_EQ_HI_MID, CC_EQ_HI,
-                CC_MUTE, CC_SOLO, CC_VOLUME_FADER, CC_PAN,
-                CC_SEND_MON1, CC_SEND_MON2, CC_SEND_FX1, CC_SEND_FX2
-            )
-        elif channel == MIDI_CH_MAIN:  # Ch 8
-            is_verified = cc in (CC_VOLUME_FADER, CC_PAN, 8) or (11 <= cc <= 19)
-        elif channel in (MIDI_CH_MON1, MIDI_CH_MON2):  # Ch 9, 10
-            is_verified = cc in (CC_VOLUME_FADER, 8) or (11 <= cc <= 19)
-        elif channel in (MIDI_CH_FX1, MIDI_CH_FX2):  # Ch 11, 12
-            is_verified = (cc == CC_VOLUME_FADER)
-
-        if not is_verified:
+        # Safety policy (S1.2): one allow-list for every sender. Only allowlisted, non-blocked control
+        # changes pass; preamp gain, unauthorised +48V ON, channel 16 and the 37 documented-but-unimplemented
+        # pairs (solo, bus limiter, bus GEQ) are refused before the driver is touched.
+        try:
+            validate_outbound(0xB0 | (channel - 1), cc, value)
+        except SafetyPolicyError as policy_error:
             raise Flow8ValidationError(
-                f"Unverified or unsupported parameter for FLOW 8: Channel {channel}, CC {cc}."
-            )
+                f"Unverified or unsupported parameter for FLOW 8: Channel {channel}, CC {cc}. {policy_error}"
+            ) from policy_error
 
         with self._lock:
             if not self._is_open or not self._handle:

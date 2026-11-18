@@ -39,6 +39,9 @@ class Header(tk.Frame):
         self.device_status_var = tk.StringVar(
             value="MIDI PORTS CLOSED"
         )
+        self.device_detail_var = tk.StringVar(
+            value="OUT closed · IN closed · not hardware-confirmed"
+        )
         self._build()
 
     # -- construction -------------------------------------------------------
@@ -107,7 +110,7 @@ class Header(tk.Frame):
         self.pill.pack(
             side="right",
             padx=(0, theme.TOKENS["spacing_large"]),
-            pady=16,
+            pady=10,
         )
 
         self.dot = tk.Canvas(
@@ -121,16 +124,31 @@ class Header(tk.Frame):
         self.dot.pack(side="left", padx=(10, 6))
         self.dot_oval = self.dot.create_oval(1, 1, 7, 7, fill=colors["warning"], outline="")
 
+        text_col = tk.Frame(self.pill, bg=colors["surface"])
+        text_col.pack(side="left", padx=(0, 10), pady=4)
         self.status_label = tk.Label(
-            self.pill,
+            text_col,
             textvariable=self.device_status_var,
             font=self.fonts["caption"],
             fg=colors["warning"],
             bg=colors["surface"],
             padx=0,
-            pady=6,
+            pady=0,
+            anchor="w",
         )
-        self.status_label.pack(side="left", padx=(0, 10))
+        self.status_label.pack(fill="x")
+        # Driver-level facts only; no hardware confirmation exists to report.
+        self.detail_label = tk.Label(
+            text_col,
+            textvariable=self.device_detail_var,
+            font=self.fonts["caption"],
+            fg=colors["text_muted"],
+            bg=colors["surface"],
+            padx=0,
+            pady=0,
+            anchor="w",
+        )
+        self.detail_label.pack(fill="x")
 
     def _build_connection_controls(self) -> None:
         """CONNECT / DISCONNECT / RETRY, packed left of the status pill."""
@@ -196,6 +214,10 @@ class Header(tk.Frame):
             color = colors["text_muted"]
 
         self.device_status_var.set(label)
+        self.device_detail_var.set(
+            f"OUT {'open' if midi_out_open else 'closed'} · "
+            f"IN {'open' if midi_in_open else 'closed'} · not hardware-confirmed"
+        )
         self.pill.configure(highlightbackground=color)
         self.status_label.configure(fg=color)
         self.dot.itemconfig(self.dot_oval, fill=color)

@@ -23,6 +23,7 @@ from flow8.parameter_engine import (
     Flow8BusStrip,
 )
 from flow8.domain_model import ChannelKind
+from tests._safety_helpers import EngineAdapter, authorize_phantom_on
 
 class TestParameterEngine(unittest.TestCase):
 
@@ -62,11 +63,15 @@ class TestParameterEngine(unittest.TestCase):
     # -----------------------------------------------------------------------
 
     def test_preamp_gain_channel_restrictions(self):
-        # Ch 1-4 have analog preamp gain
+        # Ch 1-4 have analog preamp gain. S1.2 (D2): preamp gain is blocked absolutely at the boundary,
+        # so the engine refuses to send it (the channel restriction below is unchanged).
         for ch in (1, 2, 3, 4):
-            entry = self.engine.channel(ch).set_gain(20, unit="raw")
-            self.assertTrue(entry.success)
-            self.assertEqual(entry.raw_midi_prepared, 20)
+            with self.assertRaises(Flow8CommandRejectedError):
+                self.engine.channel(ch).set_gain(20, unit="raw")
+            entry = self.boundary.command_log[-1]
+            self.assertEqual(entry.dispatch_status, DispatchStatus.REJECTED)
+            self.assertFalse(entry.command_accepted)
+            self.assertIsNone(entry.raw_midi_sent)
 
         # Ch 5, 6, 7 do NOT have analog preamp gain
         for ch in (5, 6, 7):
@@ -97,8 +102,11 @@ class TestParameterEngine(unittest.TestCase):
                 self.engine.channel(ch).set_compressor(50, unit="%")
 
     def test_phantom_power_channel_restrictions(self):
-        # Ch 1-2 have +48V phantom power
-        entry1 = self.engine.channel(1).set_phantom(True)
+        # Ch 1-2 have +48V phantom power. S1.2 (D1): ON needs user-confirmation authorization (real gate),
+        # OFF needs none.
+        authorize_phantom_on(EngineAdapter(self.engine), 1)
+        entry1 = self.boundary.command_log[-1]
+        self.assertEqual(entry1.param_id, "ch1.phantom")
         self.assertTrue(entry1.success)
         self.assertEqual(entry1.raw_midi_prepared, 127)
 
@@ -215,11 +223,13 @@ class TestParameterEngine(unittest.TestCase):
     def test_unit_conversions(self):
         strip = self.engine.channel(1)
 
-        # Gain in dB (-20 dB -> 0, +60 dB -> 127)
-        e1 = strip.set_gain(-20.0, unit="dB")
-        self.assertEqual(e1.raw_midi_prepared, 0)
-        e2 = strip.set_gain(60.0, unit="dB")
-        self.assertEqual(e2.raw_midi_prepared, 127)
+        # Gain in dB (-20 dB -> 0, +60 dB -> 127). S1.2 (D2): the engine no longer sends gain, so the
+        # conversion arithmetic (an unverified approximation) is asserted on the mapping functions directly.
+        from flow8.parameter_mapping import gain_db_to_midi
+        self.assertEqual(gain_db_to_midi(-20.0), 0)
+        self.assertEqual(gain_db_to_midi(60.0), 127)
+        with self.assertRaises(Flow8CommandRejectedError):
+            strip.set_gain(-20.0, unit="dB")
 
         # Low cut in Hz (20 Hz -> 0, 600 Hz -> 127)
         e3 = strip.set_low_cut(20.0, unit="Hz")

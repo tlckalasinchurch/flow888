@@ -1,4 +1,8 @@
 # FLOW 8 Phase 2A — USB MIDI Out Engine Implementation
+
+> **S1.2 NOTE (2026-11-18) — historical document, the original text below is unchanged.** The harness named here (`flow8_midi_harness.py`) still exists unchanged at the repository root as evidence. A restricted copy now lives at `tools/flow8_midi_harness.py`: it sends nothing without `--allow-write`, validates every message with `flow8.safety` (control change only; no Program Change, Note, SysEx, gain or unauthorised +48V) and writes only new uniquely named files. Use the `tools/` copy. See `docs/product/S1_2_IMPLEMENTATION_REPORT.md`.
+
+> **S1.1 EVIDENCE CORRECTION (2026-11-18) — historical document, the original text below is unchanged.** Statements in this document about hardware verification (lines 39-42 and 108 ("Hardware-Verified", "verified against the physical driver")) are re-graded under the evidence ladder of `docs/product/FLOW8_EVIDENCE_REGISTER.md`. No raw evidence of a physical effect or of mixer-originated MIDI was found for them. The strongest evidence found is Windows driver acceptance (`midiOutShortMsg` returned 0), which is not hardware verification, DSP confirmation or USB delivery (see `FLOW8_PHASE_C2_IMPLEMENTATION.md`). Read "VERIFIED", "HARDWARE_TESTED" and "passed on physical hardware" here as **PROTOCOL SUPPORTED, driver accepted, not hardware verified**. No inbound telemetry was ever received (evidence E07, E08, E17). Per-claim table: `docs/product/S1_1_HISTORICAL_EVIDENCE_CORRECTIONS.md`.
 **Target:** Behringer FLOW 8 Digital Mixer  
 **Phase:** Phase 2A — Implement FLOW 8 USB MIDI Out Engine  
 **Date:** 2026-11-09  

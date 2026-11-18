@@ -10,6 +10,7 @@ from unittest import mock
 
 from flow8.command_boundary import Flow8CommandError
 from flow8.service import Flow8Service
+from tests._safety_helpers import authorize_phantom_on
 from flow8.ui import theme
 from flow8.ui.components.mixer_console import MixerConsole
 
@@ -175,7 +176,7 @@ class UndoRedoBehaviourTests(_Case):
         self.assertTrue(self.service.ledger.can_undo)
 
     def test_undo_never_touches_phantom(self):
-        self.service.set_phantom(1, True)
+        authorize_phantom_on(self.service, 1)   # S1.2 (D1)
         self.service.set_fader(1, 40)
         self.service.set_fader(1, 80)
         entries_before = [e for e in self.service.command_boundary.command_log

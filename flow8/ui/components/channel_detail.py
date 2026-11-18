@@ -151,10 +151,12 @@ class ChannelDetailPanel(tk.Frame):
     """Right-hand docked inspector for the selected channel target."""
 
     EQ_BANDS = [
-        ("low", "LOW (80 Hz)", "cyan_soft"),
-        ("low_mid", "LOW-MID (400 Hz)", "cyan_soft"),
-        ("hi_mid", "HI-MID (2.5 kHz)", "cyan_soft"),
-        ("hi", "HIGH (10 kHz)", "cyan_soft"),
+        # S1.2 (D5): no frequency labels. The band centre frequencies and Q are not confirmed by any
+        # source (docs/product/FLOW8_UNRESOLVED_CONFLICTS.md C-04), so the bands are only numbered.
+        ("low", "BAND 1", "cyan_soft"),
+        ("low_mid", "BAND 2", "cyan_soft"),
+        ("hi_mid", "BAND 3", "cyan_soft"),
+        ("hi", "BAND 4", "cyan_soft"),
     ]
 
     AUX_SENDS = [
@@ -322,7 +324,7 @@ class ChannelDetailPanel(tk.Frame):
         # Preset Launcher Button (CueAir integration)
         self.preset_button = tk.Button(
             self.body,
-            text="★ ACOUSTIC PRESETS (CueAir)",
+            text="★ ACOUSTIC PRESETS",
             font=self.fonts["eyebrow"],
             bg=colors["purple_soft"],
             fg=colors["background"],
@@ -547,6 +549,9 @@ class ChannelDetailPanel(tk.Frame):
             command=self.reset_eq_flat,
         )
         self.eq_reset_btn.pack(fill="x", pady=(2, 4))
+        self._label(self._eq_controls, text="Band frequencies and Q are unconfirmed. Gain only, +/-15 dB.",
+                    font="caption", fg="text_muted", fill="x", pady=(0, 2)
+                    ).configure(wraplength=280, justify="left")
 
         self.eq_sliders: Dict[str, HorizontalSlider] = {}
         for band_key, band_title, accent in self.EQ_BANDS:
@@ -768,6 +773,7 @@ class ChannelDetailPanel(tk.Frame):
             channel_index=self.target.index,
             channel_name=spec.name,
             service=self._service,
+            on_applied=lambda _preset_id: self._refresh_if_attached(),
         )
 
     def clear(self) -> None:

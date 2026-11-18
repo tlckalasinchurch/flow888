@@ -1,4 +1,6 @@
 # Phase 0.5 Summary & Verification Report
+
+> **S0 ERRATA (2026-11-18) — historical document, the original text below is unchanged.** The MIDI channel mapping in lines (numbers refer to the file before this block was inserted) 65–67 (FX on Ch 14 & 15; Full Reset listed as an ordinary Program Change 16 marked VERIFIED) disagrees with the manufacturer's chart (Behringer Quick Start Guide V 1.0, MIDI Implementation, PDF page 8): **FX 1 = MIDI channel 13, FX 2 = MIDI channel 14, channel 15 = unused; snapshot recall = Program Change 1–15 on channel 16; Program Change 16 = MIXER RESET (never to be sent).** Labels such as VERIFIED in this document mean "read from a chart", not "tested on hardware". Details: `docs/product/S0_MIDI_MAPPING_ERRATA.md`.
 **Target:** Behringer FLOW 8 Digital Mixer  
 **Date:** 2026-11-09  
 **Execution:** Phase 0.5 — FLOW 8 Hardware & Protocol Verification  

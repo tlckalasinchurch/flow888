@@ -19,8 +19,9 @@
    - When set to `OFF` or `THRU` (default factory profile), manual knob movements on the physical console do not transmit MIDI messages over the USB connection.
 
 3. **FX Parameter Modulation Constraints:**
-   - FLOW 8 firmware exposes FX engine preset slot selection (Program Change 1..16 on MIDI Channels 14 and 15) and bus send/return levels (CC 16/17 on Ch 1..7; CC 7 on Ch 11/12).
+   - FLOW 8 firmware exposes FX engine preset slot selection (Program Change 1..16 on MIDI Channel 13 for FX 1 and Channel 14 for FX 2 — S0 correction; previously stated as Channels 14 and 15) and bus send/return levels (CC 16/17 on Ch 1..7; CC 7 on Ch 11/12).
    - The firmware **does not** expose continuous MIDI CC controllers for internal DSP algorithm parameters (such as reverb decay time in ms, pre-delay, room size, or chorus rate).
+   - **S0 CORRECTION (2026-11-18):** the official chart documents two controls per FX engine: CC 1 = Parameter 1 (0–100 %) and CC 2 = Parameter 2 (A/B switch) on Channels 13/14. What each parameter does per preset is UNCONFIRMED, so the statement above holds only for named quantities such as decay time in ms. Snapshot recall is Program Change 1–15 on Channel 16; Program Change 16 resets the mixer and must never be sent.
    - In the application, FX preset profiles (e.g. `fx-vocal-hall`, `fx-quarter-delay`) provide curated starting-point metadata and select the corresponding hardware slot, but do not imply continuous DSP modulation over MIDI.
 
 4. **Channel-Specific Feature Scoping:**

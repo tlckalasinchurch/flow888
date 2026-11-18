@@ -170,7 +170,7 @@ class CommandLogPanel(tk.Frame):
             padx=10,
             pady=5,
         )
-        self.empty_label.place(relx=0.5, rely=0.5, anchor="center")
+        self.empty_label.place(relx=0.5, rely=0.66, anchor="center")
 
     @staticmethod
     def _format_entry(entry: Any) -> tuple[str, ...]:
@@ -228,7 +228,7 @@ class CommandLogPanel(tk.Frame):
         if snapshot:
             self.empty_label.place_forget()
         else:
-            self.empty_label.place(relx=0.5, rely=0.5, anchor="center")
+            self.empty_label.place(relx=0.5, rely=0.66, anchor="center")
 
         for index, entry in enumerate(reversed(snapshot)):
             status = str(entry.dispatch_status)

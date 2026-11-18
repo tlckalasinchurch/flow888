@@ -17,7 +17,8 @@ from typing import Any, Callable, Dict, Iterator, Optional
 
 logger = logging.getLogger(__name__)
 
-from flow8.command_boundary import Flow8CommandBoundary
+from flow8.command_boundary import Flow8CommandBoundary, Flow8CommandRejectedError
+from flow8.safety import BLOCKED_PARAMETER_TYPES
 from flow8.domain_model import LOGICAL_CHANNELS
 from flow8.ledger import CommandLedger, CommandRecord
 from flow8.midi_constants import CC_VOLUME_FADER, CC_MUTE, CC_PAN, CC_PHANTOM, CC_GAIN
@@ -32,6 +33,10 @@ from flow8.state_model import EventSource, Flow8StateStore, ParameterProvenance,
 LEDGER_CAPACITY = 50
 SCENE_CAPACITY = 8
 MAIN_CHANNEL = 8
+# Pseudo parameter id sent to state listeners when a connect/disconnect has reset all state.
+RECONCILE_EVENT = "__reconcile__"
+# Pseudo parameter id: software-side state changed in bulk (preset, undo, redo).
+STATE_CHANGED_EVENT = "__changed__"
 
 #: The only parameters the ledger and scenes may ever touch. +48V phantom power
 #: is deliberately absent: it is neither undoable nor part of a scene.
@@ -205,6 +210,7 @@ class Flow8Service:
         with self._ledger_lock:
             self.ledger.reconcile_connection()
         self.state_store.reconcile_reconnect()
+        self._notify_listeners(RECONCILE_EVENT, None)
 
     def _on_midi_in_event(self, event: dict) -> None:
         """Record recognized inbound CC as observed state; never echo it as a command."""
@@ -330,7 +336,13 @@ class Flow8Service:
         """Set Preamp Gain (Channels 1 to 4 only).
 
         Unit: 'raw' (0-127) or 'dB' (-20.0 to +60.0 dB).
+
+        Preamp gain is blocked by the safety policy (SR-05): this always raises while the policy
+        blocks it, before any state is read or written. The command boundary refuses it as well.
         """
+        if "gain" in BLOCKED_PARAMETER_TYPES:
+            raise Flow8CommandRejectedError(
+                f"[{BLOCKED_PARAMETER_TYPES['gain']}] Preamp gain is blocked by safety policy; nothing was sent.")
         if 1 <= channel_index <= 4:
             previous = self._known_value("gain", channel_index)
             log_entry = self._dispatch_and_notify(
@@ -467,6 +479,7 @@ class Flow8Service:
                     self.set_compressor(channel_index, preset.compressor_percent, unit="%")
             finally:
                 self.end_batch()
+                self._notify_listeners(STATE_CHANGED_EVENT, None)
 
         return True
 
@@ -561,17 +574,23 @@ class Flow8Service:
 
         Raises if the boundary rejects a replay; the step then stays undoable.
         """
-        with self._ledger_lock, self._replaying():
-            if self.ledger.undo() is None:
-                return ()
-            return self.ledger.last_applied
+        try:
+            with self._ledger_lock, self._replaying():
+                if self.ledger.undo() is None:
+                    return ()
+                return self.ledger.last_applied
+        finally:
+            self._notify_listeners(STATE_CHANGED_EVENT, None)
 
     def redo(self) -> tuple[CommandRecord, ...]:
         """Re-send the values of the newest undone step; () when nothing to redo."""
-        with self._ledger_lock, self._replaying():
-            if self.ledger.redo() is None:
-                return ()
-            return self.ledger.last_applied
+        try:
+            with self._ledger_lock, self._replaying():
+                if self.ledger.redo() is None:
+                    return ()
+                return self.ledger.last_applied
+        finally:
+            self._notify_listeners(STATE_CHANGED_EVENT, None)
 
     # -- Scenes ---------------------------------------------------------------
 

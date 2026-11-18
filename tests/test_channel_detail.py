@@ -543,7 +543,10 @@ class BoundaryTests(unittest.TestCase):
         self.assertEqual(
             setters(UI_DIRECTORY / "components" / "channel_detail.py"), set()
         )
-        self.assertEqual(setters(UI_DIRECTORY / "safety_dialogs.py"), {"set_phantom"})
+        # S1.2 migration: the headless gate moved to flow8/safety.py (re-exported by the UI module), so the
+        # single phantom setter call now lives there. The UI dialog module itself must reach no setter.
+        self.assertEqual(setters(UI_DIRECTORY / "safety_dialogs.py"), set())
+        self.assertEqual(setters(UI_DIRECTORY.parent / "safety.py"), {"set_phantom"})
 
     def test_inspector_does_not_touch_the_boundary_or_engine_directly(self):
         path = UI_DIRECTORY / "components" / "channel_detail.py"

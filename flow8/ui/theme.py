@@ -77,7 +77,7 @@ TASKBAR_ALLOWANCE = 48
 
 HEADER_HEIGHT = 68
 STATUS_BAR_HEIGHT = 36
-NAVIGATION_WIDTH = 232
+NAVIGATION_WIDTH = 118
 NAV_ITEM_HEIGHT = 48
 
 # ---------------------------------------------------------------------------

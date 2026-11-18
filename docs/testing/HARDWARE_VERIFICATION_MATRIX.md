@@ -1,5 +1,7 @@
 # Hardware Verification Matrix: Behringer FLOW 8 Implementation
 
+> **S1.1 EVIDENCE CORRECTION (2026-11-18) — historical document, the original text below is unchanged.** Statements in this document about hardware verification (status "CONNECTED & VERIFIED", "VERIFIED ON REAL HARDWARE" (about 24 occurrences), preset table "dispatched ... VERIFIED ON REAL HARDWARE", "Exact undo restored", "OBSERVED" inbound columns) are re-graded under the evidence ladder of `docs/product/FLOW8_EVIDENCE_REGISTER.md`. No raw evidence of a physical effect or of mixer-originated MIDI was found for them. The strongest evidence found is Windows driver acceptance (`midiOutShortMsg` returned 0), which is not hardware verification, DSP confirmation or USB delivery (see `FLOW8_PHASE_C2_IMPLEMENTATION.md`). Read "VERIFIED", "HARDWARE_TESTED" and "passed on physical hardware" here as **PROTOCOL SUPPORTED, driver accepted, not hardware verified**. No inbound telemetry was ever received (evidence E07, E08, E17). Per-claim table: `docs/product/S1_1_HISTORICAL_EVIDENCE_CORRECTIONS.md`.
+
 **Document ID:** `HARDWARE_VERIFICATION_MATRIX`  
 **Mixer Model:** Behringer FLOW 8 Digital Audio Mixer (Firmware 11739+)  
 **USB Audio/MIDI Driver:** Behringer FLOW USB Audio Driver v5.72.0 (Thesycon)  
@@ -45,12 +47,16 @@ Each parameter, service, and workflow is classified into one of five mutually ex
 | **FX 2 Send Level** | Channels 1..7 | MIDI Ch 1..7, CC 17 (0..127) | **VERIFIED BY PROTOCOL EVIDENCE** | **No** (Write-Only) | `COMMANDED` |
 | **Master FX 1 Return** | FX 1 Bus | MIDI Ch 11, CC 7 (0..127) | **VERIFIED BY PROTOCOL EVIDENCE** | **No** (Write-Only) | `COMMANDED` |
 | **Master FX 2 Return** | FX 2 Bus | MIDI Ch 12, CC 7 (0..127) | **VERIFIED BY PROTOCOL EVIDENCE** | **No** (Write-Only) | `COMMANDED` |
-| **FX 1 Preset Slot Selection**| FX 1 DSP Engine | MIDI Ch 14, Program Change (1..16) | **VERIFIED BY PROTOCOL EVIDENCE** | **No** (Write-Only) | `COMMANDED` |
-| **FX 2 Preset Slot Selection**| FX 2 DSP Engine | MIDI Ch 15, Program Change (1..16) | **VERIFIED BY PROTOCOL EVIDENCE** | **No** (Write-Only) | `COMMANDED` |
+| **FX 1 Preset Slot Selection**| FX 1 DSP Engine | MIDI Ch **13**, Program Change (1..16) | **PROTOCOL SUPPORTED (official chart) — NOT HARDWARE VERIFIED; sender disabled** | Not documented as readable | `COMMANDED` |
+| **FX 2 Preset Slot Selection**| FX 2 DSP Engine | MIDI Ch **14**, Program Change (1..16) | **PROTOCOL SUPPORTED (official chart) — NOT HARDWARE VERIFIED; sender disabled** | Not documented as readable | `COMMANDED` |
 | **Continuous FX DSP Params**| FX 1/2 DSP (ms, decay)| None (Not mapped to CC) | **UNSUPPORTED** | **No** | `UNSUPPORTED` (App Metadata) |
-| **Hardware Snapshot Recall**| Global System | MIDI Ch 16, Program Change (1..16) | **VERIFIED BY PROTOCOL EVIDENCE** | **No** | `COMMANDED` |
+| **Hardware Snapshot Recall**| Global System | MIDI Ch 16, Program Change **1..15 only** | **PROTOCOL SUPPORTED (official chart) — NOT HARDWARE VERIFIED; sender disabled** | Not documented as readable | `COMMANDED` |
+| **Mixer Reset (PC 16)** | Global System | MIDI Ch 16, Program Change 16 | **FORBIDDEN — the application must never send it** | n/a | n/a |
 | **EZ-Gain Remote Trigger** | Channels 1..4 | None (Console / BLE only) | **UNSUPPORTED** | **No** | `UNSUPPORTED` |
 | **SysEx Interrogation** | State Query | SysEx Inquiry | **UNSUPPORTED** | **No** | `UNSUPPORTED` |
+
+
+> **S0 CORRECTION (2026-11-18)** — in the table above, FX channels were 14/15 and snapshot recall was "Program Change (1..16)", both labelled VERIFIED BY PROTOCOL EVIDENCE; corrected per the Behringer Quick Start Guide V 1.0 MIDI chart (PDF page 8). See `docs/product/S0_MIDI_MAPPING_ERRATA.md`. No FX or snapshot message has been sent to hardware by this project.
 
 ---
 

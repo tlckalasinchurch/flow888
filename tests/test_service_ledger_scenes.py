@@ -12,6 +12,7 @@ from unittest import mock
 
 from flow8.command_boundary import Flow8CommandError
 from flow8.service import LEDGER_CAPACITY, SCENE_CAPACITY, Flow8Service
+from tests._safety_helpers import authorize_phantom_on
 
 
 def _seed(service: Flow8Service) -> None:
@@ -136,15 +137,15 @@ class PhantomIsolationTests(unittest.TestCase):
                 if e.param_id.endswith(".phantom")]
 
     def test_set_phantom_is_never_recorded(self):
-        self.service.set_phantom(1, True)
+        authorize_phantom_on(self.service, 1)   # S1.2 (D1): ON only through the real confirmation gate
         self.service.set_phantom(1, False)
-        self.service.set_phantom(2, True)
+        authorize_phantom_on(self.service, 2)
         self.assertEqual(self.service.ledger.history, ())
         self.assertFalse(self.service.ledger.can_undo)
 
     def test_undo_and_redo_never_touch_phantom(self):
         _seed(self.service)
-        self.service.set_phantom(1, True)
+        authorize_phantom_on(self.service, 1)
         before = len(self._phantom_entries())
         self.service.set_fader(1, 10)
         self.service.set_mute(1, True)
@@ -166,7 +167,7 @@ class PhantomIsolationTests(unittest.TestCase):
 
     def test_scenes_never_store_or_recall_phantom(self):
         _seed(self.service)
-        self.service.set_phantom(1, True)
+        authorize_phantom_on(self.service, 1)
         scene = self.service.capture_scene("A")
         for values in scene.parameters.values():
             self.assertLessEqual(set(values), {"fader", "pan", "mute"})

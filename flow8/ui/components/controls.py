@@ -131,7 +131,7 @@ class VerticalFader(_BaseControl):
     def __init__(self, master, variable, command=None, default=101, accent=None, **kw):
         super().__init__(
             master, variable, command, default,
-            accent or theme.COLORS["cyan"], width=84, height=220, **kw,
+            accent or theme.COLORS["cyan"], width=84, height=170, **kw,
         )
 
     def _y_for(self, value: int) -> float:

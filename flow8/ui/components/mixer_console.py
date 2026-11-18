@@ -7,12 +7,14 @@ according to the Behringer FLOW 8 Hardware Domain Model.
 from __future__ import annotations
 
 import logging
+import queue
 import sys
 import tkinter as tk
 from enum import Enum
 from typing import Any, Callable, Dict, Optional
 
 from flow8.domain_model import LOGICAL_CHANNELS
+from flow8.service import RECONCILE_EVENT, STATE_CHANGED_EVENT
 from flow8.parameter_mapping import fader_midi_to_db, pan_midi_to_percent
 from flow8.ui import theme
 from flow8.ui.components.controls import HorizontalSlider, ProvenanceBadge, VerticalFader
@@ -267,22 +269,34 @@ class ChannelStripWidget(tk.Frame):
         )
         readout.pack(fill="x", pady=(0, 4))
 
-        tk.Label(
+        db_label = tk.Label(
             readout,
             textvariable=self.db_label_var,
-            font=self.fonts["status_value"],
+            font=self.fonts["caption"],
             fg=colors["cyan"] if self.is_master else colors["text"],
             bg=colors["background_alt"],
+            justify="center",
             pady=2,
-        ).pack(fill="x")
+        )
+        db_label.pack(fill="x")
 
-        tk.Label(
+        midi_label = tk.Label(
             readout,
             textvariable=self.midi_label_var,
             font=self.fonts["caption"],
             fg=colors["text_muted"],
             bg=colors["background_alt"],
-        ).pack(fill="x", pady=(0, 2))
+            justify="center",
+        )
+        midi_label.pack(fill="x", pady=(0, 2))
+
+        # Wrap to the strip width instead of clipping when the inspector narrows it.
+        def _wrap(event: tk.Event) -> None:
+            limit = max(event.width - 8, 40)
+            db_label.configure(wraplength=limit)
+            midi_label.configure(wraplength=limit)
+
+        readout.bind("<Configure>", _wrap)
 
         # 6. Vertical Volume Fader
         fader_container = tk.Frame(self, bg=colors["surface"])
@@ -588,9 +602,42 @@ class ChannelStripWidget(tk.Frame):
             self._is_updating = False
 
     def sync_mute(self, is_muted: bool) -> None:
-        self.is_muted.set(is_muted)
-        self._update_mute_ui(is_muted)
-        self.mute_provenance = ValueProvenance.OBSERVED
+        self._is_updating = True
+        try:
+            self.is_muted.set(is_muted)
+            self._update_mute_ui(is_muted)
+            self.mute_provenance = ValueProvenance.OBSERVED
+        finally:
+            self._is_updating = False
+
+    def reset_unsynced(self) -> None:
+        """Show app defaults as UNSYNCED after a connect/disconnect; never dispatches.
+
+        Previous commanded or observed values belong to a past hardware session and
+        must not stay on screen as if they were current.
+        """
+        self._is_updating = True
+        try:
+            fader = 101 if self.is_master else 0
+            self.fader_val.set(fader)
+            self._last_fader_val = fader
+            db_text, midi_text = format_db(fader).split(" · ", 1)
+            self.db_label_var.set(db_text)
+            self.midi_label_var.set(f"{midi_text} DEFAULT")
+            self.pan_val.set(64)
+            self._last_pan_val = 64
+            self.pan_label_var.set(format_pan(64))
+            self.is_muted.set(False)
+            self._update_mute_ui(False)
+            if self.has_phantom:
+                self.sync_phantom(False)
+            self.fader_provenance = ValueProvenance.UNSYNCED_DEFAULT
+            self.pan_provenance = ValueProvenance.UNSYNCED_DEFAULT
+            self.mute_provenance = ValueProvenance.UNSYNCED_DEFAULT
+            if hasattr(self, "fader_badge"):
+                self.fader_badge.set_provenance(self.fader_provenance)
+        finally:
+            self._is_updating = False
 
     def destroy(self) -> None:
         for timer_id in (self._fader_after_id, self._pan_after_id):
@@ -612,6 +659,10 @@ class MixerConsole(tk.Frame):
         self.on_feedback = on_feedback
         self.strips: Dict[int, ChannelStripWidget] = {}
         self.selected_target: Optional[SelectionTarget] = None
+        # Service listeners may run on the MIDI thread: they only enqueue; the Tk
+        # main thread drains the queue (never touch a widget from another thread).
+        self._ui_queue: "queue.SimpleQueue[tuple[str, Any]]" = queue.SimpleQueue()
+        self._poll_after_id: Optional[str] = None
         self._build()
 
         self.inspector = ChannelDetailPanel(
@@ -642,7 +693,11 @@ class MixerConsole(tk.Frame):
             entries = getattr(boundary, "command_log", [])
             if isinstance(entries, (list, tuple)):
                 self.command_log_panel.set_entries(entries)
+            add_state = getattr(self.service, "add_listener", None)
+            if callable(add_state):
+                add_state(self._on_state_event)
         self._refresh_history_buttons()
+        self._poll_ui_queue()
 
     def _build(self) -> None:
         colors = theme.COLORS
@@ -957,6 +1012,73 @@ class MixerConsole(tk.Frame):
     def _refresh_strips(self) -> None:
         for strip in self.strips.values():
             strip.refresh_commanded()
+        self._refresh_inspector()
+
+    def _refresh_inspector(self) -> None:
+        inspector = getattr(self, "inspector", None)
+        if inspector is not None:
+            inspector._refresh_if_attached()
+
+    # -- inbound hardware state (MIDI IN -> service listener -> strips) ----------
+
+    POLL_MS = 25
+
+    def _on_state_event(self, param_id: str, value: Any) -> None:
+        """Service listener; any thread. Enqueue only."""
+        self._ui_queue.put((param_id, value))
+
+    def _poll_ui_queue(self) -> None:
+        self._poll_after_id = None
+        try:
+            self._drain_ui_queue()
+            self._poll_after_id = self.after(self.POLL_MS, self._poll_ui_queue)
+        except tk.TclError:
+            return
+
+    def _drain_ui_queue(self) -> None:
+        """Apply queued service events on the Tk thread; newest value per parameter wins."""
+        latest: Dict[str, Any] = {}
+        while True:
+            try:
+                param_id, value = self._ui_queue.get_nowait()
+            except queue.Empty:
+                break
+            if param_id == RECONCILE_EVENT:
+                latest.clear()  # earlier events describe the discarded session
+            latest[param_id] = value
+        if not latest:
+            return
+        if RECONCILE_EVENT in latest:
+            del latest[RECONCILE_EVENT]
+            for strip in self.strips.values():
+                strip.reset_unsynced()
+            self._refresh_history_buttons()
+        if STATE_CHANGED_EVENT in latest:
+            del latest[STATE_CHANGED_EVENT]
+            for strip in self.strips.values():
+                strip.refresh_commanded()
+        # Observed values only repaint the strip; they are never sent back to hardware.
+        for param_id, value in latest.items():
+            self._apply_observed(param_id, value)
+        self._refresh_inspector()
+
+    def _apply_observed(self, param_id: str, value: Any) -> None:
+        head, _, name = param_id.partition(".")
+        if head == "main":
+            strip = self.strips.get(8)
+            name = "pan" if name == "balance" else name
+        elif head.startswith("ch") and head[2:].isdigit():
+            strip = self.strips.get(int(head[2:]))
+        else:
+            return
+        if strip is None or value is None:
+            return
+        if name == "fader":
+            strip.sync_fader(int(value))
+        elif name == "pan":
+            strip.sync_pan(int(value))
+        elif name == "mute" and not strip.is_master:
+            strip.sync_mute(bool(value))
 
     # -- scenes ----------------------------------------------------------------
 
@@ -1054,6 +1176,16 @@ class MixerConsole(tk.Frame):
         except tk.TclError:
             pass
         self._key_bindings.clear()
+        if self._poll_after_id is not None:
+            try:
+                self.after_cancel(self._poll_after_id)
+            except tk.TclError:
+                pass
+            self._poll_after_id = None
+        if self.service:
+            remove_state = getattr(self.service, "remove_listener", None)
+            if callable(remove_state):
+                remove_state(self._on_state_event)
         try:
             self.inspector.detach()
         except Exception:

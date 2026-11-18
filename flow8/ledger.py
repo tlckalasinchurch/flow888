@@ -8,6 +8,8 @@ from datetime import datetime, timezone
 from uuid import uuid4
 from typing import Any, Callable, Deque, Hashable, Optional
 
+from flow8.safety import NEVER_LEDGERED
+
 
 PHANTOM_PARAMETER = "phantom_power"
 
@@ -31,6 +33,7 @@ class CommandRecord:
     def undoable(self) -> bool:
         return (
             self.parameter_type != PHANTOM_PARAMETER
+            and self.parameter_type not in NEVER_LEDGERED
             and self.previous_value is not None
             and self.previous_value != self.new_value
         )
@@ -210,8 +213,9 @@ class CommandLedger:
         return group[-1]
 
     def reconcile_connection(self) -> None:
-        """Clear uncommitted batches and invalidate stale redo history on reconnect."""
+        """Drop all history on connect/disconnect: its previous values describe a past session."""
         self._batch = None
+        self._undo.clear()
         self._redo.clear()
 
     def clear(self) -> None:

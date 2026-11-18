@@ -1,4 +1,6 @@
 # FLOW 8 Application Gateway API Specification
+
+> **S1.1 EVIDENCE CORRECTION (2026-11-18) — historical document, the original text below is unchanged.** Statements in this document about hardware verification (lines 188 and 194 (example payloads with verification_level HARDWARE_TESTED; no parameter holds that level after Phase C.2)) are re-graded under the evidence ladder of `docs/product/FLOW8_EVIDENCE_REGISTER.md`. No raw evidence of a physical effect or of mixer-originated MIDI was found for them. The strongest evidence found is Windows driver acceptance (`midiOutShortMsg` returned 0), which is not hardware verification, DSP confirmation or USB delivery (see `FLOW8_PHASE_C2_IMPLEMENTATION.md`). Read "VERIFIED", "HARDWARE_TESTED" and "passed on physical hardware" here as **PROTOCOL SUPPORTED, driver accepted, not hardware verified**. No inbound telemetry was ever received (evidence E07, E08, E17). Per-claim table: `docs/product/S1_1_HISTORICAL_EVIDENCE_CORRECTIONS.md`.
 **Target Platform:** Windows Desktop Gateway for Android / iOS Clients  
 **Target Hardware:** Behringer FLOW 8 Digital Mixer  
 **Scope:** Phase B — Gateway Architecture Design  

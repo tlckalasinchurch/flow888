@@ -1,5 +1,7 @@
 # FLOW 8 Phase C.1 — Independent Parameter & Protocol Audit
 
+> **S0 ERRATA (2026-11-18) — historical document, the original text below is unchanged.** The MIDI channel mapping in lines (numbers refer to the file before this block was inserted) 112, 115, 230, 260, 553 (FX engine on Ch 14/15, status bytes 0xBE–BF) disagrees with the manufacturer's chart (Behringer Quick Start Guide V 1.0, MIDI Implementation, PDF page 8): **FX 1 = MIDI channel 13, FX 2 = MIDI channel 14, channel 15 = unused; snapshot recall = Program Change 1–15 on channel 16; Program Change 16 = MIXER RESET (never to be sent).** Labels such as VERIFIED in this document mean "read from a chart", not "tested on hardware". Details: `docs/product/S0_MIDI_MAPPING_ERRATA.md`.
+
 **Target:** Behringer FLOW 8 Digital Mixer (USB `VID_1397&PID_050C`)
 **Audit type:** Read-only, independent verification of Phase C Parameter Engine and its hardware/protocol claims
 **Date:** 2026-11-09

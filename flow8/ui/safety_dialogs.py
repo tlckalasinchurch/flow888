@@ -22,142 +22,14 @@ from typing import Any, Callable, Optional
 from flow8.ui import theme
 
 
-class PhantomPowerConfirmationToken:
-    """Opaque, single-use capability token for a phantom confirmation request.
-
-    Instances carry no public state that can be forged into validity: a token is
-    accepted by ``PhantomPowerSafetyGate`` only if its object identity was
-    registered by an active dialog request. Manually constructing one yields an
-    unregistered (and therefore rejected) token.
-    """
-
-    def __init__(self, _nonce: Optional[object] = None) -> None:
-        # The nonce is never inspected for validity; identity of the instance
-        # plus the gate registry is what authorises dispatch.
-        self._nonce = _nonce if _nonce is not None else object()
-
-
-@dataclass
-class _PhantomPendingRequest:
-    channel_index: int
-    consumed: bool = False
-    active: bool = True
-    issued_at: float = 0.0
-    clock: Callable[[], float] = field(default=time.monotonic)
-
-
-class PhantomPowerSafetyGate:
-    """Headless logic gate enforcing +48V phantom power safety rules."""
-
-    ALLOWED_CHANNELS = (1, 2)
-    WARNING_TEXT = (
-        "WARNING: +48V Phantom Power should ONLY be applied to microphones "
-        "requiring phantom power (e.g. condenser mics).\n\n"
-        "Energizing +48V into ribbon microphones, unbalanced dynamic mics, "
-        "or line-level equipment can cause permanent physical or transducer damage."
-    )
-
-    # Registry of active/inactive pending confirmation requests, keyed by
-    # token identity (id(token)). Only tokens present here with active=True and
-    # consumed=False can authorise a dispatch.
-    _pending: dict = {}
-
-    @classmethod
-    def validate_channel(cls, channel_index: int) -> bool:
-        """Validate whether the channel physically supports +48V phantom power."""
-        if channel_index not in cls.ALLOWED_CHANNELS:
-            raise ValueError(
-                f"+48V Phantom Power is physically restricted to Channels 1 and 2 only. "
-                f"Channel {channel_index} has no hardware phantom relay."
-            )
-        return True
-
-    @classmethod
-    def issue_token(
-        cls,
-        channel_index: int,
-        clock: Callable[[], float] = time.monotonic,
-    ) -> PhantomPowerConfirmationToken:
-        """Mint a single-use, channel-bound confirmation token.
-
-        The token is registered in the gate's internal pending-request registry.
-        Unregistered (forged) tokens are rejected by ``confirm_and_dispatch``.
-        """
-        cls.validate_channel(channel_index)
-        token = PhantomPowerConfirmationToken()
-        cls._pending[id(token)] = _PhantomPendingRequest(
-            channel_index=channel_index,
-            issued_at=clock(),
-            clock=clock,
-        )
-        return token
-
-    @classmethod
-    def revoke_token(cls, token: Any) -> None:
-        """Invalidate a pending token (cancel / escape / close / supersede)."""
-        record = cls._pending.get(id(token))
-        if record is not None:
-            record.active = False
-
-    @classmethod
-    def confirm_and_dispatch(
-        cls,
-        service: Any,
-        channel_index: int,
-        confirmation_token: Any,
-        clock: Optional[Callable[[], float]] = None,
-        ttl: Optional[float] = None,
-    ) -> bool:
-        """Dispatch +48V through the service iff *confirmation_token* is a valid,
-        active, unconsumed, channel-bound token issued by this gate.
-
-        Returns True on successful dispatch, False on any rejection. Never calls
-        the service for a rejected/invalid token.
-        """
-        # Reject anything that is not a gate-issued token instance.
-        if not isinstance(confirmation_token, PhantomPowerConfirmationToken):
-            return False
-
-        record = cls._pending.get(id(confirmation_token))
-        if record is None:
-            return False
-        if not record.active or record.consumed:
-            return False
-        if record.channel_index != channel_index:
-            return False
-
-        # Channel must be a physically valid phantom channel.
-        try:
-            cls.validate_channel(channel_index)
-        except ValueError:
-            record.active = False
-            return False
-
-        # Optional TTL check using the issuing clock (or an override).
-        effective_clock = clock if clock is not None else record.clock
-        if ttl is not None:
-            if effective_clock() - record.issued_at > ttl:
-                record.active = False
-                return False
-
-        # Consume before dispatch: a second call with the same token is rejected.
-        record.consumed = True
-        record.active = False
-
-        service.set_phantom(channel_index, True)
-        return True
-
-    @classmethod
-    def disable_and_dispatch(cls, service: Any, channel_index: int) -> bool:
-        """Request +48V OFF through the service after validating the channel.
-
-        OFF needs no warning dialog: it de-energises the relay. The OFF value is
-        the protocol-chart boolean mapping and is not hardware-tested; see the
-        UI2-T4-01 report for that residual risk.
-        """
-        cls.validate_channel(channel_index)
-        service.set_phantom(channel_index, False)
-        return True
+# S1.2: the headless phantom safety policy lives in flow8.safety (shared with the service and the command
+# boundary). The names are re-exported here so existing imports keep working.
+from flow8 import safety as _safety
+from flow8.safety import (  # noqa: F401  (re-exports)
+    PhantomPowerConfirmationToken,
+    PhantomPowerSafetyGate,
+    _PhantomPendingRequest,
+)
 
 
 class PhantomPowerConfirmationDialog(tk.Toplevel):
@@ -325,7 +197,8 @@ class AnalogGainSafetyGate:
 
         The FLOW 8 discrete Midas step curve is an UNVERIFIED APPROXIMATION in parameter_mapping.py.
         """
-        return False
+        # S1.2 (D2): the answer comes from the shared policy; there is no other way to change it.
+        return "gain" not in _safety.BLOCKED_PARAMETER_TYPES
 
     def stage_preview(self, proposed_db: float) -> float:
         """Stage a proposed gain value for preview without dispatching."""

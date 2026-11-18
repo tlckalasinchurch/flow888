@@ -1,5 +1,9 @@
 # FLOW 8 — Phase UI.1 Repository Discovery & UI Implementation Plan
 
+> **S1.2 NOTE (2026-11-18) — historical document, the original text below is unchanged.** The harness named here (`flow8_midi_harness.py`) still exists unchanged at the repository root as evidence. A restricted copy now lives at `tools/flow8_midi_harness.py`: it sends nothing without `--allow-write`, validates every message with `flow8.safety` (control change only; no Program Change, Note, SysEx, gain or unauthorised +48V) and writes only new uniquely named files. Use the `tools/` copy. See `docs/product/S1_2_IMPLEMENTATION_REPORT.md`.
+
+> **S0 ERRATA (2026-11-18) — historical document, the original text below is unchanged.** The MIDI channel mapping in lines (numbers refer to the file before this block was inserted) 448, 449, 726 (FX engine on ch 14–15; snapshot via Program Change on ch 16) disagrees with the manufacturer's chart (Behringer Quick Start Guide V 1.0, MIDI Implementation, PDF page 8): **FX 1 = MIDI channel 13, FX 2 = MIDI channel 14, channel 15 = unused; snapshot recall = Program Change 1–15 on channel 16; Program Change 16 = MIXER RESET (never to be sent).** Labels such as VERIFIED in this document mean "read from a chart", not "tested on hardware". Details: `docs/product/S0_MIDI_MAPPING_ERRATA.md`.
+
 **Product:** Behringer FLOW 8 Enhanced Audio Platform
 **Phase:** UI.1 — Repository Discovery (READ-ONLY)
 **Platform:** Windows Desktop
