@@ -193,18 +193,13 @@ class PresetPickerDialog(tk.Toplevel):
         footer = tk.Frame(self, bg=colors["surface"], padx=14, pady=10)
         footer.pack(fill="x")
 
-        chk = tk.Checkbutton(
+        tk.Label(
             footer,
-            text="Preserve Fader & Gain (Safe Mix)",
-            variable=self.preserve_levels_var,
+            text="Levels always preserved: fader, pan, gain",
             font=self.fonts["caption"],
             fg=colors["warning"],
             bg=colors["surface"],
-            activebackground=colors["surface"],
-            activeforeground=colors["warning"],
-            selectcolor=colors["surface_alt"],
-        )
-        chk.pack(side="left")
+        ).pack(side="left")
 
         self.apply_button = tk.Button(
             footer,

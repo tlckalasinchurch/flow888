@@ -19,6 +19,7 @@ boundary.
 from __future__ import annotations
 
 import logging
+import math
 import tkinter as tk
 from dataclasses import dataclass
 from typing import Any, Callable, Dict, Optional
@@ -533,6 +534,16 @@ class ChannelDetailPanel(tk.Frame):
         )
 
         self._eq_controls = tk.Frame(self.eq_tab, bg=colors["surface"])
+        self.eq_curve = tk.Canvas(
+            self._eq_controls,
+            height=78,
+            bg=colors["background_alt"],
+            highlightthickness=1,
+            highlightbackground=colors["border"],
+            bd=0,
+        )
+        self.eq_curve.pack(fill="x", pady=(2, 4))
+        self.eq_curve.bind("<Configure>", lambda _e: self._redraw_eq_curve())
         self.eq_reset_btn = tk.Button(
             self._eq_controls,
             text="RESET FLAT (0 dB)",
@@ -577,6 +588,8 @@ class ChannelDetailPanel(tk.Frame):
                 accent=colors[accent],
             )
             slider.pack(fill="x", pady=(1, 1))
+            slider.bind("<ButtonPress-1>", self._begin_gesture, add="+")
+            slider.bind("<ButtonRelease-1>", lambda e, b=band_key: self._on_eq_release(b, e), add="+")
             self.eq_sliders[band_key] = slider
 
     def _build_dyn_tab(self) -> None:
@@ -626,6 +639,8 @@ class ChannelDetailPanel(tk.Frame):
             accent=colors["warning"],
         )
         self.low_cut_slider.pack(fill="x", pady=(2, 4))
+        self.low_cut_slider.bind("<ButtonPress-1>", self._begin_gesture, add="+")
+        self.low_cut_slider.bind("<ButtonRelease-1>", self._on_low_cut_release, add="+")
         self._low_cut_controls.pack(fill="x")
 
         tk.Frame(self.dyn_tab, bg=colors["border"], height=1).pack(fill="x", pady=6)
@@ -675,6 +690,8 @@ class ChannelDetailPanel(tk.Frame):
             accent=colors["purple_soft"],
         )
         self.comp_slider.pack(fill="x", pady=(2, 2))
+        self.comp_slider.bind("<ButtonPress-1>", self._begin_gesture, add="+")
+        self.comp_slider.bind("<ButtonRelease-1>", self._on_comp_release, add="+")
         self._comp_controls.pack(fill="x")
 
     def _build_sends_tab(self) -> None:
@@ -716,6 +733,8 @@ class ChannelDetailPanel(tk.Frame):
                 accent=colors[accent],
             )
             slider.pack(fill="x", pady=(1, 2))
+            slider.bind("<ButtonPress-1>", self._begin_gesture, add="+")
+            slider.bind("<ButtonRelease-1>", lambda e, t=target_key: self._on_send_release(t, e), add="+")
             self.send_sliders[target_key] = slider
         self._send_controls.pack(fill="x")
 
@@ -1104,6 +1123,83 @@ class ChannelDetailPanel(tk.Frame):
                 self.eq_readouts[band_key].set(f"{db:+.1f} dB · raw {val}")
         finally:
             self._is_updating_controls = False
+        self._redraw_eq_curve()
+
+    @staticmethod
+    def _eq_response_at(freq_hz: float, gains_db: tuple[float, float, float, float]) -> float:
+        """Approximate 4-band EQ response curve (nominal bands: 80, 400, 2000, 8000 Hz)."""
+        centres = (80.0, 400.0, 2000.0, 8000.0)
+        lf = math.log10(max(20.0, freq_hz))
+        total = 0.0
+        for idx, (fc, g) in enumerate(zip(centres, gains_db)):
+            lc = math.log10(fc)
+            if idx == 0:  # low shelf
+                weight = 1.0 / (1.0 + math.exp(5.0 * (lf - lc)))
+            elif idx == 3:  # high shelf
+                weight = 1.0 / (1.0 + math.exp(-5.0 * (lf - lc)))
+            else:  # peaking bell
+                weight = math.exp(-((lf - lc) ** 2) / (2.0 * (0.28 ** 2)))
+            total += g * weight
+        return max(-15.0, min(15.0, total))
+
+    def _redraw_eq_curve(self) -> None:
+        canvas = getattr(self, "eq_curve", None)
+        if canvas is None:
+            return
+        colors = theme.COLORS
+        canvas.delete("all")
+        w = max(canvas.winfo_width(), 220)
+        h = max(canvas.winfo_height(), 70)
+        mid_y = h / 2.0
+
+        # Grid lines: 0 dB center + +/- 10 dB
+        canvas.create_line(0, mid_y, w, mid_y, fill=colors["border"], dash=(2, 2))
+        for db_ref in (-10.0, 10.0):
+            ry = mid_y - (db_ref / 16.0) * (h * 0.44)
+            canvas.create_line(0, ry, w, ry, fill=colors["surface_alt"])
+
+        gains = tuple(
+            eq_midi_to_db(self.eq_vars[b].get()) for b, _, _ in self.EQ_BANDS
+        )
+        # Determine provenance color (grey when UNSYNCED)
+        target = self.target
+        prov = ParameterProvenance.UNSYNCED
+        if target is not None and target.kind == "input" and 1 <= target.index <= 7:
+            eq_states = [self._state(f"ch{target.index}.eq_{b}") for b, _, _ in self.EQ_BANDS]
+            prov = self._aggregate_provenance(eq_states)
+        is_active = prov in (ParameterProvenance.COMMANDED, ParameterProvenance.OBSERVED)
+        line_color = colors["cyan"] if is_active else colors["text_muted"]
+
+        pts: list[float] = []
+        steps = 48
+        log_min, log_max = math.log10(20.0), math.log10(20000.0)
+        for i in range(steps + 1):
+            frac = i / steps
+            freq = 10.0 ** (log_min + frac * (log_max - log_min))
+            db = self._eq_response_at(freq, gains)
+            x = 4 + frac * (w - 8)
+            y = mid_y - (db / 16.0) * (h * 0.44)
+            pts.extend((x, y))
+        canvas.create_line(*pts, fill=line_color, width=2, smooth=True)
+        canvas.create_text(
+            6, 5, text="COMMANDED — not measured",
+            anchor="nw", fill=colors["text_muted"], font=("Segoe UI", 7),
+        )
+
+    def _begin_gesture(self, _event: Optional[tk.Event] = None) -> None:
+        """Start an atomic undo batch for a slider drag gesture."""
+        if self._service is not None:
+            try:
+                _dispatch_service(self._service, "begin_batch")
+            except Exception:
+                logger.exception("Could not start inspector undo batch")
+
+    def _end_gesture(self) -> None:
+        if self._service is not None:
+            try:
+                _dispatch_service(self._service, "end_batch")
+            except Exception:
+                logger.exception("Could not close inspector undo batch")
 
     def _on_eq_drag(self, band: str, val_str: str) -> None:
         if self._is_updating_controls or self.target is None or self.target.kind != "input":
@@ -1112,8 +1208,20 @@ class ChannelDetailPanel(tk.Frame):
         db = eq_midi_to_db(raw)
         self.eq_readouts[band].set(f"{db:+.1f} dB · raw {raw}")
         self._pending_eq[band] = raw
+        self._redraw_eq_curve()
         if self._eq_after_ids.get(band) is None:
             self._eq_after_ids[band] = self.after(30, lambda b=band: self._flush_eq(b))
+
+    def _on_eq_release(self, band: str, _event: Optional[tk.Event] = None) -> None:
+        aid = self._eq_after_ids.get(band)
+        if aid is not None:
+            try:
+                self.after_cancel(aid)
+            except tk.TclError:
+                pass
+            self._eq_after_ids[band] = None
+        self._flush_eq(band)
+        self._end_gesture()
 
     def _flush_eq(self, band: str) -> None:
         self._eq_after_ids[band] = None
@@ -1130,19 +1238,24 @@ class ChannelDetailPanel(tk.Frame):
             self.error_var.set(f"EQ {band.upper()} FAILED — {error}")
 
     def reset_eq_flat(self) -> None:
-        """Reset all 4 EQ bands to 0 dB flat (raw 64)."""
+        """Reset all 4 EQ bands to 0 dB flat (raw 64) as a single atomic undo step."""
         target = self.target
         if target is None or target.kind != "input" or not (1 <= target.index <= 7):
             return
-        for band_key, _, _ in self.EQ_BANDS:
-            if self._service is not None:
-                try:
-                    _dispatch_service(self._service, "set_eq_band", target.index, band_key, 64, unit="raw")
-                except Exception as error:
-                    logger.exception("Reset EQ flat failed on %s: %s", band_key, error)
-            self.eq_vars[band_key].set(64)
-            self.eq_readouts[band_key].set("0.0 dB · raw 64")
+        self._begin_gesture()
+        try:
+            for band_key, _, _ in self.EQ_BANDS:
+                if self._service is not None:
+                    try:
+                        _dispatch_service(self._service, "set_eq_band", target.index, band_key, 64, unit="raw")
+                    except Exception as error:
+                        logger.exception("Reset EQ flat failed on %s: %s", band_key, error)
+                self.eq_vars[band_key].set(64)
+                self.eq_readouts[band_key].set("0.0 dB · raw 64")
+        finally:
+            self._end_gesture()
         self._refresh_provenance_badges()
+        self._redraw_eq_curve()
 
     # -- Low Cut / HPF --------------------------------------------------------
 
@@ -1186,6 +1299,16 @@ class ChannelDetailPanel(tk.Frame):
         self._pending_low_cut = raw
         if self._low_cut_after_id is None:
             self._low_cut_after_id = self.after(30, self._flush_low_cut)
+
+    def _on_low_cut_release(self, _event: Optional[tk.Event] = None) -> None:
+        if self._low_cut_after_id is not None:
+            try:
+                self.after_cancel(self._low_cut_after_id)
+            except tk.TclError:
+                pass
+            self._low_cut_after_id = None
+        self._flush_low_cut()
+        self._end_gesture()
 
     def _flush_low_cut(self) -> None:
         self._low_cut_after_id = None
@@ -1258,6 +1381,16 @@ class ChannelDetailPanel(tk.Frame):
         self._pending_comp = raw
         if self._comp_after_id is None:
             self._comp_after_id = self.after(30, self._flush_comp)
+
+    def _on_comp_release(self, _event: Optional[tk.Event] = None) -> None:
+        if self._comp_after_id is not None:
+            try:
+                self.after_cancel(self._comp_after_id)
+            except tk.TclError:
+                pass
+            self._comp_after_id = None
+        self._flush_comp()
+        self._end_gesture()
 
     def _flush_comp(self) -> None:
         self._comp_after_id = None
@@ -1332,6 +1465,17 @@ class ChannelDetailPanel(tk.Frame):
                 30, lambda t=target_name: self._flush_send(t)
             )
 
+    def _on_send_release(self, target_name: str, _event: Optional[tk.Event] = None) -> None:
+        aid = self._send_after_ids.get(target_name)
+        if aid is not None:
+            try:
+                self.after_cancel(aid)
+            except tk.TclError:
+                pass
+            self._send_after_ids[target_name] = None
+        self._flush_send(target_name)
+        self._end_gesture()
+
     def _flush_send(self, target_name: str) -> None:
         self._send_after_ids[target_name] = None
         if target_name not in self._pending_sends or self.target is None or self.target.kind != "input":
@@ -1385,6 +1529,7 @@ class ChannelDetailPanel(tk.Frame):
         send_states = [self._state(f"ch{ch}.send_{t}") for t, _, _ in self.AUX_SENDS]
         send_prov = self._aggregate_provenance(send_states)
         self.send_badge.update_provenance(send_prov)
+        self._redraw_eq_curve()
 
     @staticmethod
     def _aggregate_provenance(states: list) -> ParameterProvenance:

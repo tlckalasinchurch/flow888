@@ -56,6 +56,7 @@ class Navigation(tk.Frame):
         self.items: dict[str, NavItem] = {item.key: item for item in NAV_ITEMS}
         self.buttons: dict[str, tk.Button] = {}
         self._accent_bars: dict[str, tk.Frame] = {}
+        self._note_labels: dict[str, tk.Label] = {}
         self.selected: Optional[str] = None
         self._build()
 
@@ -127,14 +128,16 @@ class Navigation(tk.Frame):
         button.pack(fill="x")
         self.buttons[item.key] = button
         if item.note:
-            tk.Label(
+            note_lbl = tk.Label(
                 cell,
                 text=item.note,
                 font=self.fonts["caption"],
                 fg=colors["warning"],
                 bg=colors["background_alt"],
                 anchor="w",
-            ).pack(fill="x")
+            )
+            note_lbl.pack(fill="x")
+            self._note_labels[item.key] = note_lbl
 
         if item.enabled:
             button.bind("<Enter>", lambda _event, key=item.key: self._hover(key, True))
@@ -155,6 +158,23 @@ class Navigation(tk.Frame):
         button.configure(
             bg=theme.COLORS["surface_hover"] if entering else theme.COLORS["background_alt"]
         )
+
+    def enable_workstation_pages(self) -> None:
+        """Enable implemented workstation pages (Routing, FX, Scenes, Device) when shell is live."""
+        for key, label in (("routing", "Routing"), ("fx", "FX"), ("scenes", "Scenes")):
+            self.items[key] = NavItem(key, label, True, "")
+            btn = self.buttons.get(key)
+            if btn is not None:
+                btn.configure(state="normal", cursor="hand2")
+                btn.bind("<Enter>", lambda _e, k=key: self._hover(k, True))
+                btn.bind("<Leave>", lambda _e, k=key: self._hover(k, False))
+            note_lbl = self._note_labels.pop(key, None)
+            if note_lbl is not None:
+                note_lbl.destroy()
+        if "device" not in self.items:
+            dev_item = NavItem("device", "Device", True, "")
+            self.items["device"] = dev_item
+            self._build_row(dev_item)
 
     def is_enabled(self, key: str) -> bool:
         item = self.items.get(key)

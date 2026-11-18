@@ -39,8 +39,13 @@ RECONCILE_EVENT = "__reconcile__"
 STATE_CHANGED_EVENT = "__changed__"
 
 #: The only parameters the ledger and scenes may ever touch. +48V phantom power
-#: is deliberately absent: it is neither undoable nor part of a scene.
-REVERSIBLE_PARAMETERS = ("fader", "pan", "mute")
+#: and preamp gain are deliberately absent: neither is undoable nor part of a scene.
+REVERSIBLE_PARAMETERS = (
+    "fader", "pan", "mute",
+    "eq_low", "eq_low_mid", "eq_hi_mid", "eq_hi",
+    "low_cut", "compressor",
+    "send_mon1", "send_mon2", "send_fx1", "send_fx2",
+)
 
 
 @dataclass
@@ -205,6 +210,24 @@ class Flow8Service:
             self._connection_error = None
             self.reconcile_connection()
 
+    def check_connection_health(self) -> bool:
+        """Detect physical USB unplug or power-off; reconcile to UNSYNCED if gone."""
+        with self._lock:
+            if not self._connected:
+                return False
+            try:
+                out_id = self.midi_out.find_device_id()
+                in_id = self.midi_in.find_device_id()
+            except Exception:
+                out_id = None
+                in_id = None
+            if out_id is None or in_id is None:
+                logger.warning("FLOW 8 USB MIDI endpoint disappeared; disconnecting and reconciling.")
+                self.disconnect()
+                self._connection_error = "FLOW 8 USB disconnected"
+                return False
+            return True
+
     def reconcile_connection(self) -> None:
         """Reconcile ledger history and state store on reconnect or disconnect."""
         with self._ledger_lock:
@@ -227,6 +250,10 @@ class Flow8Service:
                 param_id = "main.fader"
             elif cc == CC_PAN:
                 param_id = "main.balance"
+        elif channel in (9, 10, 11, 12):
+            bus_by_ch = {9: "mon1", 10: "mon2", 11: "fx1", 12: "fx2"}
+            if cc == CC_VOLUME_FADER:
+                param_id = f"{bus_by_ch[channel]}.fader"
         else:
             # Resolve MIDI channel through the shared logical-channel model.
             # MIDI ch6 is logical strip ch6 (the 7/8 stereo pair), not input 6.
@@ -292,6 +319,19 @@ class Flow8Service:
         else:
             return
         self._record("fader", channel_index, previous, clamped)
+
+    def set_bus_fader(self, bus_id: str, raw_value: int) -> None:
+        """Set master fader for output/FX bus ('mon1', 'mon2', 'fx1', 'fx2')."""
+        b_key = bus_id.lower()
+        if b_key not in ("mon1", "mon2", "fx1", "fx2"):
+            return
+        clamped = max(0, min(127, int(raw_value)))
+        previous = self._known_value("fader", b_key)
+        self._dispatch_and_notify(
+            self.parameter_engine.bus(b_key).set_fader,
+            clamped, unit="raw",
+        )
+        self._record("fader", b_key, previous, clamped)
 
     def set_mute(self, channel_index: int, muted: bool) -> None:
         """Set mute state (1..7 for input strips)."""
@@ -496,7 +536,9 @@ class Flow8Service:
     # -- Undo / redo ledger ---------------------------------------------------
 
     @staticmethod
-    def _param_id(parameter: str, channel_index: int) -> str:
+    def _param_id(parameter: str, channel_index: Any) -> str:
+        if isinstance(channel_index, str):
+            return f"{channel_index}.{parameter}"
         if channel_index == MAIN_CHANNEL:
             return "main.balance" if parameter == "pan" else f"main.{parameter}"
         return f"ch{channel_index}.{parameter}"
@@ -535,9 +577,11 @@ class Flow8Service:
                 CommandLedger.make_record(parameter, channel_index, previous, new)
             )
 
-    def _replay(self, parameter_type: str, channel_index: int, value: Any) -> None:
+    def _replay(self, parameter_type: str, channel_index: Any, value: Any) -> None:
         """Ledger executor: replay through the public setters (and so the boundary)."""
-        if parameter_type == "fader":
+        if isinstance(channel_index, str) and parameter_type == "fader":
+            self.set_bus_fader(channel_index, value)
+        elif parameter_type == "fader":
             self.set_fader(channel_index, value)
         elif parameter_type == "pan":
             self.set_pan(channel_index, value)
@@ -643,4 +687,5 @@ class Flow8Service:
                             result.failed.append((channel, parameter, str(error)))
             finally:
                 self.end_batch()
+                self._notify_listeners(STATE_CHANGED_EVENT, None)
         return result

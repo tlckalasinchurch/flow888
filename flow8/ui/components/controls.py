@@ -129,9 +129,11 @@ class VerticalFader(_BaseControl):
                 ("-20", fader_db_to_midi(-20)), ("-40", fader_db_to_midi(-40)), ("-∞", 0))
 
     def __init__(self, master, variable, command=None, default=101, accent=None, **kw):
+        kw.setdefault("width", 70)
+        kw.setdefault("height", 200)
         super().__init__(
             master, variable, command, default,
-            accent or theme.COLORS["cyan"], width=84, height=170, **kw,
+            accent or theme.COLORS["cyan"], **kw,
         )
 
     def _y_for(self, value: int) -> float:
@@ -191,9 +193,11 @@ class HorizontalSlider(_BaseControl):
     CENTER = 64
 
     def __init__(self, master, variable, command=None, default=64, accent=None, **kw):
+        kw.setdefault("height", 28)
+        kw.setdefault("width", 70)
         super().__init__(
             master, variable, command, default,
-            accent or theme.COLORS["cyan_soft"], height=28, width=110, **kw,
+            accent or theme.COLORS["cyan_soft"], **kw,
         )
 
     def _x_for(self, value: int) -> float:
@@ -234,9 +238,11 @@ class UnipolarSlider(_BaseControl):
     HANDLE_W = 16
 
     def __init__(self, master, variable, command=None, default=0, accent=None, **kw):
+        kw.setdefault("height", 26)
+        kw.setdefault("width", 70)
         super().__init__(
             master, variable, command, default,
-            accent or theme.COLORS["cyan_soft"], height=26, width=110, **kw,
+            accent or theme.COLORS["cyan_soft"], **kw,
         )
 
     def _x_for(self, value: int) -> float:

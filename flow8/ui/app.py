@@ -16,9 +16,13 @@ from typing import Optional
 from flow8.service import Flow8Service
 from flow8.ui import theme
 from flow8.ui.components import widget_texts
+from flow8.ui.components.device_view import DeviceView
+from flow8.ui.components.fx_view import FxView
 from flow8.ui.components.header import Header
 from flow8.ui.components.mixer_console import MixerConsole
 from flow8.ui.components.navigation import Navigation
+from flow8.ui.components.routing_view import RoutingView
+from flow8.ui.components.scenes_view import ScenesView
 from flow8.ui.components.status_bar import StatusBar
 from flow8.ui.status import SessionStatus
 
@@ -53,6 +57,7 @@ class Flow8App:
         self._last_reported_error: Optional[str] = None
         self._queue_poll_id: Optional[str] = None
         self._state_poll_id: Optional[str] = None
+        self._lan_hub = None
 
         # Hardware Service initialization
         if service is not None:
@@ -127,6 +132,7 @@ class Flow8App:
             on_connect=self.connect_hardware_async,
             on_disconnect=self.disconnect_hardware,
             on_retry=self.connect_hardware_async,
+            on_toggle_lan=self.toggle_lan_hub,
         )
         self.header.grid(row=0, column=0, sticky="ew")
 
@@ -144,15 +150,52 @@ class Flow8App:
         self.status_bar = StatusBar(self.root, self.fonts, self.status)
         self.status_bar.grid(row=2, column=0, sticky="ew")
 
+        self._pages: dict[str, tk.Frame] = {}
+        self._active_page: str = "mixer"
         if self.show_placeholder:
             self._build_placeholder()
         else:
+            self.navigation.enable_workstation_pages()
             self.mixer_console = MixerConsole(
                 self.workspace,
                 self.fonts,
                 service=self.service,
                 on_feedback=self.status_bar.show_feedback,
             )
+            self.routing_view = RoutingView(
+                self.workspace,
+                self.fonts,
+                service=self.service,
+                on_feedback=self.status_bar.show_feedback,
+            )
+            self.fx_view = FxView(
+                self.workspace,
+                self.fonts,
+                service=self.service,
+                on_feedback=self.status_bar.show_feedback,
+            )
+            self.scenes_view = ScenesView(
+                self.workspace,
+                self.fonts,
+                service=self.service,
+                on_feedback=self.status_bar.show_feedback,
+                on_recalled=self.mixer_console._refresh_strips,
+            )
+            self.device_view = DeviceView(
+                self.workspace,
+                self.fonts,
+                service=self.service,
+                on_connect=self.connect_hardware_async,
+                on_disconnect=self.disconnect_hardware,
+                on_toggle_lan=self.toggle_lan_hub,
+            )
+            self._pages = {
+                "mixer": self.mixer_console,
+                "routing": self.routing_view,
+                "fx": self.fx_view,
+                "scenes": self.scenes_view,
+                "device": self.device_view,
+            }
             self.mixer_console.pack(fill="both", expand=True)
 
         self.navigation.select("mixer")
@@ -242,6 +285,9 @@ class Flow8App:
         self.status_bar.set_midi_port_status(
             midi_out_open, midi_in_open, error, midi_in_listening,
         )
+        dev_view = getattr(self, "device_view", None)
+        if dev_view is not None:
+            dev_view.refresh()
         self._update_connection_controls()
 
     # -- connection (worker thread + queue) ---------------------------------
@@ -363,15 +409,55 @@ class Flow8App:
         if self.service is not None and not self._connection_busy:
             if self._auto_connect and not self.service.is_connected:
                 self._start_connection("connect", user_initiated=False)
+            elif self.service.is_connected and not self.service.check_connection_health():
+                self._refresh_hardware_status()
+                self._report("DISCONNECTED — FLOW 8 USB REMOVED", problem=True)
             else:
                 self._refresh_hardware_status()
         self._state_poll_id = self.root.after(2500, self._poll_hardware_state)
 
+    def toggle_lan_hub(self) -> bool:
+        """Start or stop the Wi-Fi / LAN Remote Hub (HTTP + SSE)."""
+        if self.service is None:
+            self._report("LAN HUB UNAVAILABLE — NO COMMAND SERVICE", problem=True)
+            return False
+        if self._lan_hub is not None and self._lan_hub.is_running:
+            self._lan_hub.stop()
+            self._lan_hub = None
+            self.header.set_lan_active(False)
+            self._report("LAN REMOTE HUB STOPPED")
+            return False
+        from flow8.lan_hub import Flow8LanHub
+        hub = Flow8LanHub(self.service)
+        try:
+            hub.start()
+        except Exception as exc:
+            self._report(f"LAN HUB FAILED — {exc}", problem=True)
+            return False
+        self._lan_hub = hub
+        self.header.set_lan_active(True)
+        urls = ", ".join(hub.lan_urls())
+        self._report(f"LAN REMOTE ACTIVE — {urls}")
+        return True
+
     # -- navigation ---------------------------------------------------------
 
     def show_page(self, key: str) -> bool:
-        """Select *key* destination."""
-        return self.navigation.select(key)
+        """Select *key* destination and swap the active workspace frame."""
+        if not self.navigation.select(key):
+            return False
+        if key in self._pages:
+            for page_key, frame in self._pages.items():
+                if page_key == key:
+                    refresh = getattr(frame, "refresh", None)
+                    if callable(refresh):
+                        refresh()
+                    if not frame.winfo_manager():
+                        frame.pack(fill="both", expand=True)
+                elif frame.winfo_manager():
+                    frame.pack_forget()
+            self._active_page = key
+        return True
 
     # -- lifecycle ----------------------------------------------------------
 
@@ -396,6 +482,13 @@ class Flow8App:
                 except tk.TclError:
                     pass
         self._queue_poll_id = self._state_poll_id = None
+
+        if self._lan_hub is not None:
+            try:
+                self._lan_hub.stop()
+            except Exception:
+                logger.exception("FLOW 8 LAN hub stop on close failed")
+            self._lan_hub = None
 
         if self.service:
             if self._connection_busy:

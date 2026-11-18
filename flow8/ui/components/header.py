@@ -21,6 +21,7 @@ class Header(tk.Frame):
         on_connect: Optional[Callable[[], None]] = None,
         on_disconnect: Optional[Callable[[], None]] = None,
         on_retry: Optional[Callable[[], None]] = None,
+        on_toggle_lan: Optional[Callable[[], None]] = None,
     ) -> None:
         super().__init__(
             master,
@@ -34,6 +35,7 @@ class Header(tk.Frame):
             "CONNECT": on_connect,
             "DISCONNECT": on_disconnect,
             "RETRY": on_retry,
+            "LAN": on_toggle_lan,
         }
         self.connection_buttons: dict[str, tk.Button] = {}
         self.device_status_var = tk.StringVar(
@@ -176,6 +178,34 @@ class Header(tk.Frame):
             )
             button.pack(side="left", padx=(0, 4))
             self.connection_buttons[label] = button
+        if self._callbacks.get("LAN") is not None:
+            self.lan_button = tk.Button(
+                controls,
+                text="LAN OFF",
+                font=self.fonts["caption"],
+                bg=colors["surface_alt"],
+                fg=colors["text_secondary"],
+                activebackground=colors["cyan"],
+                activeforeground=colors["background"],
+                bd=0,
+                relief="flat",
+                cursor="hand2",
+                padx=8,
+                pady=5,
+                command=self._callbacks["LAN"],
+            )
+            self.lan_button.pack(side="left", padx=(4, 0))
+
+    def set_lan_active(self, active: bool) -> None:
+        btn = getattr(self, "lan_button", None)
+        if btn is None:
+            return
+        colors = theme.COLORS
+        btn.configure(
+            text="LAN ON" if active else "LAN OFF",
+            bg=colors["cyan"] if active else colors["surface_alt"],
+            fg=colors["background"] if active else colors["text_secondary"],
+        )
 
     def set_connection_controls(self, connect: bool, disconnect: bool, retry: bool) -> None:
         """Enable only the actions that make sense for the current connection state."""

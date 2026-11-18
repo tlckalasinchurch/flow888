@@ -86,7 +86,6 @@ class RealWorldAuditDefectTests(unittest.TestCase):
         )
         self.assertEqual(self.console.inspector.eq_vars["low"].get(), 80)
 
-    @unittest.expectedFailure
     def test_d03_reset_eq_flat_records_single_atomic_undo_step(self):
         """D-03 [P1]: Clicking 'RESET FLAT (0 dB)' should push 1 batch transaction, not 4 steps."""
         for band in ("low", "low_mid", "hi_mid", "hi"):
@@ -104,7 +103,6 @@ class RealWorldAuditDefectTests(unittest.TestCase):
                 80,
             )
 
-    @unittest.expectedFailure
     def test_d04_scene_capture_includes_eq_dynamics_and_sends(self):
         """D-04 [P1]: Scene capture should preserve commanded EQ, HPF, Comp, and Aux Sends."""
         self.service.set_fader(1, 90)
@@ -129,10 +127,11 @@ class RealWorldAuditDefectTests(unittest.TestCase):
         )
         self.assertEqual(self.console.inspector.eq_badge.label.cget("text"), "○ UNSYNC")
 
-    @unittest.expectedFailure
     def test_d06_strips_not_clipped_at_1366x768_when_inspector_open(self):
         """D-06 [P1]: All 8 strips should fit without clipping at 1366x768 when Inspector is open."""
+        self.console.destroy()
         app = Flow8App(root=self.root, service=self.service, show_placeholder=False)
+        self.addCleanup(app.close)
         self.root.deiconify()
         self.root.geometry("1366x768")
         self.root.update()

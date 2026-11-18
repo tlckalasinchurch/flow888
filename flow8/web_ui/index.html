@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
+  <title>FLOW 8 — CueAir Gen Z/Alpha</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+<div class="app-shell">
+  <!-- Top Console Bar -->
+  <header class="topbar">
+    <div class="brand-group">
+      <div class="brand-mark">
+        <span class="brand-led"></span>
+        <span>FLOW 8</span>
+      </div>
+      <span class="brand-sub">CueAir Gen Z/Alpha · iPad Remote</span>
+    </div>
+
+    <div class="layer-bar" id="layer-bar">
+      <span class="layer-label">FADERS</span>
+      <button class="layer-btn active" data-layer="main">MAIN</button>
+      <button class="layer-btn" data-layer="mon1">MON 1</button>
+      <button class="layer-btn" data-layer="mon2">MON 2</button>
+      <button class="layer-btn" data-layer="fx1">FX 1</button>
+      <button class="layer-btn" data-layer="fx2">FX 2</button>
+    </div>
+
+    <div class="toolbar-actions">
+      <button class="hw-btn danger" id="btn-mute-all">MUTE ALL</button>
+      <button class="hw-btn" id="btn-undo">↶ UNDO</button>
+      <button class="hw-btn" id="btn-redo">↷ REDO</button>
+      <button class="hw-btn accent" id="btn-presets">★ PRESETS</button>
+      <div class="status-pill" id="status-pill">
+        <span class="status-dot"></span>
+        <span id="status-text">UNSYNCED</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Phone Navigation Switcher -->
+  <nav class="mobile-nav" id="mobile-nav">
+    <button class="mobile-tab active" data-view="faders">FADERS</button>
+    <button class="mobile-tab" data-view="buses">BUS MASTERS</button>
+    <button class="mobile-tab" data-view="dsp">CH DSP / EQ</button>
+  </nav>
+
+  <!-- Top Channel Strip DSP Rack -->
+  <section class="dsp-rack" id="dsp-rack">
+    <!-- Card 1: 4-Band Parametric EQ -->
+    <div class="rack-card">
+      <div class="rack-hdr">
+        <span class="rack-title" id="eq-title">CH 01 · 4-BAND EQ</span>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span class="rack-meta" id="eq-prov">COMMANDED — not measured</span>
+          <button class="hw-btn" id="btn-eq-flat" style="padding:2px 7px;font-size:10px;">FLAT</button>
+        </div>
+      </div>
+      <div class="eq-canvas-wrap">
+        <canvas id="eq-canvas" width="520" height="118"></canvas>
+      </div>
+      <div class="eq-band-row" id="eq-band-row"></div>
+    </div>
+
+    <!-- Card 2: Rotary Dynamics / HPF & Scenes -->
+    <div class="rack-card">
+      <div class="rack-hdr">
+        <span class="rack-title">DYNAMICS &amp; HPF</span>
+        <span class="rack-meta" id="dyn-scope">CH 1–4</span>
+      </div>
+      <div class="knobs-row" id="knobs-row"></div>
+      <div class="rack-hdr" style="margin-top:2px;">
+        <span class="rack-title">SCENES</span>
+        <span class="rack-meta">TAP RECALL · HOLD SAVE</span>
+      </div>
+      <div class="scene-grid" id="scene-grid"></div>
+    </div>
+
+    <!-- Card 3: Aux Sends & Safety -->
+    <div class="rack-card">
+      <div class="rack-hdr">
+        <span class="rack-title">AUX SENDS</span>
+        <span class="rack-meta">MON &amp; FX</span>
+      </div>
+      <div class="sends-list" id="sends-list"></div>
+      <div class="safety-note">
+        🔒 Host-only safety lock: Preamp Gain (CC 8) and +48V Phantom ON (CC 12) require the host workstation.
+      </div>
+    </div>
+  </section>
+
+  <!-- Bottom Machined Fader Bank -->
+  <main class="console-bank" id="console-bank"></main>
+</div>
+
+<!-- Preset Modal -->
+<div class="modal-backdrop" id="preset-modal">
+  <div class="modal">
+    <div class="modal-hdr">
+      <span class="rack-title" id="preset-modal-title">CHANNEL PRESETS (LEVELS ALWAYS PRESERVED)</span>
+      <button class="hw-btn" id="btn-close-presets">CLOSE</button>
+    </div>
+    <div class="modal-body" id="preset-list"></div>
+  </div>
+</div>
+
+<!-- Scribble Edit Modal -->
+<div class="modal-backdrop" id="scribble-modal">
+  <div class="modal" style="max-width:340px;">
+    <div class="modal-hdr">
+      <span class="rack-title">EDIT CHANNEL SCRIBBLE</span>
+      <button class="hw-btn" id="btn-close-scribble">CLOSE</button>
+    </div>
+    <div class="modal-body">
+      <label style="font-size:11px;color:var(--text-secondary);">Label</label>
+      <input id="scribble-input" type="text" maxlength="14" style="padding:8px;background:var(--bg-well);color:var(--text-primary);border:1px solid var(--border-light);border-radius:5px;" />
+      <label style="font-size:11px;color:var(--text-secondary);margin-top:4px;">Color Tag</label>
+      <div style="display:flex;gap:8px;" id="scribble-colors"></div>
+      <button class="hw-btn accent" id="btn-save-scribble" style="margin-top:8px;">SAVE</button>
+    </div>
+  </div>
+</div>
+
+<script src="/app.js"></script>
+</body>
+</html>

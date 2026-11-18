@@ -25,30 +25,34 @@ from tkinter import font as tkfont
 # ---------------------------------------------------------------------------
 
 COLORS = {
-    "background": "#080B12",
-    "background_alt": "#0D1220",
-    "surface": "#131A28",
-    "surface_alt": "#1A2435",
-    "surface_hover": "#202D40",
-    "border": "#29384B",
+    "background": "#070B14",
+    "background_alt": "#0C1421",
+    "surface": "#101827",
+    "surface_alt": "#14243A",
+    "surface_hover": "#173943",
+    "border": "#293951",
 
-    "text": "#F4F7FF",
-    "text_secondary": "#A4B1C6",
+    "text": "#F5F7FB",
+    "text_secondary": "#93A2B8",
     "text_muted": "#68788F",
 
-    "cyan": "#00E5FF",
+    "cyan": "#2EF2E2",
     "cyan_soft": "#54F0FF",
-    "purple": "#A855F7",
+    "purple": "#BC71FF",
     "purple_soft": "#C084FC",
-    "lime": "#C6FF00",
+    "lime": "#C5FF4A",
 
-    "success": "#39D98A",
-    "warning": "#FFB84D",
-    "danger": "#FF5470",
+    "success": "#52E59A",
+    "warning": "#FFB45B",
+    "danger": "#FF6BAA",
 
-    # Single-pixel halo ring used behind accent surfaces. This is a dimmed
-    # cyan, not a blur: it is the whole "glow" budget for a panel.
-    "halo": "#0D3F49",
+    # Single-pixel halo ring used behind accent surfaces.
+    "halo": "#2B5264",
+    "safety_bg": "#241D2D",
+    "safety_border": "#66456D",
+    "card_hero": "#14243A",
+    "card_strip": "#172338",
+    "pill_bg": "#112B35",
 }
 
 # ---------------------------------------------------------------------------

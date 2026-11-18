@@ -22,7 +22,12 @@ class SceneManager:
     power is neither captured nor restored, even if supplied by a caller.
     """
 
-    ALLOWED_PARAMETERS = frozenset({"fader", "pan", "mute"})
+    ALLOWED_PARAMETERS = frozenset({
+        "fader", "pan", "mute",
+        "eq_low", "eq_low_mid", "eq_hi_mid", "eq_hi",
+        "low_cut", "compressor",
+        "send_mon1", "send_mon2", "send_fx1", "send_fx2",
+    })
 
     def __init__(self, max_snapshots: int = 8, state_provider: Optional[Callable[[], Mapping[Any, Mapping[str, Any]]]] = None,
                  state_loader: Optional[Callable[[Mapping[Any, Mapping[str, Any]]], Any]] = None):
