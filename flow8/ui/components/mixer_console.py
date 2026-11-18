@@ -15,7 +15,7 @@ from typing import Any, Callable, Dict, Optional
 from flow8.domain_model import LOGICAL_CHANNELS
 from flow8.parameter_mapping import fader_midi_to_db, pan_midi_to_percent
 from flow8.ui import theme
-from flow8.ui.components.controls import HorizontalSlider, VerticalFader
+from flow8.ui.components.controls import HorizontalSlider, ProvenanceBadge, VerticalFader
 from flow8.ui.components.command_log import CommandLogPanel
 from flow8.ui.components.scene_bar import SceneBar, slot_name
 from flow8.ui.components.channel_detail import (
@@ -185,7 +185,7 @@ class ChannelStripWidget(tk.Frame):
         self._bind_header_selection(hdr)
 
         # Divider
-        tk.Frame(self, bg=colors["border"], height=1).pack(fill="x", pady=6)
+        tk.Frame(self, bg=colors["border"], height=1).pack(fill="x", pady=3)
 
         # 2. Phantom Power (if supported, e.g. Ch 1 & 2)
         if self.has_phantom:
@@ -203,11 +203,11 @@ class ChannelStripWidget(tk.Frame):
                 pady=2,
                 command=self._toggle_phantom,
             )
-            self.phantom_btn.pack(fill="x", pady=(0, 6))
+            self.phantom_btn.pack(fill="x", pady=(0, 4))
 
         # 3. Pan / Balance Control
         pan_frame = tk.Frame(self, bg=colors["surface"])
-        pan_frame.pack(fill="x", pady=(0, 6))
+        pan_frame.pack(fill="x", pady=(0, 4))
 
         pan_top = tk.Frame(pan_frame, bg=colors["surface"])
         pan_top.pack(fill="x")
@@ -250,13 +250,13 @@ class ChannelStripWidget(tk.Frame):
                 bd=0,
                 relief="flat",
                 cursor="hand2",
-                pady=6,
+                pady=4,
                 command=self._toggle_mute,
             )
-            self.mute_btn.pack(fill="x", pady=(4, 8))
+            self.mute_btn.pack(fill="x", pady=(3, 4))
         else:
             # Spacer for alignment
-            tk.Frame(self, bg=colors["surface"], height=32).pack(fill="x", pady=(4, 8))
+            tk.Frame(self, bg=colors["surface"], height=24).pack(fill="x", pady=(3, 4))
 
         # 5. Fader readout: approximate dB and raw MIDI are separate visual levels.
         readout = tk.Frame(
@@ -265,7 +265,7 @@ class ChannelStripWidget(tk.Frame):
             highlightbackground=colors["border"],
             highlightthickness=1,
         )
-        readout.pack(fill="x", pady=(0, 6))
+        readout.pack(fill="x", pady=(0, 4))
 
         tk.Label(
             readout,
@@ -273,7 +273,7 @@ class ChannelStripWidget(tk.Frame):
             font=self.fonts["status_value"],
             fg=colors["cyan"] if self.is_master else colors["text"],
             bg=colors["background_alt"],
-            pady=3,
+            pady=2,
         ).pack(fill="x")
 
         tk.Label(
@@ -282,11 +282,11 @@ class ChannelStripWidget(tk.Frame):
             font=self.fonts["caption"],
             fg=colors["text_muted"],
             bg=colors["background_alt"],
-        ).pack(fill="x", pady=(0, 3))
+        ).pack(fill="x", pady=(0, 2))
 
         # 6. Vertical Volume Fader
         fader_container = tk.Frame(self, bg=colors["surface"])
-        fader_container.pack(fill="both", expand=True, pady=(0, 6))
+        fader_container.pack(fill="both", expand=True, pady=(0, 4))
 
         self.fader_scale = VerticalFader(
             fader_container,
@@ -361,12 +361,16 @@ class ChannelStripWidget(tk.Frame):
             self.service.set_fader(self.channel_index, val)
             self._last_fader_val = val
             self.fader_provenance = ValueProvenance.COMMANDED
+            if hasattr(self, "fader_badge"):
+                self.fader_badge.set_provenance(self.fader_provenance)
             self._feedback(f"CH {self.channel_index}: FADER COMMANDED")
         except Exception:
             logging.getLogger(__name__).exception("Fader command failed")
             self.fader_val.set(previous)
             self._set_fader_labels(previous)
             self.fader_provenance = ValueProvenance.DISPATCH_FAILED
+            if hasattr(self, "fader_badge"):
+                self.fader_badge.set_provenance(self.fader_provenance)
             self._feedback(f"CH {self.channel_index}: FADER FAILED")
 
     def _on_pan_drag(self, val_str: str) -> None:
@@ -522,6 +526,8 @@ class ChannelStripWidget(tk.Frame):
                 self._last_fader_val = raw
                 if commanded:
                     self.fader_provenance = ValueProvenance.COMMANDED
+                if hasattr(self, "fader_badge"):
+                    self.fader_badge.set_provenance(self.fader_provenance)
             else:
                 self.pan_val.set(raw)
                 self.pan_label_var.set(format_pan(raw))
@@ -566,6 +572,8 @@ class ChannelStripWidget(tk.Frame):
             self._set_fader_labels(raw_val)
             self._last_fader_val = raw_val
             self.fader_provenance = ValueProvenance.OBSERVED
+            if hasattr(self, "fader_badge"):
+                self.fader_badge.set_provenance(self.fader_provenance)
         finally:
             self._is_updating = False
 
@@ -634,6 +642,7 @@ class MixerConsole(tk.Frame):
             entries = getattr(boundary, "command_log", [])
             if isinstance(entries, (list, tuple)):
                 self.command_log_panel.set_entries(entries)
+        self._refresh_history_buttons()
 
     def _build(self) -> None:
         colors = theme.COLORS
@@ -672,6 +681,46 @@ class MixerConsole(tk.Frame):
             banner, self.fonts, on_capture=self.capture_scene, on_recall=self.recall_scene
         )
         self.scene_bar.pack(side="right", padx=(0, spacing["spacing_large"]))
+
+        # History (Undo / Redo) buttons
+        hist_frame = tk.Frame(banner, bg=colors["background"])
+        hist_frame.pack(side="right", padx=(0, spacing["spacing_medium"]))
+
+        self.undo_btn = tk.Button(
+            hist_frame,
+            text="↶ UNDO",
+            font=self.fonts["caption"],
+            bg=colors["surface_alt"],
+            fg=colors["cyan_soft"],
+            activebackground=colors["surface_hover"],
+            activeforeground=colors["cyan"],
+            disabledforeground=colors["text_muted"],
+            bd=0,
+            relief="flat",
+            cursor="hand2",
+            padx=6,
+            pady=2,
+            command=self.undo,
+        )
+        self.undo_btn.pack(side="left", padx=1)
+
+        self.redo_btn = tk.Button(
+            hist_frame,
+            text="↷ REDO",
+            font=self.fonts["caption"],
+            bg=colors["surface_alt"],
+            fg=colors["cyan_soft"],
+            activebackground=colors["surface_hover"],
+            activeforeground=colors["cyan"],
+            disabledforeground=colors["text_muted"],
+            bd=0,
+            relief="flat",
+            cursor="hand2",
+            padx=6,
+            pady=2,
+            command=self.redo,
+        )
+        self.redo_btn.pack(side="left", padx=1)
 
         # Middle band: strips on the left, the Channel Detail Inspector docks on
         # the right while a target is selected.
@@ -865,10 +914,35 @@ class MixerConsole(tk.Frame):
             return False
         if not records:
             self._feedback(f"NOTHING TO {label}")
+            self._refresh_history_buttons()
             return False
         self._refresh_strips()
+        self._refresh_history_buttons()
         self._feedback(f"{label} COMMANDED — {self._describe(records, method)}")
         return True
+
+    def _refresh_history_buttons(self) -> None:
+        if not hasattr(self, "undo_btn") or not hasattr(self, "redo_btn"):
+            return
+        colors = theme.COLORS
+        can_undo = False
+        can_redo = False
+        if self.service is not None:
+            ledger = getattr(self.service, "ledger", None)
+            if ledger is not None:
+                can_undo = getattr(ledger, "can_undo", False)
+                can_redo = getattr(ledger, "can_redo", False)
+        try:
+            self.undo_btn.configure(
+                state="normal" if can_undo else "disabled",
+                fg=colors["cyan"] if can_undo else colors["text_muted"],
+            )
+            self.redo_btn.configure(
+                state="normal" if can_redo else "disabled",
+                fg=colors["cyan"] if can_redo else colors["text_muted"],
+            )
+        except tk.TclError:
+            pass
 
     @staticmethod
     def _describe(records, method: str) -> str:
@@ -960,10 +1034,17 @@ class MixerConsole(tk.Frame):
         """Schedule command-log rendering on the Tk main thread."""
         try:
             snapshot = list(entries)
-            self.after_idle(lambda: self.command_log_panel.set_entries(snapshot))
+            self.after_idle(lambda: self._handle_log_update(snapshot))
         except tk.TclError:
             # The widget may be closing while a worker callback is in flight.
             return
+
+    def _handle_log_update(self, snapshot: list) -> None:
+        try:
+            self.command_log_panel.set_entries(snapshot)
+            self._refresh_history_buttons()
+        except tk.TclError:
+            pass
 
     def destroy(self) -> None:
         try:

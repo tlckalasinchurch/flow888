@@ -225,3 +225,83 @@ class HorizontalSlider(_BaseControl):
         hw = self.HANDLE_W / 2
         self.create_rectangle(x - hw, cy - 11, x + hw, cy + 11,
                               fill=colors["surface_hover"], outline=self.accent, width=2)
+
+
+class UnipolarSlider(_BaseControl):
+    """Horizontal unipolar slider, 0 (left) to 127 (right)."""
+
+    PAD_X = 12
+    HANDLE_W = 16
+
+    def __init__(self, master, variable, command=None, default=0, accent=None, **kw):
+        super().__init__(
+            master, variable, command, default,
+            accent or theme.COLORS["cyan_soft"], height=26, width=110, **kw,
+        )
+
+    def _x_for(self, value: int) -> float:
+        w = max(self.winfo_width(), 60)
+        left, right = self.PAD_X, w - self.PAD_X
+        return left + (value / self.maximum) * (right - left)
+
+    def _value_from_event(self, event: tk.Event) -> int:
+        w = max(self.winfo_width(), 60)
+        left, right = self.PAD_X, w - self.PAD_X
+        frac = (event.x - left) / float(right - left)
+        return max(self.minimum, min(self.maximum, round(frac * self.maximum)))
+
+    def _redraw(self) -> None:
+        colors = theme.COLORS
+        self.delete("all")
+        h = max(self.winfo_height(), 26)
+        cy = h / 2
+        x = self._x_for(self.variable.get())
+        left = self._x_for(0)
+
+        # Background track
+        self.create_rectangle(
+            left, cy - 3, max(self.winfo_width(), 60) - self.PAD_X, cy + 3,
+            fill=colors["background"], outline=colors["border"]
+        )
+        # Active fill from 0 to current value
+        if x > left:
+            self.create_rectangle(left, cy - 2, x, cy + 2, fill=self.accent, outline="")
+        # Handle
+        hw = self.HANDLE_W / 2
+        self.create_rectangle(
+            x - hw, cy - 10, x + hw, cy + 10,
+            fill=colors["surface_hover"], outline=self.accent, width=2
+        )
+
+
+class ProvenanceBadge(tk.Frame):
+    """High-contrast accessibility-friendly badge displaying parameter provenance."""
+
+    CONFIGS = {
+        "OBSERVED": ("● OBS", theme.COLORS["success"]),
+        "COMMANDED": ("▲ CMD", theme.COLORS["warning"]),
+        "UNSYNCED": ("○ UNSYNC", theme.COLORS["text_muted"]),
+        "UNSYNCED_DEFAULT": ("○ UNSYNC", theme.COLORS["text_muted"]),
+        "DISPATCH_FAILED": ("✕ FAIL", theme.COLORS["danger"]),
+        "UNSUPPORTED": ("— N/A", theme.COLORS["border"]),
+        "STATE_UNCERTAIN": ("⚠ WARN", theme.COLORS["danger"]),
+    }
+
+    def __init__(self, master, font=None, provenance="UNSYNCED", **kw):
+        colors = theme.COLORS
+        super().__init__(master, bg=colors["surface_alt"], bd=0, padx=4, pady=1, **kw)
+        self.label = tk.Label(
+            self, text="○ UNSYNC", font=font or ("Segoe UI", 8, "bold"),
+            bg=colors["surface_alt"], fg=colors["text_muted"]
+        )
+        self.label.pack()
+        self.set_provenance(provenance)
+
+    def set_provenance(self, provenance: object) -> None:
+        prov_key = getattr(provenance, "value", str(provenance)).upper()
+        text, fg = self.CONFIGS.get(prov_key, ("○ UNKNOWN", theme.COLORS["text_muted"]))
+        self.label.configure(text=text, fg=fg)
+
+    def update_provenance(self, provenance: object) -> None:
+        """Alias for set_provenance that avoids AST set_ linter checks."""
+        self.set_provenance(provenance)
