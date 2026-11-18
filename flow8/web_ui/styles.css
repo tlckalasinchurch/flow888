@@ -782,3 +782,64 @@ input[type="range"].studio-range {
     min-width: 82px;
   }
 }
+
+/* ---------- Connection banner, toast, confirm ---------- */
+.conn-banner {
+  padding: 7px 14px;
+  background: rgba(255, 77, 109, 0.14);
+  border-bottom: 1px solid rgba(255, 77, 109, 0.5);
+  color: var(--accent-red);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 700;
+  text-align: center;
+}
+.conn-banner[hidden] { display: none; }
+
+.status-pill.offline { color: var(--accent-red); }
+
+/* Controls that send MIDI stay visible but cannot be used while offline. */
+body.offline .fader-well,
+body.offline .mute-switch,
+body.offline .knob-cell,
+body.offline .studio-range,
+body.offline .scene-pad,
+body.offline #eq-canvas,
+body.offline #btn-mute-all,
+body.offline #btn-undo,
+body.offline #btn-redo,
+body.offline #btn-eq-flat {
+  pointer-events: none;
+  opacity: 0.4;
+}
+
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  transform: translate(-50%, 20px);
+  max-width: min(92vw, 520px);
+  padding: 10px 16px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  color: var(--text-primary);
+  font-size: 13px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.18s, transform 0.18s;
+  z-index: 80;
+}
+.toast.show { opacity: 1; transform: translate(-50%, 0); }
+.toast.error { border-color: var(--accent-red); color: var(--accent-red); }
+
+/* Hold-to-save progress on scene pads. */
+.scene-pad { position: relative; overflow: hidden; touch-action: none; }
+.scene-pad::after {
+  content: "";
+  position: absolute;
+  left: 0; bottom: 0;
+  height: 3px; width: 0;
+  background: var(--accent-amber);
+}
+.scene-pad.holding::after { width: 100%; transition: width 0.55s linear; }

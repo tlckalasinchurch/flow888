@@ -347,6 +347,16 @@ class Flow8LanHub:
         if action in ("set48V", "setPhantom", "phantom"):
             return 403, {"ok": False, "error": "+48V phantom power requires explicit host confirmation dialog."}
 
+        # A command sent while MIDI is closed would be recorded as "commanded" but
+        # never reach the mixer. Reject it so the remote cannot show a false success.
+        # Scribble labels stay local to the hub, so they stay allowed.
+        if action != "setScribble" and not self.service.is_connected:
+            return 503, {
+                "ok": False,
+                "code": "not_connected",
+                "error": "Mixer is not connected. The command was not sent.",
+            }
+
         try:
             if action == "setFader":
                 self.service.set_fader(int(msg["channel"]), int(msg["value"]))
@@ -354,6 +364,15 @@ class Flow8LanHub:
                 self.service.set_pan(int(msg["channel"]), int(msg["value"]))
             elif action == "setMute":
                 self.service.set_mute(int(msg["channel"]), bool(msg["value"]))
+            elif action == "muteAll":
+                muted = bool(msg["value"])
+                with self.service._ledger_lock:
+                    self.service.begin_batch()
+                    try:
+                        for ch in range(1, 8):
+                            self.service.set_mute(ch, muted)
+                    finally:
+                        self.service.end_batch()
             elif action == "setBusFader":
                 self.service.set_bus_fader(str(msg["bus"]), int(msg["value"]))
             elif action == "setEqBand":

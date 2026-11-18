@@ -14,13 +14,72 @@
   ];
   const SCRIBBLE_PALETTE = ['#2EF2E2', '#52E59A', '#FFB45B', '#BC71FF', '#FF6BAA', '#C5FF4A'];
 
+  let hubDown = false;
+  let toastTimer = null;
+  function showToast(message, isError = false) {
+    const el = document.getElementById('toast');
+    el.textContent = message;
+    el.classList.toggle('error', isError);
+    el.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => el.classList.remove('show'), isError ? 4500 : 2200);
+  }
+
+  // Send one action. Never throws. On failure it shows the reason and reloads
+  // the real state, so the screen does not keep a value the mixer never got.
   async function postAction(payload) {
-    const res = await fetch('/api/action', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...payload, clientId }),
+    try {
+      const res = await fetch('/api/action', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...payload, clientId }),
+      });
+      let body = {};
+      try { body = await res.json(); } catch (_) { /* non-JSON error body */ }
+      if (!res.ok || body.ok === false) {
+        showToast(body.error || `Command failed (HTTP ${res.status}).`, true);
+        loadSession();
+        return { ok: false, error: body.error, code: body.code };
+      }
+      return body;
+    } catch (_) {
+      showToast('Cannot reach the FLOW 8 hub. The command was not sent.', true);
+      applyConnectionState(false, 'HUB UNREACHABLE — check the host computer and the Wi-Fi link.');
+      return { ok: false, error: 'network' };
+    }
+  }
+
+  // Show the connection state: banner, status pill, and locked controls.
+  function applyConnectionState(connected, message) {
+    document.body.classList.toggle('offline', !connected);
+    const banner = document.getElementById('conn-banner');
+    banner.hidden = connected;
+    banner.textContent = message || 'MIXER NOT CONNECTED — controls are locked. Connect the FLOW 8 to the host computer by USB.';
+    const pill = document.getElementById('status-pill');
+    pill.classList.toggle('online', connected);
+    pill.classList.toggle('offline', !connected);
+    document.getElementById('status-text').textContent = connected ? 'MIDI OPEN' : 'DISCONNECTED';
+  }
+
+  function confirmAction(title, text, okLabel) {
+    return new Promise((resolve) => {
+      const modal = document.getElementById('confirm-modal');
+      document.getElementById('confirm-title').textContent = title;
+      document.getElementById('confirm-text').textContent = text;
+      const ok = document.getElementById('btn-confirm-ok');
+      const cancel = document.getElementById('btn-confirm-cancel');
+      ok.textContent = okLabel;
+      const done = (v) => {
+        modal.classList.remove('open');
+        ok.onclick = cancel.onclick = modal.onclick = null;
+        resolve(v);
+      };
+      ok.onclick = () => done(true);
+      cancel.onclick = () => done(false);
+      modal.onclick = (e) => { if (e.target === modal) done(false); };
+      modal.classList.add('open');
+      cancel.focus();
     });
-    return res.json();
   }
 
   function midiToDbStr(raw) {
@@ -333,19 +392,41 @@
       const pad = document.createElement('button');
       pad.className = 'scene-pad' + (saved ? ' saved' : '');
       pad.textContent = `S${i}`;
+      const HOLD_MS = 550;
       let timer = null;
+      const cancelHold = () => {
+        pad.classList.remove('holding');
+        if (timer) { clearTimeout(timer); timer = null; }
+      };
+      pad.setAttribute('aria-label', saved ? `Scene ${i}: tap to recall, hold to overwrite` : `Scene ${i}: empty, hold to save`);
       pad.onpointerdown = () => {
-        timer = setTimeout(() => {
+        cancelHold();
+        void pad.offsetWidth; // restart the progress animation
+        pad.classList.add('holding');
+        timer = setTimeout(async () => {
           timer = null;
-          postAction({ action: 'captureScene', name }).then(loadSession);
-        }, 550);
+          pad.classList.remove('holding');
+          held = true;
+          if (saved && !(await confirmAction(`OVERWRITE S${i}?`, `Scene S${i} already holds a saved mix. Save the current mix over it?`, 'OVERWRITE'))) return;
+          const res = await postAction({ action: 'captureScene', name });
+          if (res.ok) showToast(`Saved current mix to S${i}.`);
+          loadSession();
+        }, HOLD_MS);
       };
-      pad.onpointerup = () => {
-        if (timer) {
-          clearTimeout(timer);
-          if (saved) postAction({ action: 'recallScene', name }).then(loadSession);
-        }
+      let held = false;
+      pad.onpointerup = async () => {
+        // The hold timer is still pending only when the finger lifted before the hold time.
+        const wasTap = !!timer;
+        cancelHold();
+        if (held) { held = false; return; }
+        if (!wasTap) return;
+        if (!saved) { showToast(`S${i} is empty. Hold the pad to save the current mix.`); return; }
+        const res = await postAction({ action: 'recallScene', name });
+        if (res.ok) showToast(`Recalled S${i}.`);
+        loadSession();
       };
+      pad.onpointercancel = cancelHold;
+      pad.onpointerleave = cancelHold;
       sceneGrid.appendChild(pad);
     }
 
@@ -413,10 +494,9 @@
   // ---------- Render Bottom Fader Bank ----------
   function renderConsole() {
     if (!session) return;
-    const pill = document.getElementById('status-pill');
-    const stText = document.getElementById('status-text');
-    pill.classList.toggle('online', !!session.midiConnected);
-    stText.textContent = session.midiConnected ? 'MIDI OPEN' : 'UNSYNCED';
+    applyConnectionState(!!session.midiConnected);
+    const allMuted = session.channels.filter((c) => c.index <= 7).every((c) => c.mute);
+    document.getElementById('btn-mute-all').textContent = allMuted ? 'UNMUTE ALL' : 'MUTE ALL';
 
     const bank = document.getElementById('console-bank');
     bank.innerHTML = '';
@@ -607,9 +687,11 @@
 
   document.getElementById('btn-mute-all').onclick = async () => {
     if (!session || !session.channels) return;
-    await Promise.all(
-      session.channels.map((ch) => postAction({ action: 'setMute', channel: ch.index, muted: true }))
-    );
+    // Toggle: if every input is already muted, the button restores them.
+    const inputs = session.channels.filter((c) => c.index <= 7);
+    const allMuted = inputs.every((c) => c.mute);
+    const res = await postAction({ action: 'muteAll', value: !allMuted });
+    if (res.ok) showToast(allMuted ? 'All inputs unmuted.' : 'All inputs muted. Press UNMUTE ALL to restore.');
     loadSession();
   };
   document.getElementById('btn-undo').onclick = () => postAction({ action: 'undo' }).then(loadSession);
@@ -623,14 +705,31 @@
   };
 
   async function loadSession() {
-    const res = await fetch('/api/session');
-    session = await res.json();
+    try {
+      const res = await fetch('/api/session');
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      session = await res.json();
+    } catch (_) {
+      hubDown = true;
+      applyConnectionState(false, 'HUB UNREACHABLE — check the host computer and the Wi-Fi link.');
+      return;
+    }
     renderConsole();
     renderDsp();
   }
 
   setupEqCanvasInteraction();
   loadSession();
+  setInterval(async () => {
+    try {
+      const st = await (await fetch('/api/status')).json();
+      if (hubDown || (session && !!st.midiConnected !== !!session.midiConnected)) loadSession();
+      hubDown = false;
+    } catch (_) {
+      hubDown = true;
+      applyConnectionState(false, 'HUB UNREACHABLE — check the host computer and the Wi-Fi link.');
+    }
+  }, 3000);
   const es = new EventSource('/api/events?clientId=' + clientId);
   es.onmessage = () => loadSession();
 })();

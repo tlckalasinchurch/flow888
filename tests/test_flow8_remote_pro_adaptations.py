@@ -97,6 +97,14 @@ class BusMasterTests(unittest.TestCase):
 
 class LanHubTests(unittest.TestCase):
     def setUp(self):
+        # The hub rejects commands while MIDI is closed. Report "connected" here
+        # so the action tests reach the service. Disconnected cases are in
+        # tests/test_lan_hub_audit_fixes.py.
+        patcher = mock.patch.object(
+            Flow8Service, "is_connected", new_callable=mock.PropertyMock, return_value=True,
+        )
+        patcher.start()
+        self.addCleanup(patcher.stop)
         self.service = Flow8Service(auto_connect=False)
         self.hub = Flow8LanHub(self.service, host="127.0.0.1", port=0)
         self.port = self.hub.start()
