@@ -1,12 +1,12 @@
-# Phase 7: Test & Regression Report
+# Phase 7 & 9: Test & Regression Report
 
 **Document ID:** `REGRESSION_REPORT`  
 **Date:** 2026-11-18  
 **Test Runner:** Python 3.14 `unittest` discovery  
 **Command:** `python -m unittest discover -s tests -p "test_*.py"`  
-**Result:** PASSED (312 Passed, 5 Skipped, 0 Failures, 0 Errors in 37.569s)  
-**Physical Hardware Mutating Suite:** PASSED (5 Passed in 0.462s with `$env:FLOW8_HW_TESTS="1"; $env:FLOW8_HW_TESTS_MUTATE="1"`)  
-**Live Hardware Parameter Audit:** PASSED (22/22 Controls Verified on Physical Hardware)
+**Result:** PASSED (323 Passed, 5 Skipped, 0 Failures, 0 Errors in 36.729s)  
+**Physical Hardware Mutating Suite:** PASSED (5 Passed in 0.471s with `$env:FLOW8_HW_TESTS="1"; $env:FLOW8_HW_TESTS_MUTATE="1"`)  
+**Stage 1 State & Undo Audit Suite:** PASSED (11/11 Passed in `tests/test_state_and_undo_audit.py`)  
 
 ---
 
@@ -14,6 +14,7 @@
 
 | Module Under Test | Test File | Test Count | Status | Description |
 |---|---|---|---|---|
+| **State Model & Undo Audit** | `test_state_and_undo_audit.py` | 11 | PASSED | Tests 5-tier parameter provenance, exact-value undo/redo, non-undoable unknown prior states, reverse undo / forward redo ordering, partial dispatch rollback, and reconnect reconciliation. |
 | **Presets Catalog** | `test_presets.py` | 8 | PASSED | Tests all 12 curated channel presets, 5 FX starting points, bounds, and level preservation. |
 | **Preset Service Wiring** | `test_preset_service.py` | 6 | PASSED | Tests `apply_channel_preset`, level preservation, mono vs stereo strips, undo/redo batch transactions, invalid targets. |
 | **Bus Mappings** | `test_bus_mappings.py` | 14 | PASSED | Validates master bus, monitor 1-2, and FX 1-2 MIDI channel assignments and addresses. |
@@ -38,11 +39,9 @@
 
 ## 2. Regression Verdict
 
-Zero regressions observed across the entire application stack:
-- **Total active unit test cases:** 317 tests.
-- **Passing unit tests:** 312 passed.
-- **Skipped unit tests:** 5 skipped (hardware-only safety gate tests).
+Zero regressions observed:
+- **Total active unit test cases:** 328 tests.
+- **Passing unit tests:** 323 passed.
+- **Skipped unit tests:** 5 skipped (hardware safety gate tests).
 - **Failed / Errors:** 0.
-- **Hardware Integration Tests:** 5/5 passed when targeted against connected physical hardware (`FLOW 8 MIDI OUT [1]`).
-- **Live Parameter Dispatches:** 22/22 succeeded with `MMSYSERR_NOERROR`.
-- **Live Presets Audited on Mixer:** 7/7 presets passed with level preservation and atomic undo/redo verified.
+- **Physical Hardware Mutating Tests:** 5/5 passed against `FLOW 8 MIDI OUT [1]`.

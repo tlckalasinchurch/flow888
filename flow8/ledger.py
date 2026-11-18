@@ -29,7 +29,11 @@ class CommandRecord:
 
     @property
     def undoable(self) -> bool:
-        return self.parameter_type != PHANTOM_PARAMETER
+        return (
+            self.parameter_type != PHANTOM_PARAMETER
+            and self.previous_value is not None
+            and self.previous_value != self.new_value
+        )
 
 
 class CommandLedger:
@@ -128,8 +132,10 @@ class CommandLedger:
     def undo(self) -> Optional[CommandRecord]:
         """Revert the newest step (a whole transaction when it has one).
 
-        The ledger changes only after every replay succeeded: if the executor
-        raises, nothing is popped, so the step is still available to retry.
+        Applies commands in reverse chronological order (newest to oldest).
+        If an execution fails midway through, best-effort compensating rollback
+        is performed on all already-undone records, restoring the mixer to its
+        pre-undo state without corrupting the undo stack.
         """
         if self._batch is not None:
             self.end_batch()
@@ -137,8 +143,28 @@ class CommandLedger:
         self.last_applied = ()
         if not group:
             return None
-        for record in group:
-            self._apply(record, record.previous_value)
+
+        applied: list[CommandRecord] = []
+        try:
+            for record in group:
+                self._apply(record, record.previous_value)
+                applied.append(record)
+        except Exception as error:
+            # Partial dispatch failure during undo: rollback already-applied records
+            compensation_failed = False
+            for comp_record in reversed(applied):
+                try:
+                    self._apply(comp_record, comp_record.new_value)
+                except Exception:
+                    compensation_failed = True
+            if compensation_failed:
+                err_msg = (
+                    f"Undo failed on {record.parameter_type} (ch {record.channel_index}): {error}. "
+                    "Rollback compensation also failed; mixer in indeterminate state."
+                )
+                raise RuntimeError(err_msg) from error
+            raise error
+
         for record in group:
             self._undo.pop()
             self._redo.append(record)
@@ -146,17 +172,47 @@ class CommandLedger:
         return group[0]
 
     def redo(self) -> Optional[CommandRecord]:
+        """Re-apply the newest undone step in original chronological order.
+
+        If execution fails midway through, best-effort compensating rollback
+        is performed by re-applying previous_value on successfully applied records.
+        """
         group = self._tail_group(self._redo)
         self.last_applied = ()
         if not group:
             return None
-        for record in group:
-            self._apply(record, record.new_value)
+
+        applied: list[CommandRecord] = []
+        try:
+            for record in group:
+                self._apply(record, record.new_value)
+                applied.append(record)
+        except Exception as error:
+            # Partial dispatch failure during redo: rollback already-applied records
+            compensation_failed = False
+            for comp_record in reversed(applied):
+                try:
+                    self._apply(comp_record, comp_record.previous_value)
+                except Exception:
+                    compensation_failed = True
+            if compensation_failed:
+                err_msg = (
+                    f"Redo failed on {record.parameter_type} (ch {record.channel_index}): {error}. "
+                    "Rollback compensation also failed; mixer in indeterminate state."
+                )
+                raise RuntimeError(err_msg) from error
+            raise error
+
         for record in group:
             self._redo.pop()
             self._undo.append(record)
         self.last_applied = tuple(group)
         return group[-1]
+
+    def reconcile_connection(self) -> None:
+        """Clear uncommitted batches and invalidate stale redo history on reconnect."""
+        self._batch = None
+        self._redo.clear()
 
     def clear(self) -> None:
         self._undo.clear()

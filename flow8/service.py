@@ -26,7 +26,7 @@ from flow8.midi_out import Flow8MidiOut
 from flow8.parameter_engine import Flow8ParameterEngine
 from flow8.parameter_mapping import fader_midi_to_db, pan_midi_to_percent
 from flow8.scenes import SceneManager, SceneSnapshot
-from flow8.state_model import EventSource, Flow8StateStore, ParameterState
+from flow8.state_model import EventSource, Flow8StateStore, ParameterProvenance, ParameterState
 
 
 LEDGER_CAPACITY = 50
@@ -177,6 +177,7 @@ class Flow8Service:
 
                 self._connected = True
                 self._connection_error = None
+                self.reconcile_connection()
                 return True
             except Exception as e:
                 self._connected = False
@@ -197,6 +198,13 @@ class Flow8Service:
                 pass
             self._connected = False
             self._connection_error = None
+            self.reconcile_connection()
+
+    def reconcile_connection(self) -> None:
+        """Reconcile ledger history and state store on reconnect or disconnect."""
+        with self._ledger_lock:
+            self.ledger.reconcile_connection()
+        self.state_store.reconcile_reconnect()
 
     def _on_midi_in_event(self, event: dict) -> None:
         """Record recognized inbound CC as observed state; never echo it as a command."""
@@ -340,8 +348,6 @@ class Flow8Service:
         """
         if 1 <= channel_index <= 4:
             previous = self._known_value("low_cut", channel_index)
-            if previous is None:
-                previous = 0
             log_entry = self._dispatch_and_notify(
                 self.parameter_engine.channel(channel_index).set_low_cut,
                 value, unit=unit,
@@ -357,8 +363,6 @@ class Flow8Service:
         """
         if 1 <= channel_index <= 4:
             previous = self._known_value("compressor", channel_index)
-            if previous is None:
-                previous = 0
             log_entry = self._dispatch_and_notify(
                 self.parameter_engine.channel(channel_index).set_compressor,
                 value, unit=unit,
@@ -383,8 +387,6 @@ class Flow8Service:
         param_type = f"eq_{b_key}"
         if 1 <= channel_index <= 7:
             previous = self._known_value(param_type, channel_index)
-            if previous is None:
-                previous = 64
             log_entry = self._dispatch_and_notify(
                 self.parameter_engine.channel(channel_index).set_eq_band,
                 band, value, unit=unit,
@@ -494,7 +496,7 @@ class Flow8Service:
         scene value: restoring a guess could mute or blast a live channel.
         """
         state = self.state_store.get_parameter(self._param_id(parameter, channel_index))
-        if state is None:
+        if state is None or state.provenance == ParameterProvenance.UNSYNCED:
             return None
         raw = state.commanded_raw_midi
         if raw is None:

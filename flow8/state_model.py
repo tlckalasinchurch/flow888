@@ -45,6 +45,17 @@ class SyncStatus(Enum):
     DIVERGENT = "DIVERGENT"
     UNKNOWN = "UNKNOWN"
 
+class ParameterProvenance(str, Enum):
+    """
+    Explicit parameter provenance and confidence states.
+    Strictly distinguishes application-commanded values from physical hardware-observed telemetry.
+    """
+    UNSYNCED = "UNSYNCED"                # Unconfirmed startup baseline
+    COMMANDED = "COMMANDED"              # Set by software / write-only dispatch acknowledged by host
+    OBSERVED = "OBSERVED"                # Verified hardware-observed telemetry received via MIDI IN
+    DISPATCH_FAILED = "DISPATCH_FAILED"  # Command rejected by boundary or driver error
+    UNSUPPORTED = "UNSUPPORTED"          # Not supported by FLOW 8 hardware/protocol
+
 class EventSource(Enum):
     LOCAL_HOST = "LOCAL_HOST"
     PHYSICAL_HARDWARE = "PHYSICAL_HARDWARE"
@@ -75,6 +86,7 @@ class ParameterState:
     # engineering unit the caller used (prevents dB-vs-integer false divergence).
     commanded_raw_midi: Optional[int] = None
     observed_raw_midi: Optional[int] = None
+    provenance: ParameterProvenance = ParameterProvenance.UNSYNCED
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -90,7 +102,8 @@ class ParameterState:
             "raw_midi_value": self.raw_midi_value,
             "unit": self.unit,
             "commanded_raw_midi": self.commanded_raw_midi,
-            "observed_raw_midi": self.observed_raw_midi
+            "observed_raw_midi": self.observed_raw_midi,
+            "provenance": self.provenance.value,
         }
 
 # ---------------------------------------------------------------------------
@@ -306,7 +319,8 @@ class Flow8StateStore:
                     source=EventSource.INITIALIZATION,
                     timestamp=now,
                     verification_level=VerificationLevel.UNKNOWN,
-                    unit="raw"
+                    unit="raw",
+                    provenance=ParameterProvenance.UNSUPPORTED,
                 )
 
             # +48V Phantom Power (Channels 1-2 only)
@@ -389,6 +403,7 @@ class Flow8StateStore:
             param.commanded_value = value
             param.source = source
             param.timestamp = time.time()
+            param.provenance = ParameterProvenance.COMMANDED
             if raw_midi_value is not None:
                 param.raw_midi_value = raw_midi_value
                 param.commanded_raw_midi = raw_midi_value
@@ -437,6 +452,7 @@ class Flow8StateStore:
             param.observed_value = value
             param.source = source
             param.timestamp = time.time()
+            param.provenance = ParameterProvenance.OBSERVED
             if raw_midi_value is not None:
                 param.raw_midi_value = raw_midi_value
                 param.observed_raw_midi = raw_midi_value
@@ -462,6 +478,43 @@ class Flow8StateStore:
                 pass
 
         return param
+
+    def set_dispatch_failed(self, param_id: str) -> Optional[ParameterState]:
+        """Update provenance when dispatch fails at driver or boundary."""
+        with self._lock:
+            param = self._parameters.get(param_id)
+            if param is None:
+                return None
+            param.provenance = ParameterProvenance.DISPATCH_FAILED
+            callbacks = list(self._listeners)
+
+        for cb in callbacks:
+            try:
+                cb(param)
+            except Exception:
+                pass
+
+        return param
+
+    def reconcile_reconnect(self) -> None:
+        """Reset parameter provenance to UNSYNCED upon hardware disconnect or reconnect."""
+        with self._lock:
+            now = time.time()
+            callbacks = list(self._listeners)
+            for param in self._parameters.values():
+                if param.provenance != ParameterProvenance.UNSUPPORTED:
+                    param.provenance = ParameterProvenance.UNSYNCED
+                    param.sync_status = SyncStatus.UNKNOWN
+                    param.observed_value = None
+                    param.observed_raw_midi = None
+                    param.timestamp = now
+
+        for cb in callbacks:
+            for param in self._parameters.values():
+                try:
+                    cb(param)
+                except Exception:
+                    pass
 
     def get_parameter(self, param_id: str) -> Optional[ParameterState]:
         with self._lock:

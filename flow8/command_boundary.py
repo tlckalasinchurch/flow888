@@ -432,6 +432,7 @@ class Flow8CommandBoundary:
                 state = self._get_state(param_id)
         else:
             # Do NOT commit commanded state for a value the mixer never received.
+            self._state_store.set_dispatch_failed(param_id)
             state = self._get_state(param_id)
 
         entry = CommandLogEntry(
