@@ -407,6 +407,58 @@ class SendsOnFaderAndCrossSurfaceSyncTests(unittest.TestCase):
         self.assertEqual(bpm, 120)
         self.assertIn("120 BPM", self.console.tap_bpm_var.get())
 
+    def test_full_inspector_bus_geq_fx_grids_and_configure_inputs_view(self):
+        from flow8.ui.app import Flow8App
+
+        # 1. Inspector Pan/Balance dispatch on input channel & Main L/R
+        self.console.select_target(SelectionTarget.input(1))
+        panel = self.console.inspector
+        panel._on_pan_drag("90")
+        panel._flush_pan()
+        self.assertEqual(self.service.state_store.get_parameter("ch1.pan").commanded_raw_midi, 90)
+
+        # 2. Inspect Bus Masters (MON 1 9-Band GEQ & FX 1 / FX 2 4x4 v1.14 Preset Grids)
+        self.console.select_target(SelectionTarget.bus("mon1"))
+        self.assertIn("MONITOR 1", panel.title_var.get())
+        panel.show_tab(ChannelDetailPanel.TAB_BUS_FX)
+        self.assertEqual(len(panel.geq_band_labels), 9)
+        self.assertIn("63", panel.geq_band_labels)
+        self.assertIn("16k", panel.geq_band_labels)
+
+        self.console.select_target(SelectionTarget.bus("fx1"))
+        self.assertEqual(len(panel.fx_tile_buttons), 16)
+        self.assertIn("AMBIENCE", str(panel.fx_tile_buttons[0].cget("text")))
+        self.assertIn("CATHEDRAL", str(panel.fx_tile_buttons[9].cget("text")))
+
+        self.console.select_target(SelectionTarget.bus("fx2"))
+        self.assertIn("DELAY 1/1", str(panel.fx_tile_buttons[0].cget("text")))
+        self.assertIn("PING PONG", str(panel.fx_tile_buttons[9].cget("text")))
+
+        # 3. Configure Inputs (RoutingView) 8 physical jacks, per-jack meters in5..in8, Stereo/Mono link, -10 dBV pads
+        app = Flow8App(service=self.service, show_placeholder=False)
+        self.addCleanup(app.close)
+        app.show_page("routing")
+        rv = app.routing_view
+        self.assertEqual(sorted(rv.jack_meters.keys()), list(range(1, 9)))
+        self.assertEqual(sorted(rv.jack_phantom_buttons.keys()), [1, 2])
+        self.assertIn("5/6", rv.stereo_link_labels)
+        self.assertIn("7/8", rv.stereo_link_labels)
+        self.assertIn("main", rv.output_pad_labels)
+
+        # Gated per-jack meters: empty before live feed, populated when live feed arrives
+        self.assertEqual(len(rv.jack_meters[6].find_withtag("meter-bar")), 0)
+        rv.ingest_meter_levels({"ch1": {"rms": -10.0, "peak": -4.0}, "in6": {"rms": -15.0, "peak": -8.0}}, live=True)
+        self.assertGreater(len(rv.jack_meters[1].find_withtag("meter-bar")), 0)
+        self.assertGreater(len(rv.jack_meters[6].find_withtag("meter-bar")), 0)
+        rv.ingest_meter_levels({}, live=False)
+        self.assertEqual(len(rv.jack_meters[6].find_withtag("meter-bar")), 0)
+
+        # FxView 4x4 v1.14 grids
+        app.show_page("fx")
+        fv = app.fx_view
+        self.assertEqual(len(fv.fx_grids["fx1"]), 16)
+        self.assertEqual(len(fv.fx_grids["fx2"]), 16)
+
 
 if __name__ == "__main__":
     unittest.main()

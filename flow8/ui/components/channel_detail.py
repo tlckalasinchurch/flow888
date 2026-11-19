@@ -31,6 +31,7 @@ from flow8.parameter_mapping import (
     fader_midi_to_db,
     gain_midi_to_db,
     low_cut_midi_to_hz,
+    pan_midi_to_percent,
 )
 from flow8.state_model import ParameterProvenance
 from flow8.ui import theme
@@ -88,15 +89,22 @@ class SelectionTarget:
                 raise ValueError(
                     f"Input strips are logical channels 1-7; got {self.index!r}"
                 )
-        elif self.kind == "main":
+        elif self.kind in ("main", "mon1", "mon2", "fx1", "fx2"):
             if self.index is not None:
-                raise ValueError("Main L/R is not a numbered strip")
+                raise ValueError("Main L/R or bus master is not a numbered strip")
         else:
             raise ValueError(f"Unknown selection kind {self.kind!r}")
 
     @classmethod
     def input(cls, index: int) -> "SelectionTarget":
         return cls("input", index)
+
+    @classmethod
+    def bus(cls, bus_id: str) -> "SelectionTarget":
+        b_key = str(bus_id or "").lower()
+        if b_key not in ("main", "mon1", "mon2", "fx1", "fx2"):
+            raise ValueError(f"Unsupported bus target {bus_id!r}")
+        return cls(b_key, None)
 
 
 MAIN_TARGET = SelectionTarget("main")
@@ -167,10 +175,28 @@ class ChannelDetailPanel(tk.Frame):
         ("fx2", "FX 2 (DELAY)", "purple_soft"),
     ]
 
+    GEQ_BANDS = ("63", "125", "250", "500", "1k", "2k", "4k", "8k", "16k")
+
+    FX_PRESETS_V114 = {
+        "fx1": (
+            "AMBIENCE", "PERC-REV1", "PERC-REV2", "GUIT-REV1",
+            "GUIT-REV2", "CHAMBER", "ROOM", "CONCERT",
+            "CHURCH", "CATHEDRAL", "TEMPLE", "STADIUM",
+            "FLANGER", "SOFT CHOR", "WARM CHOR", "DEEP CHOR",
+        ),
+        "fx2": (
+            "DELAY 1/1", "DELAY 1/2", "DELAY 1/3", "DELAY 2/1",
+            "ECHO 1/1", "ECHO 1/2", "ECHO 1/3", "ECHO 2/1",
+            "WIDE ECHO", "PING PONG", "PING P 1/3", "PING P R>L",
+            "FLANGER", "SOFT CHOR", "WARM CHOR", "DEEP CHOR",
+        ),
+    }
+
     TAB_PREAMP = "preamp"
     TAB_EQ = "eq"
     TAB_DYNAMICS = "dynamics"
     TAB_SENDS = "sends"
+    TAB_BUS_FX = "bus_fx"
 
     def __init__(
         self,
@@ -204,6 +230,8 @@ class ChannelDetailPanel(tk.Frame):
         self._phantom_dialog: Optional[PhantomPowerConfirmationDialog] = None
         self._phantom_token: Optional[object] = None
         self._phantom_busy = False
+        self._phantom_hold_after_id: Optional[str] = None
+        self._phantom_hold_fired = False
 
         # gain preview state
         self.gain_available = False
@@ -211,6 +239,8 @@ class ChannelDetailPanel(tk.Frame):
         self._gain_baseline = 0
 
         # Debounce and timer trackers
+        self._pending_pan: Optional[int] = None
+        self._pan_after_id: Optional[str] = None
         self._pending_eq: Dict[str, int] = {}
         self._eq_after_ids: Dict[str, Optional[str]] = {}
         self._pending_low_cut: Optional[int] = None
@@ -232,6 +262,15 @@ class ChannelDetailPanel(tk.Frame):
         self.gain_preview_var = tk.IntVar(value=0)
         self.gain_preview_text_var = tk.StringVar(value="")
         self.gain_note_var = tk.StringVar(value="")
+
+        # Pan / Balance Variables
+        self.pan_var = tk.IntVar(value=64)
+        self.pan_readout = tk.StringVar(value="C · raw 64")
+        self.pan_note_var = tk.StringVar(value="")
+
+        # Bus GEQ / FX Variables
+        self.bus_fx_header_var = tk.StringVar(value="9-BAND BUS GEQ & FX ENGINE")
+        self.bus_fx_note_var = tk.StringVar(value="Select a Bus Master or FX Engine to view 9-Band GEQ / 4x4 FX Grid")
 
         # EQ Variables
         self.eq_vars: Dict[str, tk.IntVar] = {
@@ -365,6 +404,10 @@ class ChannelDetailPanel(tk.Frame):
         self.sends_tab = tk.Frame(self.tab_container, bg=colors["surface"])
         self._build_sends_tab()
 
+        # Bus GEQ & FX 4x4 Grid Tab Frame
+        self.bus_fx_tab = tk.Frame(self.tab_container, bg=colors["surface"])
+        self._build_bus_fx_tab()
+
         # Initial Tab Display
         self.show_tab(self.TAB_PREAMP)
 
@@ -396,6 +439,7 @@ class ChannelDetailPanel(tk.Frame):
             (self.TAB_EQ, "EQ", "cyan_soft"),
             (self.TAB_DYNAMICS, "DYN", "purple_soft"),
             (self.TAB_SENDS, "SENDS", "lime"),
+            (self.TAB_BUS_FX, "BUS/FX", "purple"),
         ]
         for key, label, accent in tab_defs:
             btn = tk.Button(
@@ -425,6 +469,7 @@ class ChannelDetailPanel(tk.Frame):
             self.TAB_EQ: self.eq_tab,
             self.TAB_DYNAMICS: self.dyn_tab,
             self.TAB_SENDS: self.sends_tab,
+            self.TAB_BUS_FX: self.bus_fx_tab,
         }
         for k, frame in tab_frames.items():
             if k == tab_key:
@@ -471,6 +516,8 @@ class ChannelDetailPanel(tk.Frame):
             command=self._on_phantom_button,
         )
         self.phantom_button.pack(fill="x", pady=(4, 0))
+        self.phantom_button.bind("<ButtonPress-1>", self._on_phantom_press, add="+")
+        self.phantom_button.bind("<ButtonRelease-1>", self._on_phantom_release, add="+")
         self._label(self.preamp_tab, textvariable=self.phantom_note_var, font="caption",
                     fg="text_muted", fill="x", pady=(2, 0))
 
@@ -694,6 +741,31 @@ class ChannelDetailPanel(tk.Frame):
         self.comp_slider.bind("<ButtonRelease-1>", self._on_comp_release, add="+")
         self._comp_controls.pack(fill="x")
 
+        tk.Frame(self.dyn_tab, bg=colors["border"], height=1).pack(fill="x", pady=4)
+
+        # Balance / Pan Control (Inputs 1–7 and Main L/R)
+        pan_hdr = tk.Frame(self.dyn_tab, bg=colors["surface"])
+        pan_hdr.pack(fill="x")
+        self._label(pan_hdr, text="PAN / BALANCE", font="eyebrow", fg="cyan_soft", side="left")
+        tk.Label(
+            pan_hdr, textvariable=self.pan_readout, font=self.fonts["status_key"],
+            fg=colors["cyan_soft"], bg=colors["surface"],
+        ).pack(side="right")
+        self._pan_controls = tk.Frame(self.dyn_tab, bg=colors["surface"])
+        self.pan_slider = HorizontalSlider(
+            self._pan_controls,
+            variable=self.pan_var,
+            command=self._on_pan_drag,
+            default=64,
+            accent=colors["cyan_soft"],
+        )
+        self.pan_slider.pack(fill="x", pady=(2, 0))
+        self.pan_slider.bind("<ButtonPress-1>", self._begin_gesture, add="+")
+        self.pan_slider.bind("<ButtonRelease-1>", self._on_pan_release, add="+")
+        self._pan_controls.pack(fill="x")
+        self._label(self.dyn_tab, textvariable=self.pan_note_var, font="caption",
+                    fg="text_muted", fill="x")
+
     def _build_sends_tab(self) -> None:
         colors = theme.COLORS
         hdr_row = tk.Frame(self.sends_tab, bg=colors["surface"])
@@ -738,6 +810,103 @@ class ChannelDetailPanel(tk.Frame):
             self.send_sliders[target_key] = slider
         self._send_controls.pack(fill="x")
 
+    def _build_bus_fx_tab(self) -> None:
+        colors = theme.COLORS
+        self._label(self.bus_fx_tab, textvariable=self.bus_fx_header_var, font="eyebrow",
+                    fg="purple_soft", fill="x")
+        self._label(self.bus_fx_tab, textvariable=self.bus_fx_note_var, font="caption",
+                    fg="warning", fill="x", pady=(1, 3))
+
+        # 1. 9-Band Bus Graphic EQ + Limiter (Main L/R, MON 1, MON 2)
+        self._geq_section = tk.Frame(self.bus_fx_tab, bg=colors["surface"])
+        self._geq_section.pack(fill="x", pady=(0, 4))
+        self._label(self._geq_section, text="9-BAND BUS GRAPHIC EQ (LOCKED · CC 11–19 UNVERIFIED)",
+                    font="caption", fg="text_secondary", fill="x")
+        geq_grid = tk.Frame(self._geq_section, bg=colors["background_alt"], padx=4, pady=4)
+        geq_grid.pack(fill="x", pady=(2, 3))
+        self.geq_band_labels: dict[str, tk.Label] = {}
+        for col, freq_lbl in enumerate(self.GEQ_BANDS):
+            geq_grid.grid_columnconfigure(col, weight=1)
+            bcol = tk.Frame(geq_grid, bg=colors["background_alt"])
+            bcol.grid(row=0, column=col, sticky="ns", padx=1)
+            bar = tk.Frame(bcol, bg=colors["surface_hover"], width=8, height=28)
+            bar.pack()
+            lbl = tk.Label(
+                bcol, text=freq_lbl, font=self.fonts["status_key"],
+                fg=colors["text_muted"], bg=colors["background_alt"],
+            )
+            lbl.pack()
+            self.geq_band_labels[freq_lbl] = lbl
+
+        self._label(
+            self._geq_section,
+            text="BUS LIMITER (CC 8): LOCKED — Hardware verification required before unlock.",
+            font="caption", fg="text_muted", fill="x",
+        )
+
+        # 2. FX 1 / FX 2 4x4 Preset Tile Grid + Decay / Feedback
+        self._fx_grid_section = tk.Frame(self.bus_fx_tab, bg=colors["surface"])
+        self._fx_grid_section.pack(fill="both", expand=True, pady=(2, 0))
+        self.fx_param_label_var = tk.StringVar(value="FX 1 · DECAY / INSTRUMENT · VOCAL (LOCKED)")
+        self._label(self._fx_grid_section, textvariable=self.fx_param_label_var,
+                    font="caption", fg="purple_soft", fill="x", pady=(0, 2))
+
+        self.fx_tiles_frame = tk.Frame(self._fx_grid_section, bg=colors["background_alt"], padx=3, pady=3)
+        self.fx_tiles_frame.pack(fill="both", expand=True)
+        for c in range(4):
+            self.fx_tiles_frame.grid_columnconfigure(c, weight=1, uniform="fx_tile")
+        for r in range(4):
+            self.fx_tiles_frame.grid_rowconfigure(r, weight=1, uniform="fx_row")
+        self.fx_tile_buttons: list[tk.Button] = []
+        for idx in range(16):
+            r, c = divmod(idx, 4)
+            tbtn = tk.Button(
+                self.fx_tiles_frame,
+                text=f"{idx + 1:02d}",
+                font=self.fonts["status_key"],
+                bg=colors["surface_alt"],
+                fg=colors["text_secondary"],
+                disabledforeground=colors["purple_soft"],
+                bd=0,
+                relief="flat",
+                state="disabled",
+                padx=2,
+                pady=1,
+            )
+            tbtn.grid(row=r, column=c, sticky="nsew", padx=1, pady=1)
+            self.fx_tile_buttons.append(tbtn)
+        self._populate_fx_tiles("fx1")
+
+    def _populate_fx_tiles(self, fx_id: str) -> None:
+        key = "fx2" if str(fx_id).lower() == "fx2" else "fx1"
+        presets = self.FX_PRESETS_V114[key]
+        if key == "fx2":
+            self.fx_param_label_var.set("FX 2 · FEEDBACK / DULL · BRIGHT · TAP TEMPO (LOCKED)")
+        else:
+            self.fx_param_label_var.set("FX 1 · DECAY / INSTRUMENT · VOCAL (LOCKED)")
+        for idx, btn in enumerate(self.fx_tile_buttons):
+            btn.configure(text=f"{idx + 1:02d} {presets[idx]}")
+
+    def _configure_bus_fx(self, target: SelectionTarget) -> None:
+        if target.kind == "main":
+            self.bus_fx_header_var.set("MAIN L/R · 9-BAND GEQ & LIMITER")
+            self.bus_fx_note_var.set("Main Bus 9-Band GEQ (CC 11–19) & Limiter (CC 8) · LOCKED")
+            self._populate_fx_tiles("fx1")
+        elif target.kind in ("mon1", "mon2"):
+            label = "MONITOR 1" if target.kind == "mon1" else "MONITOR 2"
+            self.bus_fx_header_var.set(f"{label} · 9-BAND GEQ & LIMITER")
+            self.bus_fx_note_var.set(f"{label} 9-Band GEQ (CC 11–19) & Limiter (CC 8) · LOCKED")
+            self._populate_fx_tiles("fx1")
+        elif target.kind in ("fx1", "fx2"):
+            label = "FX 1 (REVERB)" if target.kind == "fx1" else "FX 2 (DELAY / MOD)"
+            self.bus_fx_header_var.set(f"{label} · 16 PRESET 4x4 GRID")
+            self.bus_fx_note_var.set(f"{label} 16 v1.14 Presets & Engine Controls · LOCKED (C-09)")
+            self._populate_fx_tiles(target.kind)
+        else:
+            self.bus_fx_header_var.set("9-BAND BUS GEQ & FX 1/2 4x4 ENGINE")
+            self.bus_fx_note_var.set("Bus GEQ (63 Hz–16 kHz) & FX 1/2 16-Preset Grids (LOCKED)")
+            self._populate_fx_tiles("fx1")
+
     def _divider(self) -> None:
         tk.Frame(self.body, bg=theme.COLORS["border"], height=1).pack(fill="x", pady=4)
 
@@ -766,6 +935,12 @@ class ChannelDetailPanel(tk.Frame):
             self.subtitle_var.set("Master output bus · separate from the 7 input strips")
             self.preset_button.configure(state="disabled")
             index = None
+        elif target.kind in ("mon1", "mon2", "fx1", "fx2"):
+            spec = theme.BUS_SPECS[target.kind]
+            self.title_var.set(spec["title"].upper())
+            self.subtitle_var.set(f"{spec['subtitle']} · Bus Master")
+            self.preset_button.configure(state="disabled")
+            index = None
         else:
             index = target.index
             spec = LOGICAL_CHANNELS[index]
@@ -775,10 +950,12 @@ class ChannelDetailPanel(tk.Frame):
 
         self._configure_phantom(index)
         self._configure_gain(index)
+        self._configure_pan(target)
         self._configure_eq(index)
         self._configure_low_cut(index)
         self._configure_comp(index)
         self._configure_sends(index)
+        self._configure_bus_fx(target)
         self._refresh_provenance_badges()
 
     def _on_open_presets(self) -> None:
@@ -842,6 +1019,7 @@ class ChannelDetailPanel(tk.Frame):
         try:
             self._refresh_phantom()
             self._refresh_gain_command()
+            self._refresh_pan_command()
             self._refresh_eq_command()
             self._refresh_low_cut_command()
             self._refresh_comp_command()
@@ -920,7 +1098,31 @@ class ChannelDetailPanel(tk.Frame):
                 bg=colors["surface_alt"], fg=colors["text_secondary"], cursor="hand2",
             )
 
+    def _on_phantom_press(self, _event: Optional[tk.Event] = None) -> None:
+        self._phantom_hold_fired = False
+        if self._phantom_hold_after_id is not None:
+            try:
+                self.after_cancel(self._phantom_hold_after_id)
+            except tk.TclError:
+                pass
+        self._phantom_hold_after_id = self.after(550, self._fire_phantom_hold)
+
+    def _on_phantom_release(self, _event: Optional[tk.Event] = None) -> None:
+        if self._phantom_hold_after_id is not None:
+            try:
+                self.after_cancel(self._phantom_hold_after_id)
+            except tk.TclError:
+                pass
+            self._phantom_hold_after_id = None
+
+    def _fire_phantom_hold(self) -> None:
+        self._phantom_hold_after_id = None
+        self._phantom_hold_fired = True
+        self._on_phantom_button()
+
     def _on_phantom_button(self) -> None:
+        if self._phantom_hold_fired:
+            self._phantom_hold_fired = False
         target = self.target
         if target is None or target.kind != "input" or not self.phantom_available:
             return
@@ -1091,6 +1293,74 @@ class ChannelDetailPanel(tk.Frame):
         self.gain_gate.cancel_staged()
         self.gain_preview_var.set(self._gain_baseline)
         self._update_gain_text(self._gain_baseline)
+
+    # -- Pan / Balance --------------------------------------------------------
+
+    @staticmethod
+    def _format_pan_readout(raw: int) -> str:
+        pct = pan_midi_to_percent(raw)
+        pos = "C" if pct == 0.0 else (f"L{abs(int(pct))}" if pct < 0 else f"R{int(pct)}")
+        return f"{pos} · raw {raw}"
+
+    def _configure_pan(self, target: SelectionTarget) -> None:
+        if target.kind not in ("input", "main"):
+            self._pan_controls.pack_forget()
+            self.pan_note_var.set("N/A — MON & FX BUSES ARE MONO / NO BALANCE")
+            return
+        self.pan_note_var.set("")
+        self._refresh_pan_command()
+        self._pan_controls.pack(fill="x")
+
+    def _refresh_pan_command(self) -> None:
+        target = self.target
+        if target is None or target.kind not in ("input", "main"):
+            return
+        param_id = "main.balance" if target.kind == "main" else f"ch{target.index}.pan"
+        self._is_updating_controls = True
+        try:
+            state = self._state(param_id)
+            raw = getattr(state, "commanded_raw_midi", None) if state else None
+            if raw is None and state is not None:
+                raw = getattr(state, "raw_midi_value", None)
+            val = 64 if raw is None else int(raw)
+            self.pan_var.set(val)
+            self.pan_readout.set(self._format_pan_readout(val))
+        finally:
+            self._is_updating_controls = False
+
+    def _on_pan_drag(self, val_str: str) -> None:
+        if self._is_updating_controls or self.target is None or self.target.kind not in ("input", "main"):
+            return
+        raw = max(0, min(127, int(val_str)))
+        self.pan_readout.set(self._format_pan_readout(raw))
+        self._pending_pan = raw
+        if self._pan_after_id is None:
+            self._pan_after_id = self.after(30, self._flush_pan)
+
+    def _on_pan_release(self, _event: Optional[tk.Event] = None) -> None:
+        if self._pan_after_id is not None:
+            try:
+                self.after_cancel(self._pan_after_id)
+            except tk.TclError:
+                pass
+            self._pan_after_id = None
+        self._flush_pan()
+        self._end_gesture()
+
+    def _flush_pan(self) -> None:
+        self._pan_after_id = None
+        if self._pending_pan is None or self.target is None or self.target.kind not in ("input", "main"):
+            return
+        val = self._pending_pan
+        self._pending_pan = None
+        if self._service is None:
+            return
+        ch_idx = 8 if self.target.kind == "main" else self.target.index
+        try:
+            _dispatch_service(self._service, "set_pan", ch_idx, val)
+        except Exception as error:
+            logger.exception("Pan/Balance command failed: %s", error)
+            self.error_var.set(f"PAN FAILED — {error}")
 
     # -- 4-Band Parametric EQ -------------------------------------------------
 
@@ -1559,7 +1829,9 @@ class ChannelDetailPanel(tk.Frame):
         except Exception:
             logger.exception("Could not dismiss +48V dialog on destroy")
         self.detach()
-        for aid in list(self._eq_after_ids.values()) + [self._low_cut_after_id, self._comp_after_id] + list(self._send_after_ids.values()):
+        for aid in list(self._eq_after_ids.values()) + [
+            self._low_cut_after_id, self._comp_after_id, self._pan_after_id, self._phantom_hold_after_id
+        ] + list(self._send_after_ids.values()):
             if aid is not None:
                 try:
                     self.after_cancel(aid)

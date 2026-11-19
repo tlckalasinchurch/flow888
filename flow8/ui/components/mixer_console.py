@@ -772,6 +772,7 @@ class BusMasterStripWidget(tk.Frame):
         fonts: dict,
         service: Any = None,
         on_feedback: Any = None,
+        on_select: Optional[Callable[[SelectionTarget], None]] = None,
     ) -> None:
         colors = theme.COLORS
         super().__init__(
@@ -787,6 +788,7 @@ class BusMasterStripWidget(tk.Frame):
         self.fonts = fonts
         self.service = service
         self.on_feedback = on_feedback
+        self._on_select = on_select
         self._is_updating = False
         self.fader_val = tk.IntVar(value=0)
         self._last_fader_val = 0
@@ -800,12 +802,20 @@ class BusMasterStripWidget(tk.Frame):
 
         hdr = tk.Frame(self, bg=colors["surface"])
         hdr.pack(fill="x", pady=(0, 6))
-        tk.Label(
+        self.header_frame = hdr
+        title_lbl = tk.Label(
             hdr, text=title, font=self.fonts["subtitle"],
             fg=colors[accent_key], bg=colors["surface"], anchor="w",
-        ).pack(side="left")
+        )
+        title_lbl.pack(side="left")
         self.badge = ProvenanceBadge(hdr, font=self.fonts["caption"], provenance="UNSYNCED")
         self.badge.pack(side="right")
+        for w in (hdr, title_lbl):
+            w.bind("<Button-1>", self._handle_header_click, add="+")
+            try:
+                w.configure(cursor="hand2")
+            except tk.TclError:
+                pass
 
         tk.Label(
             self, text=subtitle, font=self.fonts["caption"],
@@ -836,6 +846,10 @@ class BusMasterStripWidget(tk.Frame):
         self.fader_scale.pack(fill="both", expand=True)
         self.fader_scale.bind("<ButtonPress-1>", self._begin_gesture, add="+")
         self.fader_scale.bind("<ButtonRelease-1>", self._on_fader_release, add="+")
+
+    def _handle_header_click(self, _event: tk.Event) -> None:
+        if self._on_select is not None:
+            self._on_select(SelectionTarget.bus(self.bus_id))
 
     def _begin_gesture(self, _event: Optional[tk.Event] = None) -> None:
         begin = getattr(self.service, "begin_batch", None)
@@ -1586,6 +1600,7 @@ class MixerConsole(tk.Frame):
                 fonts=self.fonts,
                 service=self.service,
                 on_feedback=self.on_feedback,
+                on_select=self.select_target,
             )
             bstrip.grid(row=0, column=col, sticky="nsew", padx=8, pady=4)
             self.bus_strips[bus_id] = bstrip
@@ -1811,7 +1826,7 @@ class MixerConsole(tk.Frame):
     def _strip_for(self, target: SelectionTarget) -> Optional[ChannelStripWidget]:
         # Legacy widget key: the Main L/R strip is stored under 8. That is only
         # a dictionary key; the selection identity is MAIN_TARGET, not strip 8.
-        key = 8 if target.kind == "main" else target.index
+        key = 8 if target.kind in ("main", "mon1", "mon2", "fx1", "fx2") else target.index
         return self.strips.get(key)
 
     @property
@@ -1872,7 +1887,7 @@ class MixerConsole(tk.Frame):
                 "side": "right",
                 "fill": "y",
                 "padx": (0, spacing["spacing_large"]),
-                "pady": (0, spacing["spacing_large"]),
+                "pady": (0, 4),
             }
             if anchor_widget is not None:
                 pack_kw["before"] = anchor_widget

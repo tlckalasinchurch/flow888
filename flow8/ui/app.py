@@ -169,6 +169,7 @@ class Flow8App:
                 self.fonts,
                 service=self.service,
                 on_feedback=self.status_bar.show_feedback,
+                on_phantom_request=self._request_phantom_via_inspector,
             )
             self.fx_view = FxView(
                 self.workspace,
@@ -446,6 +447,11 @@ class Flow8App:
         return True
 
     # -- navigation ---------------------------------------------------------
+
+    def _request_phantom_via_inspector(self, channel_index: int, enabled: bool) -> None:
+        """+48V from the I/O page: show the mixer and run the Inspector's confirmation flow."""
+        self.show_page("mixer")
+        self.mixer_console._on_phantom_request(channel_index, enabled)
 
     def select_workstation_view(self, view: str) -> bool:
         """Switch the main console between MIXER and STAGE views from the top header."""
