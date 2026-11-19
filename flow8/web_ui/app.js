@@ -1711,6 +1711,10 @@
     const lastSeen = tel.lastAt
       ? `${esc(tel.lastParamId || 'unknown')} at ${esc(tel.lastAt)}`
       : 'nothing received yet';
+    const disp = session.dispatch || {};
+    const lastSent = disp.last
+      ? `${esc(disp.last.paramId)} · ${esc(disp.last.status)}`
+      : 'nothing sent yet';
     const sec = document.createElement('section');
     sec.className = 'insp-sec';
     sec.innerHTML = `<dl class="info-list">
@@ -1718,6 +1722,7 @@
       <dt>MIDI IN</dt><dd>${session.midiInOpen ? 'Open' : 'Closed'}${tel.device ? ` (${esc(tel.device)})` : ''}</dd>
       <dt>INBOUND TELEMETRY</dt><dd>${Number(tel.mapped || 0)} mapped / ${Number(tel.ccReceived || 0)} CC · last ${lastSeen}</dd>
       <dt>LINK WATCHDOG</dt><dd>${tel.watchdog ? 'Running' : 'Off'} · auto-reconnect ${tel.autoReconnect ? 'on' : 'off'}</dd>
+      <dt>MIDI OUT DISPATCH</dt><dd>${Number(disp.commands || 0)} commands · ${Number(disp.driverDispatched || 0)} accepted by the driver · last ${lastSent}</dd>
       <dt>METERS</dt><dd>${esc(ms.detail || 'Off')}${ms.device ? ` (${esc(ms.device)})` : ''}</dd>
       <dt>SNAPSHOT LIBRARY</dt><dd>${(session.library || []).length} snapshots on the host computer</dd>
       <dt>OPEN ON A TABLET</dt><dd id="info-urls">…</dd></dl>`;

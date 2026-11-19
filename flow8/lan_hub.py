@@ -448,6 +448,27 @@ class Flow8LanHub:
                 if item in self._subscribers:
                     self._subscribers.remove(item)
 
+    def _dispatch_snapshot(self) -> dict[str, Any]:
+        """Counts of outbound commands and the last dispatch outcome.
+
+        driverDispatched only means WinMM accepted the short message; it is not
+        proof the mixer applied it (docs/product/FLOW8_EVIDENCE_REGISTER.md).
+        """
+        log = self.service.command_boundary.command_log
+        last = log[-1] if log else None
+        return {
+            "commands": len(log),
+            "accepted": sum(1 for entry in log if entry.command_accepted),
+            "driverDispatched": sum(1 for entry in log if entry.driver_dispatched),
+            "rejected": sum(1 for entry in log if not entry.success),
+            "last": None if last is None else {
+                "paramId": last.param_id,
+                "status": last.dispatch_status,
+                "driverDispatched": bool(last.driver_dispatched),
+                "error": last.error_message,
+            },
+        }
+
     def status_snapshot(self) -> dict[str, Any]:
         return {
             "status": "ok",
@@ -457,6 +478,7 @@ class Flow8LanHub:
             "meterFeed": self.meter_feed_live,
             "meterStatus": self.meter_status,
             "telemetry": self.service.telemetry_status(),
+            "dispatch": self._dispatch_snapshot(),
             "lanUrls": self.lan_urls(),
             "port": self.port,
         }
@@ -547,6 +569,7 @@ class Flow8LanHub:
             "meterFeed": self.meter_feed_live,
             "meterStatus": self.meter_status,
             "telemetry": self.service.telemetry_status(),
+            "dispatch": self._dispatch_snapshot(),
             "currentScene": current_scene,
             "sceneEdited": scene_edited,
             "activeBus": self.service.active_bus,
