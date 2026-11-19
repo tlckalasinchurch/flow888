@@ -193,3 +193,19 @@ Small, hardware-like radii: 2px, 3px, 4px, 5px, 6px, 8px, with 3px the most comm
 - **Don't** use a signal hue as ornament.
 - **Don't** name CueAir in user-facing copy (PRODUCT.md, SR-10).
 - **Don't** treat the "Quiet Luxury" direction as done: palette and type changes toward it need a confirmed decision first.
+
+## Layout (live-console redesign, 2026-11-19)
+
+Four control classes, each with one home. They never share a row.
+
+- **Navigation**: Mix, Sound, Presets, Setup in the header.
+- **Show control**: MC and BAND, in the control bar, right side, labelled SHOW.
+- **Edit tools**: SELECT, Undo, Redo, Copy, Paste, FlowAi, in the control bar, left side. Hidden in Setup.
+- **Safety**: LOCK and MUTE ALL in the header, far right, set apart by a divider. MUTE ALL keeps its hold-to-arm.
+
+The fader bank is shown once. Mix > Faders: the bank is the screen (strips carry gain, chips, sends, EQ thumb, comp). Sound and Stage: a compact bank (level and mute) under the tool. Presets and Setup: no bank. Setup is a full-screen page with a left list (Inputs, Snapshots, Show modes, Preferences, Connection, Info); Snapshots holds scene slots and the library on one page.
+
+Header height on phone stays under 120 px: row 1 brand, link pill, safety; row 2 sections. Link lamps (USB, MIDI IN, HUB, RX, METERS) show only above 1180 px; the pill carries the state below that.
+
+Touch: every control is at least 44 x 44 px on coarse pointers. State is never colour alone: MUTED, LOCKED and the connection pill carry text.
+

@@ -12,9 +12,13 @@
 </head>
 <body data-layer="main">
 <div class="app-shell">
-  <!-- Status strip: hardware links, scene badge, clock, connection pill -->
-  <div class="status-strip">
+  <!-- Header: identity, link state, section navigation, scene, safety. One row. -->
+  <header class="app-header" id="app-header">
     <span class="brand-mark">FLOW 8 <small class="brand-sub">LIVE CONSOLE</small></span>
+    <div class="status-pill" id="status-pill" role="status" tabindex="0" aria-label="Connection status. Press to open Connection settings.">
+      <span class="status-dot"></span>
+      <span id="status-text">CONNECTING</span>
+    </div>
     <div class="link-lamps" aria-label="Link status">
       <span class="link" title="USB MIDI out: commands can reach the mixer"><span class="lamp lamp-link" id="lamp-usb"></span>USB</span>
       <span class="link" title="MIDI in: the app hears hardware moves"><span class="lamp lamp-link" id="lamp-midi-in"></span>MIDI IN</span>
@@ -22,7 +26,12 @@
       <span class="link" title="Flashes when the mixer reports a change"><span class="lamp lamp-rx" id="lamp-rx"></span>RX</span>
       <span class="link" title="Lit while a measured audio meter feed is running. The FLOW 8 does not send meters over MIDI."><span class="lamp lamp-link" id="lamp-meter"></span>METERS</span>
     </div>
-    <div class="status-spacer"></div>
+    <nav class="cue-groups" id="cue-groups" role="tablist" aria-label="Console sections">
+      <button class="cue-group active" data-group="mix" role="tab" aria-selected="true">Mix</button>
+      <button class="cue-group" data-group="sound" role="tab" aria-selected="false">Sound</button>
+      <button class="cue-group" data-group="presets" role="tab" aria-selected="false">Presets</button>
+      <button class="cue-group" data-group="setup" role="tab" aria-selected="false">Setup</button>
+    </nav>
     <div class="all-muted-chip" id="all-muted-chip" role="status" hidden>ALL MUTED</div>
     <div class="scene-display empty" id="scene-display" role="status">
       <span class="scene-label">Scene</span>
@@ -30,54 +39,43 @@
       <span class="scene-edited">EDITED</span>
     </div>
     <time class="clock" id="clock" aria-label="Time"></time>
-    <div class="status-pill" id="status-pill" role="status" tabindex="0" aria-label="Connection status. Press to open Routing.">
-      <span class="status-dot"></span>
-      <span id="status-text">CONNECTING</span>
-    </div>
-  </div>
-
-  <!-- Top Navigation Bar -->
-  <header class="topbar">
-    <button class="select-badge" id="select-badge" title="Selected channel — tap to cycle">
-      <span class="select-lbl">SELECT</span>
-      <span class="select-num" id="select-num">01</span>
-      <span class="select-name" id="select-name">MIC 1</span>
-    </button>
-
-    <div class="clip-actions" role="group" aria-label="History and clipboard">
-      <button class="hw-btn icon" id="btn-undo" aria-label="Undo" title="Undo">↶ Undo</button>
-      <button class="hw-btn icon" id="btn-redo" aria-label="Redo" title="Redo">↷</button>
-      <button class="hw-btn" id="btn-copy" title="Copy channel EQ, Low Cut, Comp & Sends (never Gain/+48V)">Copy</button>
-      <button class="hw-btn" id="btn-paste" title="Paste copied DSP to selected channel" hidden>Paste</button>
-    </div>
-
-    <nav class="cue-groups" id="cue-groups" role="tablist" aria-label="Console sections">
-      <button class="cue-group active" data-group="mix" role="tab" aria-selected="true">Mix</button>
-      <button class="cue-group" data-group="sound" role="tab" aria-selected="false">Sound</button>
-      <button class="cue-group" data-group="presets" role="tab" aria-selected="false">Presets</button>
-      <button class="cue-group" data-group="setup" role="tab" aria-selected="false">Setup</button>
-    </nav>
-
-    <div class="show-modes" id="show-modes" role="group" aria-label="Show modes"></div>
-    <button class="hw-btn show-mode-undo" id="show-mode-undo" hidden></button>
-
-    <div class="toolbar-actions">
-      <button class="hw-btn ai-btn" id="btn-flowai" aria-pressed="false" title="Open FlowAi Mix Assistant">FlowAi</button>
+    <div class="safety-cluster" role="group" aria-label="Safety controls">
       <button class="hw-btn lock-btn" id="btn-lock" aria-pressed="false" title="Lock all controls against stray touches."><span class="lock-text">LOCK</span></button>
       <button class="hw-btn danger mute-all" id="btn-mute-all" data-hold="arm" title="Hold 0.6 s to mute all inputs.">MUTE ALL</button>
     </div>
   </header>
 
-  <!-- Views inside the active section (only Mix and Sound have more than one). -->
+  <!-- Control bar: edit tools on the left, show control on the right. Hidden in Setup. -->
+  <div class="control-bar" id="control-bar">
+    <div class="edit-tools" role="group" aria-label="Edit tools">
+      <button class="select-badge" id="select-badge" title="Selected channel: tap to cycle">
+        <span class="select-lbl">SELECT</span>
+        <span class="select-num" id="select-num">01</span>
+        <span class="select-name" id="select-name">MIC 1</span>
+      </button>
+      <button class="hw-btn" id="btn-undo" aria-label="Undo" title="Undo"><span aria-hidden="true">&#8630;</span><span class="btn-text"> Undo</span></button>
+      <button class="hw-btn" id="btn-redo" aria-label="Redo" title="Redo"><span aria-hidden="true">&#8631;</span><span class="btn-text"> Redo</span></button>
+      <button class="hw-btn" id="btn-copy" title="Copy channel EQ, Low Cut, Comp & Sends (never Gain/+48V)">Copy</button>
+      <button class="hw-btn" id="btn-paste" title="Paste copied DSP to selected channel" hidden>Paste</button>
+      <button class="hw-btn ai-btn" id="btn-flowai" aria-pressed="false" title="Open FlowAi Mix Assistant">FlowAi</button>
+    </div>
+    <div class="show-control" role="group" aria-label="Show control">
+      <span class="group-label">SHOW</span>
+      <div class="show-modes" id="show-modes" role="group" aria-label="Show modes"></div>
+      <button class="hw-btn show-mode-undo" id="show-mode-undo" hidden></button>
+    </div>
+  </div>
+
+  <!-- Views inside the active section (Mix and Sound only). -->
   <nav class="cue-tabs" id="cue-tabs" role="tablist" aria-label="Views in this section">
-    <button class="cue-tab active" data-tab="mixer" data-group="mix" role="tab" aria-selected="true">Mixer</button>
+    <button class="cue-tab active" data-tab="mixer" data-group="mix" role="tab" aria-selected="true">Faders</button>
     <button class="cue-tab" data-tab="stage" data-group="mix" role="tab" aria-selected="false">Stage</button>
-    <button class="cue-tab" data-tab="channel" data-group="mix" role="tab" aria-selected="false">Channel</button>
     <button class="cue-tab" data-tab="input" data-group="sound" role="tab" aria-selected="false" hidden>Input</button>
     <button class="cue-tab" data-tab="eq" data-group="sound" role="tab" aria-selected="false" hidden>EQ</button>
     <button class="cue-tab" data-tab="comp" data-group="sound" role="tab" aria-selected="false" hidden>Comp</button>
     <button class="cue-tab" data-tab="sends" data-group="sound" role="tab" aria-selected="false" hidden>Sends</button>
     <button class="cue-tab" data-tab="fx" data-group="sound" role="tab" aria-selected="false" hidden>FX</button>
+    <button class="cue-tab" data-tab="channel" data-group="sound" role="tab" aria-selected="false" hidden>Channel</button>
   </nav>
 
   <div class="conn-banner" id="conn-banner" role="alert" hidden></div>
@@ -137,21 +135,6 @@
       <div class="insp-body" id="insp-body"></div>
     </aside>
   </div>
-
-  <!-- Setup Sub-Navigation Compatibility Container (used when Setup tab is active) -->
-  <section class="setup-view" id="setup-view" aria-label="Setup" hidden>
-    <nav class="setup-nav" aria-label="Setup pages">
-      <div class="setup-nav-head"><span>SETUP</span><button class="insp-close" id="setup-close" aria-label="Close setup">✕</button></div>
-      <button class="setup-tab" data-page="inputs">CONFIGURE INPUTS</button>
-      <button class="setup-tab" data-page="snapshots">MIXER SNAPSHOTS</button>
-      <button class="setup-tab" data-page="library">SNAPSHOT LIBRARY</button>
-      <button class="setup-tab" data-page="showmodes">SHOW MODES</button>
-      <button class="setup-tab" data-page="prefs">PREFERENCES</button>
-      <button class="setup-tab" data-page="routing">ROUTING</button>
-      <button class="setup-tab" data-page="info">INFO</button>
-    </nav>
-    <div class="setup-page" id="setup-page"></div>
-  </section>
 </div>
 
 <!-- Name prompt -->
