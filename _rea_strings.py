@@ -1,1 +1,0 @@
-print("=== STRINGS ANALYSIS (ev_9c1ab...) ===")

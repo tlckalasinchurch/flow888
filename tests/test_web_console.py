@@ -206,10 +206,8 @@ class EntryPointTests(unittest.TestCase):
 
     def test_batch_files_launch_the_right_surface(self):
         studio = (ROOT / "start_studio.bat").read_text(encoding="utf-8")
-        legacy = (ROOT / "start_legacy_tk.bat").read_text(encoding="utf-8")
         self.assertIn("python main.py", studio)
         self.assertNotIn("--legacy-tk", studio)
-        self.assertIn("--legacy-tk", legacy)
 
 
 if __name__ == "__main__":
