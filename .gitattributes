@@ -1,0 +1,4 @@
+# Evidence files are hashed byte-for-byte (docs/product/evidence_baseline.sha256).
+# -text: no line-ending conversion on checkout or commit, whatever core.autocrlf says.
+docs/audit/hw_stage1/* -text
+docs/audit/stage1_screenshots/* -text
