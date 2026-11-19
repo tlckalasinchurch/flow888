@@ -90,10 +90,8 @@ def open_console(
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="flow8",
-        description="FLOW 8 web console (default). Use --legacy-tk for the old desktop window.",
+        description="FLOW 8 CueAir Pro web console.",
     )
-    parser.add_argument("--legacy-tk", action="store_true",
-                        help="open the legacy Tkinter desktop window instead of the web console")
     parser.add_argument("--port", type=int, default=DEFAULT_LAN_PORT,
                         help=f"LAN port (default {DEFAULT_LAN_PORT}; 0 picks a free port)")
     parser.add_argument("--host", default="0.0.0.0",
@@ -208,10 +206,6 @@ def run(
 
 def main(argv: Optional[list[str]] = None) -> int:
     args = build_parser().parse_args(argv)
-    if args.legacy_tk:
-        from flow8.ui.app import main as tk_main
-
-        return tk_main([])
     return run(args)
 
 

@@ -4,7 +4,7 @@ from unittest.mock import MagicMock
 
 from flow8.midi_constants import WinMmError
 from flow8.midi_out import Flow8MidiOut
-from flow8.ui.safety_dialogs import PhantomPowerSafetyGate  # re-exported from flow8.safety after S1.2
+from flow8.safety import PhantomPowerSafetyGate
 
 
 def fake_open_port(out=None):

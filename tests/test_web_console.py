@@ -99,15 +99,13 @@ def args(**overrides):
 class ParserTests(unittest.TestCase):
     def test_default_is_the_web_console_with_meters(self):
         parsed = web_console.build_parser().parse_args([])
-        self.assertFalse(parsed.legacy_tk)
         self.assertFalse(parsed.no_meters)
         self.assertFalse(parsed.no_browser)
         self.assertEqual(parsed.port, web_console.DEFAULT_LAN_PORT)
 
-    def test_legacy_flag_and_options(self):
+    def test_parser_options(self):
         parsed = web_console.build_parser().parse_args(
-            ["--legacy-tk", "--port", "9000", "--no-meters", "--no-app-window"])
-        self.assertTrue(parsed.legacy_tk)
+            ["--port", "9000", "--no-meters", "--no-app-window"])
         self.assertEqual(parsed.port, 9000)
         self.assertTrue(parsed.no_meters)
         self.assertTrue(parsed.no_app_window)
@@ -188,12 +186,6 @@ class RunTests(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertEqual(popen_calls[0][0], "C:/Edge/msedge.exe")
         self.assertEqual(popen_calls[0][1], "--app=http://127.0.0.1:8123")
-
-    def test_legacy_tk_runs_the_desktop_window(self):
-        with mock.patch("flow8.ui.app.main", return_value=7) as tk_main:
-            with mock.patch.object(web_console, "run", side_effect=AssertionError("web console started")):
-                self.assertEqual(web_console.main(["--legacy-tk"]), 7)
-        tk_main.assert_called_once_with([])
 
     def test_main_defaults_to_the_web_console(self):
         with mock.patch.object(web_console, "run", return_value=0) as run:

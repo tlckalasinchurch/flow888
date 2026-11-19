@@ -1727,6 +1727,22 @@
       <dt>SNAPSHOT LIBRARY</dt><dd>${(session.library || []).length} snapshots on the host computer</dd>
       <dt>OPEN ON A TABLET</dt><dd id="info-urls">…</dd></dl>`;
     page.appendChild(sec);
+
+    // Bluetooth on the FLOW 8 has two very different halves. BT audio is a
+    // device-side pairing and arrives on CH 7; BT control is the FLOW app's
+    // vendor BLE protocol, which this console does not write to without evidence.
+    const bt = document.createElement('section');
+    bt.className = 'insp-sec';
+    bt.innerHTML = `<div class="sec-hdr"><span class="sec-title">BLUETOOTH</span><span class="sec-meta">AUDIO IN · CONTROL NOT VERIFIED</span></div>
+      <dl class="info-list">
+        <dt>BT AUDIO</dt><dd>Pair on the mixer (BT PAIRING → PAIR AUDIO). Audio arrives on <strong>CH 7 (USB/BT)</strong>; this console controls that strip normally.</dd>
+        <dt>BT CONTROL (FLOW APP)</dt><dd>Vendor BLE service <code>14839ad4-8d7e-415c-9a42-167340cf2339</code> with a notify/write characteristic. This console does not write to it: the mixer requires pairing/bonding and the payload format is unverified. USB MIDI stays the verified control path.</dd>
+        <dt>BLE PROBE</dt><dd><code>python -m tools.ble_probe --scan-seconds 8</code> (read-only discovery)</dd>
+      </dl>
+      <button class="hw-btn" id="bt-open-ch7">เปิด CH 7 (USB/BT)</button>`;
+    page.appendChild(bt);
+    bt.querySelector('#bt-open-ch7').onclick = () => selectChannel(7, 'channel');
+
     try {
       const st = await (await fetch('/api/status')).json();
       const el = document.getElementById('info-urls');

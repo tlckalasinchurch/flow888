@@ -105,7 +105,7 @@ class GainBlockTests(Base):
 
     def test_b07_no_override_exists(self):
         files = ["flow8/safety.py", "flow8/command_boundary.py", "flow8/midi_out.py", "flow8/service.py",
-                 "flow8/ledger.py", "flow8/parameter_engine.py", "flow8/ui/safety_dialogs.py"]
+                 "flow8/ledger.py", "flow8/parameter_engine.py"]
         bad_words = re.compile(r"environ|getenv|^argv$|unlock|bypass|override|allow_gain|enable_gain", re.I)
         for rel in files:
             path = ROOT / rel
@@ -127,11 +127,11 @@ class GainBlockTests(Base):
             safety.BLOCKED_PARAMETER_TYPES["gain"] = "x"
         with self.assertRaises(TypeError):
             del safety.BLOCKED_PARAMETER_TYPES["gain"]
-        from flow8.ui.safety_dialogs import AnalogGainSafetyGate
+        from flow8.safety import AnalogGainSafetyGate
         self.assertFalse(AnalogGainSafetyGate.is_verified_mapping_available())
 
     def test_b08_gain_gate_sends_nothing(self):
-        from flow8.ui.safety_dialogs import AnalogGainSafetyGate
+        from flow8.safety import AnalogGainSafetyGate
         gate = AnalogGainSafetyGate(1, 0.0)
         gate.stage_preview(20.0)
         with self.assertRaises(RuntimeError):
@@ -276,11 +276,7 @@ class PhantomAuthorizationTests(Base):
             if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) and node.func.attr == "set_phantom":
                 self.fail("flow8/service.py calls set_phantom internally")
 
-    def test_p11_compatibility_reexport(self):
-        import flow8.safety as safety
-        import flow8.ui.safety_dialogs as dialogs
-        self.assertIs(dialogs.PhantomPowerSafetyGate, safety.PhantomPowerSafetyGate)
-        self.assertIs(dialogs.PhantomPowerConfirmationToken, safety.PhantomPowerConfirmationToken)
+    def test_p11_safety_has_no_ui_dependency(self):
         tree = ast.parse((ROOT / "flow8/safety.py").read_text(encoding="utf-8"))
         imported = {n.module for n in ast.walk(tree) if isinstance(n, ast.ImportFrom) and n.module} | \
                    {a.name for n in ast.walk(tree) if isinstance(n, ast.Import) for a in n.names}

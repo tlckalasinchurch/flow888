@@ -320,3 +320,46 @@ def validate_outbound(status: int, data1: int, data2: int) -> None:
         raise SafetyPolicyError("SR-07", f"channel {channel} CC {data1} is not an allowlisted FLOW 8 parameter")
     if pair in tables["phantom"] and data2 > 0 and not _permit_active(channel):
         raise SafetyPolicyError("SR-06", f"+48V ON on channel {channel} needs user-confirmation authorization")
+
+
+class AnalogGainSafetyGate:
+    """Staged editing safety controller for Analog Preamp Gain (gated by SR-05)."""
+
+    ALLOWED_CHANNELS = (1, 2, 3, 4)
+    MIN_DB = -20.0
+    MAX_DB = 60.0
+
+    def __init__(self, channel_index: int, initial_gain_db: float = 0.0) -> None:
+        if channel_index not in self.ALLOWED_CHANNELS:
+            raise ValueError(
+                f"Analog preamp gain is restricted to Channels 1-4. Channel {channel_index} has no analog preamp."
+            )
+        self.channel_index = channel_index
+        self.current_gain_db = float(initial_gain_db)
+        self.preview_gain_db = float(initial_gain_db)
+        self.is_staged = False
+
+    @staticmethod
+    def is_verified_mapping_available() -> bool:
+        return "gain" not in BLOCKED_PARAMETER_TYPES
+
+    def stage_preview(self, proposed_db: float) -> float:
+        clamped = max(self.MIN_DB, min(self.MAX_DB, float(proposed_db)))
+        self.preview_gain_db = clamped
+        self.is_staged = (self.preview_gain_db != self.current_gain_db)
+        return self.preview_gain_db
+
+    def cancel_staged(self) -> float:
+        self.preview_gain_db = self.current_gain_db
+        self.is_staged = False
+        return self.current_gain_db
+
+    def commit_gain(self, service: Any, confirmed: bool = False) -> bool:
+        if not self.is_verified_mapping_available():
+            raise RuntimeError(
+                "Hardware gain dispatch is gated: Preamp Gain dB curve is an UNVERIFIED APPROXIMATION. "
+                "Physical hardware calibration evidence is required before automatic dispatch."
+            )
+        if not confirmed:
+            raise RuntimeError("Gain commit requires explicit confirmation; nothing sent.")
+        raise NotImplementedError("No analog-gain dispatch path exists; nothing sent.")

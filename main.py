@@ -1,7 +1,6 @@
-"""FLOW 8 entry point: the CueAir-style web console by default.
+"""FLOW 8 entry point: the CueAir Pro web console.
 
-    python main.py               # web console + meters + browser window
-    python main.py --legacy-tk   # legacy Tkinter desktop window (regression only)
+    python main.py               # CueAir Pro web console + meters + browser window
 
 The console is served on the LAN, so the same URL opens on the host computer and
 on an iPad in the same Wi-Fi.
