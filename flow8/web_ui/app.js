@@ -8,6 +8,16 @@
   let view = 'mixer'; // 'mixer' | 'stage' | 'setup'
   let lastLiveView = 'mixer';
   let setupPage = 'inputs';
+  let topTab = 'mixer'; // 'mixer' | 'stage' | 'channel' | 'input' | 'eq' | 'comp' | 'sends' | 'fx' | 'presets' | 'setup'
+  let selectedCh = 1; // 1..7
+  let selectedEqBand = 'low'; // 'lc' | 'low' | 'low_mid' | 'hi_mid' | 'hi'
+  let dspClipboard = null;
+  let flowAiOpen = false;
+  let presetCategory = 'all';
+  let presetQuery = '';
+  let selectedPresetId = 'speech-mc-handheld';
+  let presetScopes = { low_cut: true, eq: true, compressor: true };
+  let latestMeterLevels = {};
 
   // Settings of this device only. Storage can fail (private mode): defaults then apply.
   const PREF_DEFAULTS = { displayDb: true, finerSliders: false, recallScope: ['CH', 'FX', 'MAIN', 'MON'], librarySort: 'date' };
@@ -213,7 +223,8 @@
   function onMeterFrame(levels) {
     const now = performance.now();
     lastMeterFrame = now;
-    Object.entries(levels).forEach(([id, l]) => {
+    latestMeterLevels = levels || {};
+    Object.entries(latestMeterLevels).forEach(([id, l]) => {
       const m = meters[id] = meters[id] || { peak: -120, rms: -120, hold: -120, holdAt: 0, clipAt: 0 };
       m.peak = l.peak;
       m.rms = l.rms;
@@ -612,30 +623,41 @@
       const prov = sendLayer ? (ch.sends ? 'COMMANDED' : 'UNSYNCED') : ch.faderProvenance;
       const code = sendLayer ? `→${layer.label.replace(' ', '')}` : provCode(ch.faderProvenance);
       const hint = sendLayer ? `Send level from ${name} to ${layer.label}` : provTitle(ch.faderProvenance);
-      const selected = insp && insp.kind === 'ch' && insp.index === ch.index;
+      const selected = selectedCh === ch.index;
       const strip = document.createElement('div');
       strip.dataset.strip = sid;
       strip.className = 'strip' + (ch.index === 7 ? ' usb' : '') + (selected ? ' selected' : '');
       strip.innerHTML = `
         <div class="mix-bar" aria-hidden="true"></div>
-        <div class="scribble" role="button" tabindex="0" data-focus-key="scribble:${sid}" aria-label="${esc(name)}: open settings" aria-expanded="${selected}" style="--lcd:${lcdColor(ch)}">
+        <div class="scribble" role="button" tabindex="0" data-focus-key="scribble:${sid}" aria-label="${esc(name)}: select channel" aria-pressed="${selected}" style="--lcd:${lcdColor(ch)}">
           <div class="scribble-top">
-            <span class="scribble-num">${STRIP_TAG[ch.index]}</span>
+            <span class="scribble-num">${String(ch.index).padStart(2, '0')} · ${STRIP_TAG[ch.index]}</span>
             <span class="scribble-prov" title="${esc(hint)}">${code}</span>
           </div>
           <div class="scribble-name" title="${esc(name)}">${esc(name)}</div>
         </div>
+        <button class="solo-btn" aria-disabled="true" title="${esc(lockReason('solo'))}">SOLO</button>
         <div class="lamp-row">${LAMPS(sid, prov)}</div>
-        <svg class="eq-thumb" viewBox="0 0 60 18" preserveAspectRatio="none" aria-hidden="true"><line x1="0" y1="9" x2="60" y2="9" class="eq-thumb-zero"/><path d="${eqThumbPath(ch)}"/></svg>
-        <div class="strip-pan"><span class="strip-pan-val">${panText(ch.pan)}</span></div>
-        <button class="mute-switch ${ch.mute ? 'muted' : ''}" data-focus-key="mute:${sid}" aria-pressed="${ch.mute}" aria-label="Mute ${esc(name)}">${ch.mute ? 'MUTED' : 'MUTE'}</button>
+        <div class="strip-pan-ctrl" title="Pan L–C–R">
+          <input type="range" min="0" max="127" value="${ch.pan}" aria-label="${esc(name)} pan" />
+          <span class="strip-pan-val">${panText(ch.pan)}</span>
+        </div>
         <div class="fader-zone">
           ${METER(sid)}
           ${FADER_WELL(`fader:${sid}:${activeLayer}`)}
         </div>
         <div class="strip-readout">${midiToDbStr(val)}</div>
+        <button class="mute-switch ${ch.mute ? 'muted' : ''}" data-focus-key="mute:${sid}" aria-pressed="${ch.mute}" aria-label="Mute ${esc(name)}">${ch.mute ? 'MUTED' : 'MUTE'}</button>
       `;
-      wireScribble(strip.querySelector('.scribble'), { kind: 'ch', index: ch.index });
+      strip.querySelector('.scribble').onclick = () => selectChannel(ch.index);
+      strip.querySelector('.scribble').onkeydown = (e) => {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectChannel(ch.index); }
+      };
+      strip.querySelector('.solo-btn').onclick = () => showToast(lockReason('solo'));
+      const panInput = strip.querySelector('.strip-pan-ctrl input');
+      const panLabel = strip.querySelector('.strip-pan-val');
+      panInput.oninput = () => { panLabel.textContent = panText(+panInput.value); };
+      panInput.onchange = () => postAction({ action: 'setPan', channel: ch.index, value: +panInput.value });
       strip.querySelector('.mute-switch').onclick = () =>
         postAction({ action: 'setMute', channel: ch.index, value: !ch.mute }).then(scheduleReload);
       const readout = strip.querySelector('.strip-readout');
@@ -650,7 +672,7 @@
       bank.appendChild(strip);
     });
 
-    // The master strip follows the selected mix, as on the FLOW 8 app.
+    // The master strip follows the selected mix, with a Bus selector dropdown.
     const m = masterOf(activeLayer);
     const selected = insp && insp.kind === 'bus' && insp.id === activeLayer;
     const strip = document.createElement('div');
@@ -658,24 +680,28 @@
     strip.className = 'strip master' + (selected ? ' selected' : '');
     strip.innerHTML = `
       <div class="mix-bar" aria-hidden="true"></div>
-      <div class="scribble master-lcd" role="button" tabindex="0" data-focus-key="scribble:master" aria-label="${layer.label} master: open settings" aria-expanded="${selected}">
+      <div class="scribble master-lcd" role="button" tabindex="0" data-focus-key="scribble:master" aria-label="${layer.label} master">
         <div class="scribble-top">
-          <span class="scribble-num">MASTER</span>
+          <span class="scribble-num">MAIN LR</span>
           <span class="scribble-prov" title="${esc(provTitle(m.prov))}">${provCode(m.prov)}</span>
         </div>
-        <div class="scribble-name">${layer.label}</div>
+        <select class="bus-select" aria-label="Select fader bus">
+          ${LAYER_ORDER.map((id) => `<option value="${id}" ${id === activeLayer ? 'selected' : ''}>${LAYERS[id].label}</option>`).join('')}
+        </select>
       </div>
+      <button class="solo-btn" aria-disabled="true" title="${esc(lockReason('solo'))}">BUS</button>
       <div class="lamp-row">${LAMPS(m.sid, m.prov)}</div>
-      <div class="eq-thumb eq-thumb-none">${activeLayer.startsWith('fx') ? 'FX RETURN' : 'GEQ · LIMIT'}</div>
-      <div class="strip-pan"><span class="strip-pan-val">${activeLayer === 'main' ? `BAL ${panText(session.channels.find((c) => c.index === 8).pan)}` : 'BUS'}</span></div>
-      <div class="mute-na" title="The FLOW 8 has no MIDI mute for the ${layer.label} bus.">NO MUTE</div>
+      <div class="strip-pan"><span class="strip-pan-val">${activeLayer === 'main' ? `BAL ${panText(session.channels.find((c) => c.index === 8).pan)}` : layer.name}</span></div>
       <div class="fader-zone">
         ${METER(m.sid)}
         ${FADER_WELL(`fader:master:${activeLayer}`)}
       </div>
       <div class="strip-readout">${midiToDbStr(m.fader)}</div>
+      <div class="mute-na" title="The FLOW 8 has no MIDI mute for the ${layer.label} bus.">NO MUTE</div>
     `;
-    wireScribble(strip.querySelector('.scribble'), { kind: 'bus', id: activeLayer });
+    const busSel = strip.querySelector('.bus-select');
+    busSel.onclick = (e) => e.stopPropagation();
+    busSel.onchange = () => setLayer(busSel.value);
     const readout = strip.querySelector('.strip-readout');
     attachVerticalFader(strip.querySelector('.fader-well'), m.fader,
       (v) => { readout.textContent = midiToDbStr(v); }, m.commit, `${layer.label} master fader`);
@@ -996,8 +1022,9 @@
 
   // ---------- Stage view ----------
   // Large level knobs for the mix on the faders, with the live input level as a ring.
-  function renderStage() {
-    const host = document.getElementById('stage-view');
+  function renderStage(hostEl) {
+    const host = hostEl || document.getElementById('stage-view');
+    if (!host) return;
     host.innerHTML = '';
     const sendLayer = activeLayer !== 'main';
     const layer = LAYERS[activeLayer];
@@ -1376,38 +1403,683 @@
     } catch (_) { /* the hub banner reports the failure */ }
   }
 
+  // ---------- CueAir Split-Screen Pro Console ----------
+  const THAI_PRESET_META = {
+    'speech-mc-handheld': { thName: 'ไมค์ลอยแบบมือถือสำหรับ MC', thCat: 'พูด/พิธีกร', thSummary: 'ลดเสียงลม/เสียงกระแทกไมค์และเสียงอู้ เพิ่มความชัดเจนเสียงพูดบนเวที' },
+    'podcast-broadcast': { thName: 'ไมค์พูด / พอดแคสต์สตูดิโอ', thCat: 'พูด/พิธีกร', thSummary: 'โทนเสียงพูดนุ่มแน่น ควบคุมระดับความดังให้สม่ำเสมอ' },
+    'vocal-male-lead': { thName: 'เสียงร้องสด (ชาย)', thCat: 'ร้อง', thSummary: 'รักษาความอบอุ่นของเสียงชาย พร้อมดันย่านความคมชัด 3 kHz' },
+    'vocal-female-lead': { thName: 'เสียงร้องสด (หญิง)', thCat: 'ร้อง', thSummary: 'เสียงร้องใสโปร่ง ลดความแข็งกระด้างและเสียงซิบบิแลนซ์' },
+    'vocal-worship-ballad': { thName: 'เสียงร้องเพลงช้า / นมัสการ', thCat: 'ร้อง', thSummary: 'โทนร้องนุ่มนวล มีมิติ เข้ากับ Reverb ได้ดี' },
+    'acoustic-guitar-strum': { thName: 'กีตาร์โปร่ง (ตีคอร์ด)', thCat: 'เครื่องดนตรี', thSummary: 'ลดเสียงแข็งของปิ๊กอัพ Piezo และความก้องในกล่อง' },
+    'acoustic-guitar-fingerstyle': { thName: 'กีตาร์โปร่ง (ฟิงเกอร์สไตล์)', thCat: 'เครื่องดนตรี', thSummary: 'เก็บรายละเอียดสายและเนื้อไม้อย่างเป็นธรรมชาติ' },
+    'bass-guitar-di': { thName: 'เบสไฟฟ้า (DI)', thCat: 'เครื่องดนตรี', thSummary: 'ฐานเสียงต่ำแน่นกระชับ เว้นพื้นที่ย่านกลางให้เสียงร้อง' },
+    'electric-guitar-clean': { thName: 'กีตาร์ไฟฟ้า (คลีน)', thCat: 'เครื่องดนตรี', thSummary: 'โทนคลีนใสคมชัด ไม่กวนย่านเบส' },
+    'drum-kick-punch': { thName: 'กระเดื่องกลอง (Kick Punch)', thCat: 'กลอง', thSummary: 'กระแทกหนักแน่น ตัดย่านก้อง 300–400 Hz และเน้นหัวกระเดื่อง' },
+    'drum-snare-crack': { thName: 'สแนร์ (Snare Crack)', thCat: 'กลอง', thSummary: 'คมชัดมีเนื้อไม้และเสียงแส้สแนร์ที่พุ่งชัด' },
+    'drum-overheads': { thName: 'แฉ / Overhead กลอง', thCat: 'กลอง', thSummary: 'ตัดย่านต่ำ 350 Hz ทิ้ง ให้เสียงแฉใสสะอาด' },
+    'utility-flat-reset': { thName: 'รีเซ็ต EQ เป็น Flat (Bypass)', thCat: 'รีเซ็ต', thSummary: 'คืนค่า EQ ทั้ง 4 แบนด์เป็น 0.0 dB, ปิด Low Cut และ Compressor' },
+  };
+  const PRESET_CATS = ['all', 'พูด/พิธีกร', 'ร้อง', 'เครื่องดนตรี', 'กลอง', 'รีเซ็ต'];
+
+  function selectedChannelObj() {
+    if (!session || !session.channels) return null;
+    return session.channels.find((c) => c.index === selectedCh) || session.channels[0];
+  }
+
+  function updateSelectBadge() {
+    const ch = selectedChannelObj();
+    if (!ch) return;
+    const numEl = document.getElementById('select-num');
+    const nameEl = document.getElementById('select-name');
+    if (numEl) numEl.textContent = String(ch.index).padStart(2, '0');
+    if (nameEl) nameEl.textContent = chName(ch);
+    const pasteBtn = document.getElementById('btn-paste');
+    if (pasteBtn) pasteBtn.disabled = !dspClipboard;
+  }
+
+  function selectChannel(idx, switchTab = null) {
+    selectedCh = Math.max(1, Math.min(7, Number(idx) || 1));
+    if (switchTab) setTopTab(switchTab);
+    else {
+      updateSelectBadge();
+      renderView();
+    }
+  }
+
+  function setTopTab(tab, syncHub = true) {
+    topTab = tab;
+    if (tab === 'mixer' || tab === 'stage') {
+      lastLiveView = tab;
+      view = tab;
+      if (syncHub) {
+        fetch('/api/action', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'setActiveView', view: tab, clientId }),
+        }).catch(() => {});
+      }
+    } else if (tab === 'setup') {
+      view = 'setup';
+    } else {
+      view = 'mixer';
+    }
+    renderView();
+  }
+
+  function eqPreviewSvgPath(eqObj, w = 180, h = 64) {
+    const bands = ['low', 'low_mid', 'hi_mid', 'hi'];
+    const xs = [0.16, 0.38, 0.64, 0.86].map((r) => r * w);
+    const ys = bands.map((k) => {
+      const db = eqObj && eqObj[k] != null ? eqObj[k] : 0;
+      const norm = Math.max(-15, Math.min(15, db)) / 15;
+      return (h / 2) - norm * (h * 0.38);
+    });
+    let d = `M 0 ${h / 2} L ${xs[0].toFixed(1)} ${ys[0].toFixed(1)}`;
+    for (let i = 0; i < xs.length - 1; i++) {
+      const mx = ((xs[i] + xs[i + 1]) / 2).toFixed(1);
+      d += ` Q ${xs[i].toFixed(1)} ${ys[i].toFixed(1)} ${mx} ${((ys[i] + ys[i + 1]) / 2).toFixed(1)}`;
+    }
+    d += ` T ${xs[3].toFixed(1)} ${ys[3].toFixed(1)} L ${w} ${h / 2}`;
+    return d;
+  }
+
+  function renderMixerOverview(pane) {
+    const grid = document.createElement('div');
+    grid.className = 'mixer-overview-grid';
+    session.channels.filter((c) => c.index <= 7).forEach((ch) => {
+      const isSel = ch.index === selectedCh;
+      const col = document.createElement('div');
+      col.className = 'ov-col' + (isSel ? ' selected' : '');
+      const gainStr = ch.index <= 4 ? gainText(ch.gain) : 'LINE';
+      const compVal = ch.index <= 4 ? Math.round(((ch.compressor || 0) / 127) * 100) : null;
+      const s = ch.sends || {};
+      col.innerHTML = `
+        <div class="ov-head">
+          <span class="ov-tag">${String(ch.index).padStart(2, '0')} ${esc(chName(ch)).slice(0, 8)}</span>
+          <span class="ov-gain" title="${esc(lockReason('gain'))}">${gainStr}</span>
+        </div>
+        <div class="ov-chips">
+          <span class="ov-chip locked" title="${esc(lockReason('routing'))}">Ø</span>
+          ${ch.index <= 2 ? `<span class="ov-chip locked" title="${esc(lockReason('phantom'))}">48V</span>` : ''}
+          ${ch.index >= 5 && ch.index <= 6 ? `<span class="ov-chip locked" title="${esc(lockReason('stereoLink'))}">LINK</span>` : ''}
+          ${ch.index <= 4 ? `<span class="ov-chip">LC ${hpfHz(ch.lowCut || 0)}</span>` : ''}
+        </div>
+        <div class="ov-sends">
+          <div class="ov-send-row"><span>M1</span><div class="ov-send-track"><div class="ov-send-fill" style="width:${Math.round(((s.mon1 || 0) / 127) * 100)}%;background:#34D399"></div></div></div>
+          <div class="ov-send-row"><span>M2</span><div class="ov-send-track"><div class="ov-send-fill" style="width:${Math.round(((s.mon2 || 0) / 127) * 100)}%;background:#34D399"></div></div></div>
+          <div class="ov-send-row"><span>FX1</span><div class="ov-send-track"><div class="ov-send-fill" style="width:${Math.round(((s.fx1 || 0) / 127) * 100)}%;background:#A78BFA"></div></div></div>
+          <div class="ov-send-row"><span>FX2</span><div class="ov-send-track"><div class="ov-send-fill" style="width:${Math.round(((s.fx2 || 0) / 127) * 100)}%;background:#A78BFA"></div></div></div>
+        </div>
+        <div class="ov-curves">
+          <svg class="ov-eq-svg" viewBox="0 0 60 22" preserveAspectRatio="none" title="Tap to open EQ">
+            <line x1="0" y1="11" x2="60" y2="11" stroke="#242933" stroke-width="1"/>
+            <path d="${eqThumbPath(ch)}"/>
+          </svg>
+          <div class="ov-comp-box" title="Tap to open Comp">${compVal == null ? '—' : `${compVal}%`}</div>
+        </div>
+      `;
+      col.onclick = () => selectChannel(ch.index);
+      col.querySelector('.ov-eq-svg').onclick = (e) => { e.stopPropagation(); selectChannel(ch.index, 'eq'); };
+      col.querySelector('.ov-comp-box').onclick = (e) => { e.stopPropagation(); selectChannel(ch.index, 'comp'); };
+      grid.appendChild(col);
+    });
+    const m = masterOf(activeLayer);
+    const mCol = document.createElement('div');
+    mCol.className = 'ov-col master-col';
+    mCol.innerHTML = `
+      <div class="ov-head"><span class="ov-tag">${LAYERS[activeLayer].label}</span><span class="ov-gain">${midiToDbStr(m.fader)}</span></div>
+      <div class="ov-chips"><span class="ov-chip locked">9-GEQ</span><span class="ov-chip locked">LIMIT</span></div>
+      <p class="sec-note" style="margin:auto 0 0;font-size:11px;">Tap any strip to select · Double-click EQ or Comp to edit</p>
+    `;
+    grid.appendChild(mCol);
+    pane.appendChild(grid);
+  }
+
+  function renderCueEqTab(pane) {
+    const ch = selectedChannelObj();
+    if (!ch) return;
+    const eqBands = [
+      ...(ch.index <= 4 ? [{ key: 'lc', label: 'LC', color: '#FFB020', xPct: 0.12 }] : []),
+      { key: 'low', label: '1 LOW', color: '#F87171', xPct: 0.28 },
+      { key: 'low_mid', label: '2 LOW MID', color: '#34D399', xPct: 0.48 },
+      { key: 'hi_mid', label: '3 HIGH MID', color: '#3FD2E0', xPct: 0.68 },
+      { key: 'hi', label: '4 HIGH', color: '#A78BFA', xPct: 0.86 },
+    ];
+    if (!eqBands.some((b) => b.key === selectedEqBand)) selectedEqBand = 'low';
+
+    const wrap = document.createElement('div');
+    wrap.className = 'cue-eq-wrap';
+    wrap.innerHTML = `
+      <div class="cue-eq-stage">
+        <div class="cue-eq-bands">
+          ${eqBands.map((b) => `<button class="eq-band-pill ${selectedEqBand === b.key ? 'active' : ''}" data-band="${b.key}" style="--band-color:${b.color}">${b.label}</button>`).join('')}
+        </div>
+        <canvas class="cue-eq-canvas" id="cue-eq-canvas" width="640" height="220"></canvas>
+      </div>
+      <div class="cue-eq-side" id="cue-eq-side"></div>
+    `;
+    pane.appendChild(wrap);
+
+    const canvas = wrap.querySelector('#cue-eq-canvas');
+    const side = wrap.querySelector('#cue-eq-side');
+
+    const drawInteractiveEq = () => {
+      const ctx = canvas.getContext('2d');
+      const W = canvas.width;
+      const H = canvas.height;
+      ctx.clearRect(0, 0, W, H);
+      ctx.fillStyle = '#0A0C10';
+      ctx.fillRect(0, 0, W, H);
+      // Grid lines (-15, -7.5, 0, +7.5, +15 dB)
+      ctx.strokeStyle = '#1D222B';
+      ctx.lineWidth = 1;
+      [0.15, 0.325, 0.5, 0.675, 0.85].forEach((r, idx) => {
+        ctx.beginPath();
+        ctx.strokeStyle = idx === 2 ? '#2F3746' : '#191E26';
+        ctx.moveTo(0, H * r);
+        ctx.lineTo(W, H * r);
+        ctx.stroke();
+      });
+      // Curve across 4 EQ bands
+      const pts = eqBands.filter((b) => b.key !== 'lc').map((b) => {
+        const db = eqRawToDb(ch.eq[b.key] ?? 64);
+        return { ...b, x: b.xPct * W, y: (H * 0.5) - (db / 15) * (H * 0.35), db };
+      });
+      // Low cut visual slope if ch <= 4
+      const lcPct = ch.index <= 4 ? (ch.lowCut || 0) / 127 : 0;
+      const lcX = (0.06 + lcPct * 0.14) * W;
+      ctx.beginPath();
+      ctx.strokeStyle = '#3FD2E0';
+      ctx.lineWidth = 2.6;
+      ctx.moveTo(0, ch.index <= 4 && lcPct > 0.02 ? H * 0.88 : H * 0.5);
+      if (ch.index <= 4) ctx.lineTo(lcX, H * 0.5);
+      pts.forEach((p, idx) => {
+        if (idx === 0) ctx.lineTo(p.x, p.y);
+        else {
+          const prev = pts[idx - 1];
+          const mx = (prev.x + p.x) / 2;
+          ctx.quadraticCurveTo(prev.x, prev.y, mx, (prev.y + p.y) / 2);
+        }
+      });
+      const last = pts[pts.length - 1];
+      ctx.lineTo(last.x, last.y);
+      ctx.lineTo(W, H * 0.5);
+      ctx.stroke();
+
+      // Draggable nodes
+      eqBands.forEach((b) => {
+        const x = b.key === 'lc' ? lcX : b.xPct * W;
+        const y = b.key === 'lc' ? H * 0.5 : (H * 0.5) - (eqRawToDb(ch.eq[b.key] ?? 64) / 15) * (H * 0.35);
+        ctx.beginPath();
+        ctx.arc(x, y, selectedEqBand === b.key ? 10 : 7.5, 0, Math.PI * 2);
+        ctx.fillStyle = b.color;
+        ctx.fill();
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = selectedEqBand === b.key ? '#FFFFFF' : '#0B0D10';
+        ctx.stroke();
+      });
+    };
+
+    const renderEqSide = () => {
+      const bMeta = eqBands.find((b) => b.key === selectedEqBand) || eqBands[0];
+      const isLc = bMeta.key === 'lc';
+      const rawVal = isLc ? (ch.lowCut || 0) : (ch.eq[bMeta.key] ?? 64);
+      side.innerHTML = `
+        <div class="sec-hdr"><span class="sec-title">${esc(chName(ch))} · ${bMeta.label}</span><button class="key-btn" id="btn-eq-reset">RESET</button></div>
+        <div class="num-row"><span class="num-lbl">EQ MODE</span><span class="num-val">4-Band <span class="lock-chip" title="${esc(lockReason('eqParametric'))}">PARAM LOCKED</span></span></div>
+        <div class="num-row"><span class="num-lbl">TYPE</span><span class="num-val">${isLc ? 'High Pass' : 'Fixed Band'} <span class="lock-chip">LOCKED</span></span></div>
+        <div class="num-row"><span class="num-lbl">FREQ</span><span class="num-val">${isLc ? hpfHz(rawVal) : `${BANDS.find((x) => x.key === bMeta.key)?.hz || 'Fixed'} <span class="lock-chip">LOCKED</span>`}</span></div>
+        <div class="num-row"><span class="num-lbl">${isLc ? 'CUTOFF' : 'GAIN'}</span><span class="num-val" id="eq-side-val">${isLc ? hpfHz(rawVal) : eqText(rawVal)}</span></div>
+        <input class="studio-range" id="eq-side-range" type="range" min="0" max="127" value="${rawVal}" aria-label="${bMeta.label} level" />
+        <div class="num-row"><span class="num-lbl">Q</span><span class="num-val">— <span class="lock-chip" title="${esc(lockReason('eqParametric'))}">LOCKED</span></span></div>
+      `;
+      const rng = side.querySelector('#eq-side-range');
+      const valEl = side.querySelector('#eq-side-val');
+      rng.oninput = () => {
+        const v = +rng.value;
+        if (isLc) { ch.lowCut = v; valEl.textContent = hpfHz(v); }
+        else { ch.eq[bMeta.key] = v; valEl.textContent = eqText(v); }
+        drawInteractiveEq();
+      };
+      rng.onchange = () => {
+        const v = +rng.value;
+        if (isLc) postAction({ action: 'setLowCut', channel: ch.index, value: v, unit: 'raw' });
+        else postAction({ action: 'setEqBand', channel: ch.index, band: bMeta.key, value: v });
+      };
+      side.querySelector('#btn-eq-reset').onclick = () =>
+        postAction({ action: 'resetEqFlat', channel: ch.index }).then(scheduleReload);
+    };
+
+    wrap.querySelectorAll('.eq-band-pill').forEach((btn) => {
+      btn.onclick = () => {
+        selectedEqBand = btn.dataset.band;
+        wrap.querySelectorAll('.eq-band-pill').forEach((p) => p.classList.toggle('active', p.dataset.band === selectedEqBand));
+        drawInteractiveEq();
+        renderEqSide();
+      };
+    });
+
+    let dragBand = null;
+    canvas.onpointerdown = (e) => {
+      const rect = canvas.getBoundingClientRect();
+      const nx = (e.clientX - rect.left) / rect.width;
+      const ny = (e.clientY - rect.top) / rect.height;
+      let best = eqBands[0];
+      let bestD = Infinity;
+      eqBands.forEach((b) => {
+        const bx = b.key === 'lc' ? (0.06 + ((ch.lowCut || 0) / 127) * 0.14) : b.xPct;
+        const by = b.key === 'lc' ? 0.5 : (0.5 - (eqRawToDb(ch.eq[b.key] ?? 64) / 15) * 0.35);
+        const d = Math.hypot(nx - bx, ny - by);
+        if (d < bestD) { bestD = d; best = b; }
+      });
+      dragBand = best.key;
+      selectedEqBand = best.key;
+      canvas.setPointerCapture(e.pointerId);
+      wrap.querySelectorAll('.eq-band-pill').forEach((p) => p.classList.toggle('active', p.dataset.band === selectedEqBand));
+      renderEqSide();
+    };
+    canvas.onpointermove = (e) => {
+      if (!dragBand || !canvas.hasPointerCapture(e.pointerId)) return;
+      const rect = canvas.getBoundingClientRect();
+      if (dragBand === 'lc') {
+        const nx = (e.clientX - rect.left) / rect.width;
+        ch.lowCut = Math.max(0, Math.min(127, Math.round(((nx - 0.06) / 0.14) * 127)));
+      } else {
+        const ny = (e.clientY - rect.top) / rect.height;
+        const db = Math.max(-15, Math.min(15, ((0.5 - ny) / 0.35) * 15));
+        ch.eq[dragBand] = dbToEqRaw(db);
+      }
+      drawInteractiveEq();
+      const rng = side.querySelector('#eq-side-range');
+      const valEl = side.querySelector('#eq-side-val');
+      if (rng && valEl) {
+        const v = dragBand === 'lc' ? ch.lowCut : ch.eq[dragBand];
+        rng.value = v;
+        valEl.textContent = dragBand === 'lc' ? hpfHz(v) : eqText(v);
+      }
+    };
+    canvas.onpointerup = (e) => {
+      if (!dragBand) return;
+      const key = dragBand;
+      dragBand = null;
+      if (canvas.hasPointerCapture(e.pointerId)) canvas.releasePointerCapture(e.pointerId);
+      if (key === 'lc') postAction({ action: 'setLowCut', channel: ch.index, value: ch.lowCut, unit: 'raw' });
+      else postAction({ action: 'setEqBand', channel: ch.index, band: key, value: ch.eq[key] });
+    };
+
+    drawInteractiveEq();
+    renderEqSide();
+  }
+
+  async function renderCuePresetsTab(pane) {
+    const ch = selectedChannelObj();
+    if (!ch) return;
+    if (!presets.length) {
+      try { presets = (await (await fetch('/api/presets')).json()).presets || []; } catch (_) { presets = []; }
+    }
+    const wrap = document.createElement('div');
+    wrap.className = 'cue-presets-wrap';
+    wrap.innerHTML = `<div class="presets-left" id="presets-left"></div><div class="presets-right" id="presets-right"></div>`;
+    pane.appendChild(wrap);
+
+    const left = wrap.querySelector('#presets-left');
+    const right = wrap.querySelector('#presets-right');
+    const drawPresets = () => {
+      const q = presetQuery.trim().toLowerCase();
+      const enriched = presets.map((p) => {
+        const th = THAI_PRESET_META[p.id] || {};
+        return { ...p, thName: th.thName || p.name, thCat: th.thCat || p.category, thSummary: th.thSummary || p.summary };
+      });
+      const filtered = enriched.filter((p) => (presetCategory === 'all' || p.thCat === presetCategory)
+        && (!q || p.thName.toLowerCase().includes(q) || p.name.toLowerCase().includes(q) || p.thSummary.toLowerCase().includes(q)));
+
+      left.innerHTML = `
+        <div class="sec-hdr"><span class="sec-title">เลือกพรีเซ็ต · CH ${String(ch.index).padStart(2, '0')} (${esc(chName(ch))})</span></div>
+        <input type="search" class="text-input search" id="cue-preset-search" placeholder="ค้นหาพรีเซ็ต (เช่น ไมค์ลอย, เสียงร้อง, กีตาร์)..." value="${esc(presetQuery)}" />
+        <div class="cat-chips">
+          ${PRESET_CATS.map((c) => `<button class="cat-chip ${presetCategory === c ? 'active' : ''}" data-cat="${esc(c)}">${c === 'all' ? 'ทั้งหมด' : esc(c)}</button>`).join('')}
+        </div>
+        <div class="preset-cards">
+          ${filtered.map((p) => `
+            <button class="preset-card ${selectedPresetId === p.id ? 'active' : ''}" data-pid="${esc(p.id)}">
+              <span class="preset-card-title">${esc(p.thName)}</span>
+              <span class="preset-card-sub">${esc(p.thCat)} · ${esc(p.name)}</span>
+            </button>`).join('') || '<p class="sec-note">ไม่พบพรีเซ็ตที่ตรงกับการค้นหา</p>'}
+        </div>
+      `;
+      left.querySelector('#cue-preset-search').oninput = (e) => { presetQuery = e.target.value; drawPresets(); };
+      left.querySelectorAll('.cat-chip').forEach((b) => { b.onclick = () => { presetCategory = b.dataset.cat; drawPresets(); }; });
+      left.querySelectorAll('.preset-card').forEach((b) => { b.onclick = () => { selectedPresetId = b.dataset.pid; drawPresets(); }; });
+
+      const sel = enriched.find((p) => p.id === selectedPresetId) || enriched[0];
+      if (!sel) { right.innerHTML = '<p class="sec-note">ไม่มีพรีเซ็ตให้แสดง</p>'; return; }
+      const previewEq = {
+        low: sel.eq_low_db ?? 0,
+        low_mid: sel.eq_low_mid_db ?? 0,
+        hi_mid: sel.eq_hi_mid_db ?? 0,
+        hi: sel.eq_hi_db ?? 0,
+      };
+      const notesList = Object.entries(sel.notes || {}).map(([k, v]) => `<li><strong>${esc(k)}:</strong> ${esc(v)}</li>`).join('');
+      right.innerHTML = `
+        <div class="sec-hdr"><span class="sec-title">${esc(sel.thName)}</span><span class="sec-meta">${esc(sel.thCat)}</span></div>
+        <p class="sec-note" style="margin:0">${esc(sel.thSummary)}</p>
+        <svg class="preset-preview-svg" viewBox="0 0 180 64" preserveAspectRatio="none">
+          <line x1="0" y1="32" x2="180" y2="32" stroke="#242A35" stroke-width="1"/>
+          <path d="${eqPreviewSvgPath(previewEq)}" fill="none" stroke="#3FD2E0" stroke-width="2.2"/>
+        </svg>
+        <div class="preset-scope-row">
+          <label><input type="checkbox" id="ps-lc" ${presetScopes.low_cut ? 'checked' : ''} ${ch.index > 4 ? 'disabled' : ''}/> Input / Low Cut</label>
+          <label><input type="checkbox" id="ps-eq" ${presetScopes.eq ? 'checked' : ''}/> EQ (4-Band)</label>
+          <label><input type="checkbox" id="ps-comp" ${presetScopes.compressor ? 'checked' : ''} ${ch.index > 4 ? 'disabled' : ''}/> Comp</label>
+        </div>
+        <div class="phantom-safety-row" title="${esc(lockReason('phantom'))}">
+          <label><input type="checkbox" id="ps-48v" disabled /> ใช้ค่า 48V ด้วย (ปิดไว้เพื่อความปลอดภัย)</label>
+          <span class="lock-chip">LOCKED</span>
+        </div>
+        <ul class="preset-notes">${notesList}</ul>
+        <button class="hw-btn accent" id="btn-apply-cue-preset">ใช้พรีเซ็ตนี้กับ CH ${String(ch.index).padStart(2, '0')} (ไม่เปลี่ยนระดับเสียง)</button>
+      `;
+      right.querySelector('#ps-lc').onchange = (e) => { presetScopes.low_cut = e.target.checked; };
+      right.querySelector('#ps-eq').onchange = (e) => { presetScopes.eq = e.target.checked; };
+      right.querySelector('#ps-comp').onchange = (e) => { presetScopes.compressor = e.target.checked; };
+      right.querySelector('#btn-apply-cue-preset').onclick = async () => {
+        const scopes = Object.entries(presetScopes).filter(([, on]) => on).map(([k]) => k);
+        if (!scopes.length) { showToast('เลือกอย่างน้อย 1 ส่วน (EQ / Low Cut / Comp)', true); return; }
+        const res = await postAction({ action: 'applyPreset', channel: ch.index, presetId: sel.id, scopes });
+        if (res.ok) showToast(`ใช้พรีเซ็ต "${sel.thName}" กับ CH ${String(ch.index).padStart(2, '0')} แล้ว`);
+        loadSession();
+      };
+    };
+    drawPresets();
+  }
+
+  function renderCueChannelTab(pane) {
+    const ch = selectedChannelObj();
+    if (!ch) return;
+    const grid = document.createElement('div');
+    grid.className = 'top-grid-3';
+    grid.innerHTML = `
+      <section class="insp-sec">
+        <div class="sec-hdr"><span class="sec-title">CHANNEL ${String(ch.index).padStart(2, '0')}</span><button class="key-btn" id="cue-rename">RENAME</button></div>
+        <p class="sec-note" style="margin:0 0 6px;">${esc(chName(ch))} · Pan ${panText(ch.pan)} · ${ch.mute ? 'MUTED' : 'ACTIVE'}</p>
+        <div class="num-row"><span class="num-lbl">PREAMP GAIN</span><span class="num-val">${ch.index <= 4 ? gainText(ch.gain) : 'LINE'} <span class="lock-chip">LOCKED</span></span></div>
+        ${ch.index <= 4 ? `<div class="num-row"><span class="num-lbl">LOW CUT</span><span class="num-val">${hpfHz(ch.lowCut || 0)}</span></div>` : ''}
+      </section>
+      <section class="insp-sec">
+        <div class="sec-hdr"><span class="sec-title">4-BAND EQ</span><button class="key-btn accent" id="cue-go-eq">OPEN EQ</button></div>
+        <svg class="preset-preview-svg" style="height:64px" viewBox="0 0 180 64" preserveAspectRatio="none">
+          <line x1="0" y1="32" x2="180" y2="32" stroke="#242A35" stroke-width="1"/>
+          <path d="${eqPreviewSvgPath({ low: eqRawToDb(ch.eq.low), low_mid: eqRawToDb(ch.eq.low_mid), hi_mid: eqRawToDb(ch.eq.hi_mid), hi: eqRawToDb(ch.eq.hi) })}" fill="none" stroke="#3FD2E0" stroke-width="2.2"/>
+        </svg>
+      </section>
+      <section class="insp-sec">
+        <div class="sec-hdr"><span class="sec-title">COMP & SENDS</span><button class="key-btn" id="cue-go-sends">SENDS</button></div>
+        <div class="num-row"><span class="num-lbl">COMP</span><span class="num-val">${ch.index <= 4 ? `${Math.round(((ch.compressor || 0) / 127) * 100)}%` : 'N/A'}</span></div>
+        <div class="num-row"><span class="num-lbl">MON 1 / MON 2</span><span class="num-val">${midiToDbStr(ch.sends?.mon1 || 0)} / ${midiToDbStr(ch.sends?.mon2 || 0)}</span></div>
+        <div class="num-row"><span class="num-lbl">FX 1 / FX 2</span><span class="num-val">${midiToDbStr(ch.sends?.fx1 || 0)} / ${midiToDbStr(ch.sends?.fx2 || 0)}</span></div>
+      </section>
+    `;
+    grid.querySelector('#cue-rename').onclick = () => openScribbleModal(ch);
+    grid.querySelector('#cue-go-eq').onclick = () => setTopTab('eq');
+    grid.querySelector('#cue-go-sends').onclick = () => setTopTab('sends');
+    pane.appendChild(grid);
+  }
+
+  function renderCueInputTab(pane) {
+    const ch = selectedChannelObj();
+    if (!ch) return;
+    const grid = document.createElement('div');
+    grid.className = 'top-grid-2';
+    const left = document.createElement('section');
+    left.className = 'insp-sec';
+    left.innerHTML = `
+      <div class="sec-hdr"><span class="sec-title">INPUT · CH ${String(ch.index).padStart(2, '0')} (${esc(chName(ch))})</span></div>
+      <div class="num-row"><span class="num-lbl">GAIN</span><span class="num-val">${ch.index <= 4 ? gainText(ch.gain) : 'LINE'} <span class="lock-chip" title="${esc(lockReason('gain'))}">LOCKED</span></span></div>
+      <div class="num-row"><span class="num-lbl">+48V PHANTOM</span><span class="num-val">${ch.index <= 2 ? (ch.phantom ? 'ON' : 'OFF') : 'N/A'} <span class="lock-chip" title="${esc(lockReason('phantom'))}">HOST ONLY</span></span></div>
+      <div class="num-row"><span class="num-lbl">PHASE (Ø)</span><span class="num-val">NORMAL <span class="lock-chip">LOCKED</span></span></div>
+      <div class="num-row"><span class="num-lbl">STEREO LINK</span><span class="num-val">${ch.index >= 5 && ch.index <= 6 ? 'LINKED PAIR' : 'MONO'} <span class="lock-chip">LOCKED</span></span></div>
+      ${ch.index <= 4 ? `<div class="num-row"><span class="num-lbl">LOW CUT</span><span class="num-val" id="inp-lc-val">${hpfHz(ch.lowCut || 0)}</span></div>
+      <input class="studio-range" id="inp-lc-rng" type="range" min="0" max="127" value="${ch.lowCut || 0}" aria-label="Low cut" />` : '<p class="sec-note">Low cut applies to Channels 1–4 only.</p>'}
+    `;
+    if (ch.index <= 4) {
+      const rng = left.querySelector('#inp-lc-rng');
+      const valEl = left.querySelector('#inp-lc-val');
+      rng.oninput = () => { ch.lowCut = +rng.value; valEl.textContent = hpfHz(ch.lowCut); };
+      rng.onchange = () => postAction({ action: 'setLowCut', channel: ch.index, value: +rng.value, unit: 'raw' });
+    }
+    const right = document.createElement('div');
+    renderInputsPage(right);
+    grid.appendChild(left);
+    grid.appendChild(right);
+    pane.appendChild(grid);
+  }
+
+  function renderCueCompTab(pane) {
+    const ch = selectedChannelObj();
+    if (!ch) return;
+    const sec = document.createElement('section');
+    sec.className = 'insp-sec';
+    if (ch.index > 4) {
+      sec.innerHTML = `<div class="sec-hdr"><span class="sec-title">COMPRESSOR · CH ${String(ch.index).padStart(2, '0')}</span></div>
+        <p class="sec-note">1-Knob Compressor is available on Channels 1–4 (MIC 1–2 & COMBO 3–4).</p>`;
+      pane.appendChild(sec);
+      return;
+    }
+    const pct = Math.round(((ch.compressor || 0) / 127) * 100);
+    sec.innerHTML = `<div class="sec-hdr"><span class="sec-title">1-KNOB COMPRESSOR · CH ${String(ch.index).padStart(2, '0')} (${esc(chName(ch))})</span><span class="sec-meta">${pct}%</span></div>`;
+    const row = document.createElement('div');
+    row.style.display = 'flex';
+    row.style.alignItems = 'center';
+    row.style.gap = '20px';
+    row.appendChild(createRotaryKnob({
+      label: 'COMP', valueText: `${pct}%`, raw: ch.compressor || 0, min: 0, max: 127,
+      color: '#34D399', big: true, focusKey: `cue-comp:${ch.index}`,
+      onMove: (v) => `${Math.round((v / 127) * 100)}%`,
+      onCommit: (v) => postAction({ action: 'setCompressor', channel: ch.index, value: v, unit: 'raw' }),
+    }));
+    const note = document.createElement('p');
+    note.className = 'sec-note';
+    note.textContent = 'Drag the dial up/down (or double-click to reset to 0%) to tame vocal or instrument peaks.';
+    row.appendChild(note);
+    sec.appendChild(row);
+    pane.appendChild(sec);
+  }
+
+  function renderCueSendsTab(pane) {
+    const ch = selectedChannelObj();
+    if (!ch) return;
+    const sec = document.createElement('section');
+    sec.className = 'insp-sec';
+    sec.innerHTML = `<div class="sec-hdr"><span class="sec-title">BUS SENDS · CH ${String(ch.index).padStart(2, '0')} (${esc(chName(ch))})</span></div>`;
+    ['mon1', 'mon2', 'fx1', 'fx2'].forEach((target) => {
+      sec.appendChild(levelRow({
+        label: LAYERS[target].label,
+        color: LAYERS[target].color,
+        value: ch.sends ? ch.sends[target] : 0,
+        aria: `${chName(ch)} send to ${LAYERS[target].label}`,
+        focusKey: `cue-send:${ch.index}:${target}`,
+        onCommit: (v) => postAction({ action: 'setSend', channel: ch.index, target, value: v }),
+      }));
+    });
+    pane.appendChild(sec);
+  }
+
+  function renderCueFxTab(pane) {
+    const grid = document.createElement('div');
+    grid.className = 'top-grid-2';
+    ['fx1', 'fx2'].forEach((fxId) => {
+      const fx = FX_ENGINE[fxId];
+      const bus = session.buses.find((b) => b.id === fxId);
+      const card = document.createElement('section');
+      card.className = 'insp-sec';
+      card.innerHTML = `
+        <div class="sec-hdr"><span class="sec-title">${fxId.toUpperCase()} (${fxId === 'fx1' ? 'REVERB' : 'DELAY / MOD'})</span><span class="lock-chip" title="${esc(lockReason('fx'))}">PRESETS LOCKED</span></div>
+        <div class="fx-matrix">${fx.presets.map((name, i) => `<button class="fx-tile" title="${esc(lockReason('fx'))}">${i + 1}. ${esc(name)}</button>`).join('')}</div>
+      `;
+      card.querySelectorAll('.fx-tile').forEach((b) => { b.onclick = () => showToast(lockReason('fx')); });
+      card.appendChild(levelRow({
+        label: `${fxId.toUpperCase()} RETURN`,
+        color: '#A78BFA',
+        value: bus ? bus.fader : 0,
+        aria: `${fxId.toUpperCase()} return level`,
+        focusKey: `cue-fx-ret:${fxId}`,
+        onCommit: (v) => postAction({ action: 'setBusFader', bus: fxId, value: v }),
+      }));
+      grid.appendChild(card);
+    });
+    pane.appendChild(grid);
+  }
+
+  function renderCueSetupTab(pane) {
+    const nav = document.createElement('div');
+    nav.className = 'cat-chips';
+    const pages = [
+      ['inputs', 'CONFIGURE INPUTS'],
+      ['snapshots', 'MIXER SNAPSHOTS (15)'],
+      ['library', 'SNAPSHOT LIBRARY'],
+      ['prefs', 'PREFERENCES'],
+      ['routing', 'ROUTING'],
+      ['info', 'INFO'],
+    ];
+    nav.innerHTML = pages.map(([id, label]) => `<button class="cat-chip ${setupPage === id ? 'active' : ''}" data-sp="${id}">${label}</button>`).join('');
+    nav.querySelectorAll('.cat-chip').forEach((b) => {
+      b.onclick = () => { setupPage = b.dataset.sp; renderTopPane(); };
+    });
+    pane.appendChild(nav);
+    const body = document.createElement('div');
+    pane.appendChild(body);
+    if (setupPage === 'inputs') renderInputsPage(body);
+    else if (setupPage === 'snapshots') renderSnapshotsPage(body);
+    else if (setupPage === 'library') renderLibraryPage(body);
+    else if (setupPage === 'prefs') renderPrefsPage(body);
+    else if (setupPage === 'routing') renderRoutingPage(body);
+    else renderInfoPage(body);
+  }
+
+  function renderFlowAiDrawer() {
+    const drawer = document.getElementById('flowai-drawer');
+    const btn = document.getElementById('btn-flowai');
+    if (btn) btn.setAttribute('aria-pressed', flowAiOpen ? 'true' : 'false');
+    if (!drawer) return;
+    drawer.hidden = !flowAiOpen;
+    if (!flowAiOpen || !session) return;
+    const ch = selectedChannelObj();
+    if (!ch) return;
+    const body = document.getElementById('flowai-body');
+    const sid = stripIdForChannel(ch.index);
+    const meter = latestMeterLevels[sid] || meters[sid];
+    const peakDb = meter ? meter.peak : -120;
+    const cards = [];
+
+    if (peakDb >= -2.0) {
+      cards.push({
+        badge: 'GAIN ADVICE', warn: true,
+        title: `สัญญาณ CH ${String(ch.index).padStart(2, '0')} ใกล้พีค (${peakDb.toFixed(1)} dBFS)`,
+        desc: 'แนะนำลด Preamp Gain ที่ตัวเครื่อง FLOW 8 เพื่อป้องกันเสียงแตก (ไม่สามารถปรับ Gain ผ่าน LAN เพื่อความปลอดภัย)',
+        apply: null,
+      });
+    }
+    if (ch.index <= 4 && (ch.lowCut || 0) < 10) {
+      cards.push({
+        badge: 'HPF',
+        title: 'เปิด Low Cut 100 Hz เพื่อลดเสียงลม/เสียงฮัม',
+        desc: `ช่อง ${esc(chName(ch))} ยังไม่ได้เปิด Low Cut แนะนำตัดย่านต่ำกว่า 100 Hz เพื่อความสะอาดของมิกซ์`,
+        applyLabel: 'Apply Low Cut 100 Hz',
+        apply: () => postAction({ action: 'setLowCut', channel: ch.index, value: 100, unit: 'Hz' }),
+      });
+    }
+    const eqFlat = ['low', 'low_mid', 'hi_mid', 'hi'].every((k) => Math.abs(eqRawToDb(ch.eq[k] ?? 64)) < 0.3);
+    if (eqFlat && ch.index <= 4) {
+      cards.push({
+        badge: 'SMART EQ',
+        title: 'ปรับ EQ ลดความก้อง & เพิ่มความคมชัดเสียงร้อง/พูด',
+        desc: 'Low-Mid -2.0 dB ลดความขุ่น + Hi-Mid +1.5 dB ช่วยให้เสียงพุ่งชัดขึ้น (Undo ได้ใน 1 ขั้น)',
+        applyLabel: 'Apply Smart EQ',
+        apply: () => postAction({
+          action: 'pasteChannelDsp', channel: ch.index, unit: 'dB',
+          eq: { low_mid: -2.0, hi_mid: 1.5 },
+        }),
+      });
+    }
+    if (ch.index <= 4 && (ch.sends?.fx1 || 0) === 0) {
+      cards.push({
+        badge: 'SPACE',
+        title: 'เพิ่ม Reverb FX 1 เล็กน้อย (-18 dB)',
+        desc: 'ช่วยให้เสียงร้องหรือเครื่องดนตรีไม่แห้งจนเกินไปในห้องสด',
+        applyLabel: 'Send FX 1 (-18 dB)',
+        apply: () => postAction({ action: 'setSend', channel: ch.index, target: 'fx1', value: 76, unit: 'raw' }),
+      });
+    }
+    if (!cards.length) {
+      cards.push({
+        badge: 'OK',
+        title: `CH ${String(ch.index).padStart(2, '0')} (${esc(chName(ch))}) อยู่ในสภาพสมดุล`,
+        desc: 'ค่า Low Cut, EQ และระดับสัญญาณปัจจุบันอยู่ในเกณฑ์ปลอดภัยพร้อมใช้งาน',
+        apply: null,
+      });
+    }
+
+    body.innerHTML = `<p class="sec-note" style="margin:0">วิเคราะห์สดจาก <strong>CH ${String(ch.index).padStart(2, '0')} · ${esc(chName(ch))}</strong> (ปรับเฉพาะ DSP ที่ปลอดภัย — Gain และ +48V เป็นคำแนะนำเท่านั้น)</p>`;
+    cards.forEach((c) => {
+      const el = document.createElement('div');
+      el.className = 'ai-card';
+      el.innerHTML = `
+        <div class="ai-card-hdr"><span>${c.title}</span><span class="ai-badge ${c.warn ? 'warn' : ''}">${c.badge}</span></div>
+        <p class="ai-card-desc">${c.desc}</p>
+        ${c.apply ? `<button class="hw-btn accent">${c.applyLabel}</button>` : ''}
+      `;
+      if (c.apply) {
+        el.querySelector('button').onclick = async () => {
+          const res = await c.apply();
+          if (res && res.ok) showToast(`FlowAi applied to CH ${String(ch.index).padStart(2, '0')}`);
+          loadSession();
+        };
+      }
+      body.appendChild(el);
+    });
+  }
+
+  function renderTopPane() {
+    const pane = document.getElementById('top-pane');
+    if (!pane || !session) return;
+    pane.innerHTML = '';
+    if (topTab === 'mixer') renderMixerOverview(pane);
+    else if (topTab === 'stage') {
+      const stageHost = document.createElement('div');
+      stageHost.className = 'stage-view';
+      pane.appendChild(stageHost);
+      renderStage(stageHost);
+    } else if (topTab === 'channel') renderCueChannelTab(pane);
+    else if (topTab === 'input') renderCueInputTab(pane);
+    else if (topTab === 'eq') renderCueEqTab(pane);
+    else if (topTab === 'comp') renderCueCompTab(pane);
+    else if (topTab === 'sends') renderCueSendsTab(pane);
+    else if (topTab === 'fx') renderCueFxTab(pane);
+    else if (topTab === 'presets') renderCuePresetsTab(pane);
+    else if (topTab === 'setup') renderCueSetupTab(pane);
+  }
+
   // ---------- Views ----------
   function renderView() {
     if (!session) return;
     document.body.dataset.view = view;
-    document.querySelectorAll('.view-btn').forEach((b) => {
-      const on = b.dataset.view === view;
+    document.querySelectorAll('.cue-tab').forEach((b) => {
+      const on = b.dataset.tab === topTab;
       b.classList.toggle('active', on);
-      b.setAttribute('aria-pressed', on ? 'true' : 'false');
+      b.setAttribute('aria-selected', on ? 'true' : 'false');
     });
-    document.getElementById('console-bank').hidden = view !== 'mixer';
-    document.getElementById('stage-view').hidden = view !== 'stage';
-    document.getElementById('workspace').hidden = view === 'setup';
-    document.getElementById('setup-view').hidden = view !== 'setup';
-    document.getElementById('btn-snapshots').classList.toggle('on', view === 'setup' && (setupPage === 'snapshots' || setupPage === 'library'));
-    document.getElementById('btn-setup').classList.toggle('on', view === 'setup' && setupPage !== 'snapshots' && setupPage !== 'library');
-    renderConsole(); // also updates the connection banner and MUTE ALL
-    if (view === 'stage') renderStage();
-    if (view === 'setup') renderSetup();
-    renderInspector();
+    updateSelectBadge();
+    renderTopPane();
+    renderConsole(); // persistent bottom fader bank + connection banner
+    renderFlowAiDrawer();
   }
   function setView(v, page, syncHub = true) {
-    if (v !== 'setup') lastLiveView = v;
-    view = v;
-    if (page) setupPage = page;
-    if (syncHub && (v === 'mixer' || v === 'stage')) {
-      fetch('/api/action', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'setActiveView', view: v, clientId }),
-      }).catch(() => {});
+    if (v === 'setup') {
+      if (page) setupPage = page;
+      setTopTab('setup', syncHub);
+      return;
     }
-    renderView();
+    setTopTab(v === 'stage' ? 'stage' : 'mixer', syncHub);
   }
 
   function promptName(title, value, okLabel) {
@@ -1646,9 +2318,40 @@
   });
 
   document.getElementById('insp-close').onclick = closeInspector;
-  document.querySelectorAll('.view-btn').forEach((b) => { b.onclick = () => setView(b.dataset.view); });
-  document.getElementById('btn-snapshots').onclick = () => (view === 'setup' && setupPage === 'snapshots' ? setView(lastLiveView) : setView('setup', 'snapshots'));
-  document.getElementById('btn-setup').onclick = () => (view === 'setup' && setupPage !== 'snapshots' && setupPage !== 'library' ? setView(lastLiveView) : setView('setup', setupPage === 'snapshots' || setupPage === 'library' ? 'inputs' : setupPage));
+  document.querySelectorAll('.cue-tab').forEach((b) => { b.onclick = () => setTopTab(b.dataset.tab); });
+  document.getElementById('select-badge').onclick = () => selectChannel((selectedCh % 7) + 1);
+  document.getElementById('btn-clear-solo').onclick = () => showToast(lockReason('solo'));
+  document.getElementById('btn-flowai').onclick = () => { flowAiOpen = !flowAiOpen; renderFlowAiDrawer(); };
+  document.getElementById('flowai-close').onclick = () => { flowAiOpen = false; renderFlowAiDrawer(); };
+  document.getElementById('btn-copy').onclick = () => {
+    const ch = selectedChannelObj();
+    if (!ch) return;
+    dspClipboard = {
+      sourceName: chName(ch),
+      eq: { ...(ch.eq || {}) },
+      lowCut: ch.index <= 4 ? ch.lowCut : null,
+      compressor: ch.index <= 4 ? ch.compressor : null,
+      sends: { ...(ch.sends || {}) },
+    };
+    updateSelectBadge();
+    showToast(`Copied DSP from CH ${String(ch.index).padStart(2, '0')} (${chName(ch)}). Gain & +48V are excluded.`);
+  };
+  document.getElementById('btn-paste').onclick = async () => {
+    if (!dspClipboard) return;
+    const ch = selectedChannelObj();
+    if (!ch) return;
+    const res = await postAction({
+      action: 'pasteChannelDsp',
+      channel: ch.index,
+      unit: 'raw',
+      eq: dspClipboard.eq,
+      lowCut: ch.index <= 4 ? dspClipboard.lowCut : null,
+      compressor: ch.index <= 4 ? dspClipboard.compressor : null,
+      sends: dspClipboard.sends,
+    });
+    if (res.ok) showToast(`Pasted DSP from ${dspClipboard.sourceName} to CH ${String(ch.index).padStart(2, '0')} (1 undo step).`);
+    loadSession();
+  };
   document.getElementById('setup-close').onclick = () => setView(lastLiveView);
   document.querySelectorAll('.setup-tab').forEach((t) => { t.onclick = () => setView('setup', t.dataset.page); });
   document.getElementById('insp-prev').onclick = () => stepInspector(-1);
@@ -1684,7 +2387,7 @@
     }, 120);
   }
   document.addEventListener('pointerdown', (e) => {
-    if (e.target.closest('.fader-well, .knob-svg, #eq-canvas, .studio-range, .phantom-key, .snap-slot')) pointerBusy = true;
+    if (e.target.closest('.fader-well, .knob-svg, #eq-canvas, #cue-eq-canvas, .studio-range, .phantom-key, .snap-slot')) pointerBusy = true;
   }, true);
   const releasePointer = () => {
     if (!pointerBusy) return;

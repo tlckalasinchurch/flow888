@@ -1,17 +1,17 @@
 <!doctype html>
-<html lang="en">
+<html lang="th">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-  <title>FLOW 8 Live Console</title>
+  <title>FLOW 8 Live Console — CueAir Pro</title>
   <meta name="theme-color" content="#0E1013" />
   <link rel="stylesheet" href="/styles.css" />
 </head>
 <body data-layer="main">
 <div class="app-shell">
-  <!-- Status strip: what is live right now -->
+  <!-- Status strip: hardware links, scene badge, clock, connection pill -->
   <div class="status-strip">
-    <span class="brand-mark">FLOW 8</span>
+    <span class="brand-mark">FLOW 8 <small class="brand-sub">CUEAIR PRO</small></span>
     <div class="link-lamps" aria-label="Link status">
       <span class="link" title="USB MIDI out: commands can reach the mixer"><span class="lamp lamp-link" id="lamp-usb"></span>USB</span>
       <span class="link" title="MIDI in: the app hears hardware moves"><span class="lamp lamp-link" id="lamp-midi-in"></span>MIDI IN</span>
@@ -32,36 +32,75 @@
     </div>
   </div>
 
-  <!-- Control row: bus selector, scenes, actions -->
+  <!-- CueAir Top Navigation Bar -->
   <header class="topbar">
-    <div class="view-switch" role="group" aria-label="View">
-      <button class="view-btn active" data-view="mixer" aria-pressed="true">MIXER</button>
-      <button class="view-btn" data-view="stage" aria-pressed="false">STAGE</button>
-    </div>
-    <div class="bus-tabs" id="bus-tabs" role="group" aria-label="Mix on the faders. Tap the active mix again to open its settings.">
-      <button class="bus-tab active" data-layer="main" aria-pressed="true">MAIN</button>
-      <button class="bus-tab" data-layer="mon1" aria-pressed="false">MON 1</button>
-      <button class="bus-tab" data-layer="mon2" aria-pressed="false">MON 2</button>
-      <button class="bus-tab" data-layer="fx1" aria-pressed="false">FX 1</button>
-      <button class="bus-tab" data-layer="fx2" aria-pressed="false">FX 2</button>
+    <button class="select-badge" id="select-badge" title="Selected channel — tap to cycle">
+      <span class="select-lbl">SELECT</span>
+      <span class="select-num" id="select-num">01</span>
+      <span class="select-name" id="select-name">MIC 1</span>
+    </button>
+
+    <div class="clip-actions" role="group" aria-label="History and clipboard">
+      <button class="hw-btn icon" id="btn-undo" aria-label="Undo" title="Undo">↶ Undo</button>
+      <button class="hw-btn icon" id="btn-redo" aria-label="Redo" title="Redo">↷</button>
+      <button class="hw-btn" id="btn-copy" title="Copy channel EQ, Low Cut, Comp & Sends (never Gain/+48V)">Copy</button>
+      <button class="hw-btn" id="btn-paste" title="Paste copied DSP to selected channel" disabled>Paste</button>
     </div>
 
+    <nav class="cue-tabs" id="cue-tabs" role="tablist" aria-label="Console views">
+      <button class="cue-tab active" data-tab="mixer" role="tab" aria-selected="true">Mixer</button>
+      <button class="cue-tab" data-tab="stage" role="tab" aria-selected="false">Stage</button>
+      <button class="cue-tab" data-tab="channel" role="tab" aria-selected="false">Channel</button>
+      <button class="cue-tab" data-tab="input" role="tab" aria-selected="false">Input</button>
+      <button class="cue-tab" data-tab="eq" role="tab" aria-selected="false">EQ</button>
+      <button class="cue-tab" data-tab="comp" role="tab" aria-selected="false">Comp</button>
+      <button class="cue-tab" data-tab="sends" role="tab" aria-selected="false">Sends</button>
+      <button class="cue-tab" data-tab="fx" role="tab" aria-selected="false">FX</button>
+      <button class="cue-tab" data-tab="presets" role="tab" aria-selected="false">Presets</button>
+      <button class="cue-tab" data-tab="setup" role="tab" aria-selected="false">Setup</button>
+    </nav>
+
     <div class="toolbar-actions">
-      <button class="hw-btn" id="btn-snapshots" title="Snapshots: recall, save and library">SNAPSHOTS</button>
-      <button class="hw-btn" id="btn-setup" title="Inputs, preferences, routing and info">SETUP</button>
+      <button class="hw-btn locked-btn" id="btn-clear-solo" aria-disabled="true" title="Solo (CC 6) is not on the verified MIDI allowlist.">Clear Solo</button>
+      <button class="hw-btn ai-btn" id="btn-flowai" aria-pressed="false" title="Open FlowAi Mix Assistant">FlowAi</button>
       <button class="hw-btn lock-btn" id="btn-lock" aria-pressed="false" title="Lock all controls against stray touches."><span class="lock-text">LOCK</span></button>
       <button class="hw-btn danger" id="btn-mute-all">MUTE ALL</button>
-      <button class="hw-btn icon" id="btn-undo" aria-label="Undo" title="Undo">↶</button>
-      <button class="hw-btn icon" id="btn-redo" aria-label="Redo" title="Redo">↷</button>
+    </div>
+
+    <!-- Hidden compatibility hooks for bus tabs (synced with Main LR bus selector) -->
+    <div class="bus-tabs sr-only" id="bus-tabs" aria-hidden="true">
+      <button class="bus-tab active" data-layer="main">MAIN</button>
+      <button class="bus-tab" data-layer="mon1">MON 1</button>
+      <button class="bus-tab" data-layer="mon2">MON 2</button>
+      <button class="bus-tab" data-layer="fx1">FX 1</button>
+      <button class="bus-tab" data-layer="fx2">FX 2</button>
     </div>
   </header>
 
   <div class="conn-banner" id="conn-banner" role="alert" hidden></div>
 
-  <!-- Fader bank and Inspector side by side. The Inspector never covers the whole bank. -->
-  <div class="workspace" id="workspace">
+  <!-- Split-Screen Workspace: Dynamic Top Half + Persistent Bottom Fader Bank -->
+  <div class="split-workspace" id="workspace">
+    <!-- Dynamic Top Half -->
+    <section class="top-pane" id="top-pane" aria-label="Active view"></section>
+
+    <!-- Persistent Bottom Fader Bank (7 channels + Main LR with Bus dropdown) -->
     <main class="console-bank" id="console-bank" aria-label="Fader bank"></main>
-    <main class="stage-view" id="stage-view" aria-label="Stage view" hidden></main>
+
+    <!-- FlowAi Assistant Drawer -->
+    <aside class="flowai-drawer" id="flowai-drawer" aria-label="FlowAi Assistant" hidden>
+      <div class="insp-head">
+        <div class="insp-id">
+          <span class="ai-dot"></span>
+          <h2 class="insp-title">FlowAi Assistant</h2>
+          <span class="insp-sub">Smart Mix Advisor</span>
+        </div>
+        <button class="insp-close" id="flowai-close" aria-label="Close FlowAi">✕</button>
+      </div>
+      <div class="flowai-body" id="flowai-body"></div>
+    </aside>
+
+    <!-- Legacy Inspector kept hidden/compatible for keyboard navigation if needed -->
     <aside class="inspector" id="inspector" aria-labelledby="insp-title" hidden>
       <div class="insp-head">
         <button class="insp-step" id="insp-prev" aria-label="Previous channel">‹</button>
@@ -77,7 +116,7 @@
     </aside>
   </div>
 
-  <!-- Setup: the FLOW 8 app setup pages, with the faders one tap away. -->
+  <!-- Setup Sub-Navigation Compatibility Container (used when Setup tab is active) -->
   <section class="setup-view" id="setup-view" aria-label="Setup" hidden>
     <nav class="setup-nav" aria-label="Setup pages">
       <div class="setup-nav-head"><span>SETUP</span><button class="insp-close" id="setup-close" aria-label="Close setup">✕</button></div>
@@ -108,7 +147,7 @@
 </div>
 <input type="file" id="library-file" accept="application/json,.json" hidden />
 
-<!-- Preset Modal -->
+<!-- Preset Modal (legacy quick-open support) -->
 <div class="modal-backdrop" id="preset-modal">
   <div class="modal" role="dialog" aria-modal="true" aria-labelledby="preset-modal-title">
     <div class="modal-hdr">

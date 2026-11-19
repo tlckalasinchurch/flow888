@@ -588,7 +588,8 @@ class Flow8Service:
         self,
         channel_index: int,
         preset_id: str,
-        preserve_levels: bool = True
+        preserve_levels: bool = True,
+        scopes: Optional[list[str]] = None,
     ) -> bool:
         """Apply an audio engineering preset to a channel strip.
 
@@ -596,27 +597,30 @@ class Flow8Service:
         When preserve_levels is True, the channel's fader volume, pan/balance,
         and analog preamp gain are left unchanged, ensuring acoustic stability.
         All modified parameters are grouped into an atomic batch for full undo/redo.
+        Optional ``scopes`` filters which sections apply ("eq", "low_cut", "compressor").
         """
         from .presets import get_channel_preset
         preset = get_channel_preset(preset_id)
         if preset is None or not (1 <= channel_index <= 7):
             return False
 
+        active_scopes = {s.lower() for s in scopes} if scopes is not None else {"eq", "low_cut", "compressor"}
+
         with self._ledger_lock:
             self.begin_batch()
             try:
-                # Apply 4-band Parametric EQ
-                self.set_eq_band(channel_index, "low", preset.eq_low_db, unit="dB")
-                self.set_eq_band(channel_index, "low_mid", preset.eq_low_mid_db, unit="dB")
-                self.set_eq_band(channel_index, "hi_mid", preset.eq_hi_mid_db, unit="dB")
-                self.set_eq_band(channel_index, "hi", preset.eq_hi_db, unit="dB")
+                if "eq" in active_scopes:
+                    self.set_eq_band(channel_index, "low", preset.eq_low_db, unit="dB")
+                    self.set_eq_band(channel_index, "low_mid", preset.eq_low_mid_db, unit="dB")
+                    self.set_eq_band(channel_index, "hi_mid", preset.eq_hi_mid_db, unit="dB")
+                    self.set_eq_band(channel_index, "hi", preset.eq_hi_db, unit="dB")
 
                 # Apply Low Cut (Channels 1-4)
-                if channel_index <= 4 and preset.low_cut_hz is not None:
+                if "low_cut" in active_scopes and channel_index <= 4 and preset.low_cut_hz is not None:
                     self.set_low_cut(channel_index, preset.low_cut_hz, unit="Hz")
 
                 # Apply Compressor (Channels 1-4)
-                if channel_index <= 4 and preset.compressor_percent is not None:
+                if "compressor" in active_scopes and channel_index <= 4 and preset.compressor_percent is not None:
                     self.set_compressor(channel_index, preset.compressor_percent, unit="%")
             finally:
                 self.end_batch()

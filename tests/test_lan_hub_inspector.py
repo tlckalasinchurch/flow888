@@ -98,6 +98,48 @@ class InspectorSessionTests(unittest.TestCase):
         self.assertEqual(self.post({"action": "setGain", "channel": 1, "value": 100}), 403)
         self.assertIsNone(self.channel(self.get("/api/session"), 1)["phantom"])
 
+    def test_paste_channel_dsp_and_scoped_preset_safety(self):
+        # Paste DSP rejects gain/phantom fields with 403
+        self.assertEqual(
+            self.post({"action": "pasteChannelDsp", "channel": 2, "gain": 80}),
+            403,
+        )
+        self.assertEqual(
+            self.post({"action": "pasteChannelDsp", "channel": 2, "phantom": True}),
+            403,
+        )
+        # Valid paste applies EQ, lowCut, compressor, sends in one undoable batch
+        code = self.post({
+            "action": "pasteChannelDsp",
+            "channel": 2,
+            "unit": "raw",
+            "eq": {"low": 50, "hi": 80},
+            "lowCut": 25,
+            "compressor": 40,
+            "sends": {"fx1": 70},
+        })
+        self.assertEqual(code, 200)
+        ch2 = self.channel(self.get("/api/session"), 2)
+        self.assertEqual(ch2["eq"]["low"], 50)
+        self.assertEqual(ch2["eq"]["hi"], 80)
+        self.assertEqual(ch2["lowCut"], 25)
+        self.assertEqual(ch2["compressor"], 40)
+        self.assertEqual(ch2["sends"]["fx1"], 70)
+
+        # Scoped applyPreset rejects includePhantom=True and honors scopes=["eq"]
+        self.assertEqual(
+            self.post({"action": "applyPreset", "channel": 2, "presetId": "speech-mc-handheld", "includePhantom": True}),
+            403,
+        )
+        self.assertEqual(
+            self.post({"action": "applyPreset", "channel": 2, "presetId": "speech-mc-handheld", "scopes": ["eq"]}),
+            200,
+        )
+        ch2_after = self.channel(self.get("/api/session"), 2)
+        # lowCut and compressor remained unchanged when only "eq" scope was requested
+        self.assertEqual(ch2_after["lowCut"], 25)
+        self.assertEqual(ch2_after["compressor"], 40)
+
 
 if __name__ == "__main__":
     unittest.main()

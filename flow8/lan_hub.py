@@ -45,7 +45,7 @@ METER_STALE_S = 2.0
 _MIX_ACTIONS = frozenset({
     "setFader", "setPan", "setMute", "muteAll", "setBusFader", "setEqBand",
     "setLowCut", "setCompressor", "setSend", "undo", "redo", "applyPreset",
-    "resetEqFlat", "libraryLoad",
+    "resetEqFlat", "libraryLoad", "pasteChannelDsp",
 })
 
 
@@ -620,11 +620,41 @@ class Flow8LanHub:
             elif action == "libraryImport":
                 extra = self.library.import_data(msg.get("data"))
             elif action == "applyPreset":
+                if msg.get("includePhantom"):
+                    return 403, {"ok": False, "error": "+48V phantom power requires explicit host confirmation dialog."}
+                raw_scopes = msg.get("scopes")
+                scopes = [str(s) for s in raw_scopes] if isinstance(raw_scopes, list) else None
                 ok = self.service.apply_channel_preset(
-                    int(msg["channel"]), str(msg["presetId"]), preserve_levels=True
+                    int(msg["channel"]), str(msg["presetId"]), preserve_levels=True, scopes=scopes
                 )
                 if not ok:
                     return 400, {"ok": False, "error": "invalid channel or preset"}
+            elif action == "pasteChannelDsp":
+                ch = int(msg["channel"])
+                if not (1 <= ch <= 7):
+                    return 400, {"ok": False, "error": "invalid channel"}
+                if "gain" in msg or "phantom" in msg or "includePhantom" in msg:
+                    return 403, {"ok": False, "error": "Preamp gain and +48V are blocked by safety policy over LAN."}
+                unit = str(msg.get("unit", "raw"))
+                with self.service._ledger_lock:
+                    self.service.begin_batch()
+                    try:
+                        eq_map = msg.get("eq")
+                        if isinstance(eq_map, dict):
+                            for band in ("low", "low_mid", "hi_mid", "hi"):
+                                if band in eq_map and eq_map[band] is not None:
+                                    self.service.set_eq_band(ch, band, eq_map[band], unit=unit)
+                        if ch <= 4 and msg.get("lowCut") is not None:
+                            self.service.set_low_cut(ch, msg["lowCut"], unit=str(msg.get("lowCutUnit", unit)))
+                        if ch <= 4 and msg.get("compressor") is not None:
+                            self.service.set_compressor(ch, msg["compressor"], unit=str(msg.get("compUnit", unit)))
+                        sends_map = msg.get("sends")
+                        if isinstance(sends_map, dict):
+                            for target, val in sends_map.items():
+                                if val is not None:
+                                    self.service.set_send(ch, str(target), val, unit=unit)
+                    finally:
+                        self.service.end_batch()
             elif action == "resetEqFlat":
                 ch = int(msg["channel"])
                 with self.service._ledger_lock:
