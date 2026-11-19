@@ -219,7 +219,8 @@ class ShowModeAssetsTests(unittest.TestCase):
         html = (self.UI / "index.html").read_text(encoding="utf-8")
         self.assertIn('id="show-modes"', html)
         self.assertIn('id="show-mode-undo"', html)
-        self.assertIn('data-page="showmodes"', html)
+        js = (self.UI / "app.js").read_text(encoding="utf-8")
+        self.assertIn("['showmodes', 'Show modes']", js)  # Setup list entry where the editor lives
 
     def test_show_mode_uses_a_450ms_hold_and_the_run_action(self):
         js = (self.UI / "app.js").read_text(encoding="utf-8")
@@ -267,3 +268,69 @@ class LinkStatusAssetsTests(unittest.TestCase):
         import re
         css = (self.UI / "styles.css").read_text(encoding="utf-8")
         self.assertRegex(css, re.compile(r"\.status-pill\s*\{[^}]*min-height:\s*44px", re.S))
+
+
+class LiveConsoleLayoutAssetsTests(unittest.TestCase):
+    """Static guard: four control classes keep their homes; one fader bank; Setup is full screen."""
+
+    UI = Path(web_console.__file__).parent / "web_ui"
+
+    def _html(self):
+        return (self.UI / "index.html").read_text(encoding="utf-8")
+
+    def _block(self, html, open_marker, close_marker):
+        start = html.index(open_marker)
+        return html[start:html.index(close_marker, start)]
+
+    def test_safety_controls_live_in_the_header_safety_cluster(self):
+        header = self._block(self._html(), '<header class="app-header"', "</header>")
+        cluster = self._block(header, 'class="safety-cluster"', "</div>")
+        self.assertIn('id="btn-lock"', cluster)
+        self.assertIn('id="btn-mute-all"', cluster)
+        self.assertIn('data-hold="arm"', cluster)  # MUTE ALL keeps its hold-to-arm
+
+    def test_show_control_is_not_part_of_navigation_or_safety(self):
+        html = self._html()
+        nav = self._block(html, 'id="cue-groups"', "</nav>")
+        self.assertNotIn("show-modes", nav)
+        control = self._block(html, 'id="control-bar"', "<!-- Views inside")
+        self.assertIn('id="show-modes"', control)
+        self.assertNotIn("btn-mute-all", control)
+        self.assertNotIn("btn-lock", control)
+
+    def test_redo_has_a_text_label_like_undo(self):
+        html = self._html()
+        self.assertIn("Undo</span>", html)
+        self.assertIn("Redo</span>", html)
+
+    def test_setup_has_no_separate_nested_view(self):
+        html = self._html()
+        self.assertNotIn('id="setup-view"', html)
+        self.assertNotIn('id="setup-page"', html)
+        js = (self.UI / "app.js").read_text(encoding="utf-8")
+        self.assertNotIn("renderMixerOverview", js)  # one fader bank, no duplicate strips
+        self.assertIn("setup-layout", js)
+
+    def test_snapshots_and_library_share_one_setup_page(self):
+        js = (self.UI / "app.js").read_text(encoding="utf-8")
+        self.assertIn("['snapshots', 'Snapshots']", js)
+        self.assertNotIn("['library',", js)
+        self.assertIn("renderLibraryPage(lib)", js)
+
+    def test_bank_size_follows_the_section(self):
+        css = (self.UI / "styles.css").read_text(encoding="utf-8")
+        self.assertIn('body[data-section="setup"] .console-bank', css)
+        self.assertIn('body[data-tab="mixer"] .top-pane { display: none; }', css)
+        js = (self.UI / "app.js").read_text(encoding="utf-8")
+        self.assertIn("document.body.dataset.section", js)
+
+    def test_active_view_sync_only_sends_values_the_hub_accepts(self):
+        js = (self.UI / "app.js").read_text(encoding="utf-8")
+        # Flow8Service.set_active_view accepts only 'mixer' or 'stage'.
+        self.assertIn("if (tab === 'mixer' || tab === 'stage')", js)
+        self.assertIn("view = 'mixer';", js)
+
+    def test_touch_targets_are_44px_on_coarse_pointers(self):
+        css = (self.UI / "styles.css").read_text(encoding="utf-8")
+        self.assertIn("@media (pointer: coarse)", css)
+        self.assertIn("input[type=\"range\"] { min-height: 44px; }", css)

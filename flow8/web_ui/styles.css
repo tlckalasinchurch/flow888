@@ -55,7 +55,7 @@ button { font-family: var(--font-sans); }
 .app-shell { display: flex; flex-direction: column; height: 100vh; height: 100dvh; }
 
 /* ---------- Status strip ---------- */
-.status-strip {
+.app-header {
   display: flex;
   align-items: center;
   gap: 14px;
@@ -109,7 +109,7 @@ button { font-family: var(--font-sans); }
 .scene-display.edited .scene-name { color: var(--led-amber); }
 
 /* ---------- Control row ---------- */
-.topbar {
+.control-bar {
   display: flex; align-items: center; gap: 14px;
   padding: 8px 16px;
   background: var(--bg-panel);
@@ -165,7 +165,7 @@ button { font-family: var(--font-sans); }
 .show-step select, .show-step input { min-height: 44px; font-size: 14px; }
 .show-step input.text-input[type="number"] { width: 110px; }
 .show-mode-foot { display: flex; gap: 8px; margin-top: 8px; }
-.mute-all { position: relative; overflow: hidden; margin-left: 28px; }
+.mute-all { position: relative; overflow: hidden; }
 .mute-all::after { content: ""; position: absolute; left: 0; bottom: 0; height: 3px; width: 0; background: var(--accent-amber); }
 .mute-all[data-hold="arm"].holding::after { width: 100%; transition: width var(--hold-ms, 0.6s) linear; }
 .all-muted-chip {
@@ -628,13 +628,13 @@ body.locked #btn-mute-all, body.locked #btn-undo, body.locked #btn-redo,
 body.locked .view-btn, body.locked #btn-snapshots, body.locked #btn-setup, body.locked .setup-view button:not(#setup-close),
 body.locked .setup-view a, body.locked .setup-view label { pointer-events: none; }
 body.locked .console-bank, body.locked .insp-body { filter: saturate(0.7); }
-body.locked .status-strip { box-shadow: inset 0 -2px 0 var(--led-amber); }
+body.locked .app-header { box-shadow: inset 0 -2px 0 var(--led-amber); }
 
 /* ---------- Responsive ---------- */
 /* iPad landscape and small laptops: split pane, narrower strips. */
 @media (max-width: 1180px) {
   :root { --insp-w: 360px; }
-  .topbar { gap: 10px; padding: 7px 12px; }
+  .control-bar { gap: 10px; padding: 7px 12px; }
   .scene-bar .group-label { display: none; }
   .scene-pad { width: 34px; }
   .strip { min-width: 70px; padding-left: 4px; padding-right: 4px; }
@@ -644,7 +644,7 @@ body.locked .status-strip { box-shadow: inset 0 -2px 0 var(--led-amber); }
   .scribble-prov .prov-short { display: inline; }
   .console-bank { gap: 5px; padding-left: 8px; padding-right: 8px; }
   .link-lamps { gap: 9px; }
-  .status-strip { gap: 10px; }
+  .app-header { gap: 10px; }
 }
 @media (max-width: 1180px) {
   .stage-view { grid-template-columns: repeat(4, minmax(120px, 1fr)); gap: 8px; }
@@ -678,24 +678,16 @@ body.locked .status-strip { box-shadow: inset 0 -2px 0 var(--led-amber); }
 }
 /* Phone: the Inspector is a bottom sheet; the bank stays visible above it. */
 @media (max-width: 760px) {
-  .status-strip { padding: 5px 10px; gap: 8px; font-size: 12px; }
-  .link-lamps .link:nth-child(n+3) { display: none; }
+  .app-header { padding: 5px 10px; gap: 8px; font-size: 12px; }
   .scene-label { display: none; }
   .brand-mark .brand-sub { display: none; }
   .status-pill { font-size: 12px; padding: 3px 8px; white-space: nowrap; }
   .clock { font-size: 13px; min-width: 0; }
-  .topbar { padding: 6px 8px; gap: 6px; }
+  .control-bar { padding: 6px 8px; gap: 6px; }
   /* Two rows: select, history and actions on top, the four sections full width below. */
-  .topbar { flex-wrap: wrap; }
-  .topbar .cue-groups { order: 3; flex: 1 0 100%; }
-  .topbar .show-modes, .topbar .show-mode-undo { order: 2; }
-  .topbar .cue-group { max-width: none; }
-  .toolbar-actions { margin-left: auto; }
+  .control-bar { flex-wrap: wrap; }
   .scene-pad { width: 40px; }
-  .mute-all { margin-left: 24px; }
   /* The two-row top bar costs height; give the strips (with their MUTE keys) the room. */
-  .app-shell .split-workspace .top-pane { flex: 1 1 36%; min-height: 110px; }
-  .app-shell .split-workspace .console-bank { flex: 1 1 64%; min-height: 310px; }
   .strip { min-width: 66px; }
   .eq-thumb { height: 18px; }
   .inspector {
@@ -744,7 +736,7 @@ body.locked .status-strip { box-shadow: inset 0 -2px 0 var(--led-amber); }
 .brand-sub { font-size: 12px; font-weight: 600; color: var(--accent-cyan); letter-spacing: 0.1em; margin-left: 6px; }
 
 /* Top Bar */
-.topbar { gap: 8px; padding: 6px 12px; background: #12151A; border-bottom: 1px solid var(--border-light); }
+.control-bar { gap: 8px; padding: 6px 12px; background: #12151A; border-bottom: 1px solid var(--border-light); }
 .select-badge {
   display: inline-flex; align-items: center; gap: 6px;
   padding: 5px 10px; border-radius: 6px; border: 1px solid var(--accent-cyan);
@@ -1001,4 +993,128 @@ body.locked .status-strip { box-shadow: inset 0 -2px 0 var(--led-amber); }
   .knob-cell.big .knob-svg { width: min(100%, 118px); max-height: 16vh; }
   .stage-card .mute-switch { min-height: 30px; font-size: 12px; }
   .stage-card .scribble-name { font-size: 14px; }
+}
+
+
+/* ============================================================================
+   Live Console layout: header, control bar, per-section fader bank
+   Four control classes, one home each: navigation (header), show control and
+   edit tools (control bar), safety (header, right, set apart).
+   ============================================================================ */
+.app-header { flex-wrap: nowrap; gap: 10px; padding: 4px 12px; min-height: 52px; }
+.app-header .cue-groups { flex: 1 1 auto; justify-content: center; max-width: 520px; margin: 0 auto; }
+.app-header .cue-group { min-height: 44px; }
+.app-header .scene-display { flex-shrink: 0; }
+.safety-cluster { display: flex; align-items: center; gap: 6px; margin-left: 10px; padding-left: 14px; border-left: 1px solid var(--border-light); flex-shrink: 0; }
+.safety-cluster .hw-btn { min-height: 44px; }
+.control-bar { display: flex; align-items: center; gap: 12px; padding: 4px 12px; flex-wrap: nowrap; }
+.edit-tools { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.edit-tools .hw-btn, .select-badge { min-height: 44px; }
+.show-control { display: flex; align-items: center; gap: 8px; margin-left: auto; padding-left: 14px; border-left: 1px solid var(--border-light); flex-shrink: 0; }
+.show-control .group-label { color: var(--accent-amber); }
+.hw-btn[hidden], .show-mode-undo[hidden] { display: none; }
+body[data-section="setup"] .control-bar, body[data-section="setup"] .cue-tabs { display: none; }
+
+/* Fader bank size follows the section. Mix > Faders: the bank is the screen. */
+body[data-tab="mixer"] .top-pane { display: none; }
+body[data-tab="mixer"] .split-workspace .console-bank { flex: 1 1 auto; }
+body[data-section="presets"] .console-bank, body[data-section="setup"] .console-bank { display: none; }
+body[data-section="presets"] .top-pane, body[data-section="setup"] .top-pane { flex: 1 1 auto; border-bottom: 0; }
+/* Compact bank (Sound, Stage): level and mute only. */
+body[data-section="sound"] .split-workspace .console-bank,
+body[data-tab="stage"] .split-workspace .console-bank { flex: 0 0 auto; min-height: 0; height: 232px; }
+body[data-section="sound"] .top-pane, body[data-tab="stage"] .top-pane { flex: 1 1 auto; }
+body[data-section="sound"] .strip-info, body[data-tab="stage"] .strip-info,
+body[data-section="sound"] .lamp-row, body[data-tab="stage"] .lamp-row,
+body[data-section="sound"] .strip-pan-ctrl, body[data-tab="stage"] .strip-pan-ctrl,
+body[data-section="sound"] .strip-pan, body[data-tab="stage"] .strip-pan { display: none; }
+body[data-section="sound"] .fader-zone, body[data-tab="stage"] .fader-zone { min-height: 70px; }
+/* Full bank (Mix > Faders): per-strip summary is visible. */
+.strip-info { display: flex; flex-direction: column; gap: 4px; padding: 0 2px; }
+.strip-info .ov-eq-svg, .strip-info .ov-comp-box { cursor: pointer; }
+@media (max-height: 760px) { body[data-tab="mixer"] .strip-info .ov-curves { display: none; } }
+
+/* Setup: full-screen page with a left list, no fader bank. */
+.setup-layout { display: grid; grid-template-columns: 200px minmax(0, 1fr); gap: 12px; flex: 1; min-height: 0; }
+.setup-list { display: flex; flex-direction: column; gap: 4px; }
+.setup-item {
+  min-height: 44px; text-align: left; padding: 8px 12px; border-radius: 5px;
+  border: 1px solid var(--border-dark); background: var(--bg-well); color: var(--text-secondary);
+  font-size: 14px; font-weight: 700; letter-spacing: 0.06em; cursor: pointer;
+}
+.setup-item:hover { color: var(--text-primary); }
+.setup-item.active { background: var(--bg-card); color: var(--text-primary); border-color: var(--accent-cyan); box-shadow: inset 3px 0 0 var(--accent-cyan); }
+.setup-body { min-width: 0; overflow-y: auto; }
+.setup-section { margin-top: 18px; padding-top: 12px; border-top: 1px solid var(--border-light); }
+
+.btn-text { white-space: pre; }
+
+@media (max-width: 1180px) {
+  .app-header .link-lamps { gap: 8px; }
+  .app-header .clock { display: none; }
+}
+@media (max-width: 999px) {
+  .app-header .link-lamps { display: none; }
+}
+/* Phone: row 1 = brand, link pill, safety; row 2 = sections. Header stays under 120 px. */
+@media (max-width: 760px) {
+  .app-header { flex-wrap: wrap; gap: 6px 8px; padding: 4px 8px; min-height: 0; }
+  .app-header .brand-sub, .app-header .scene-display, .app-header .clock, .app-header .all-muted-chip { display: none; }
+  .app-header .status-pill { flex: 0 1 auto; min-width: 0; }
+  .app-header .cue-groups { order: 3; flex: 1 0 100%; max-width: none; margin: 0; }
+  .app-header .cue-group { max-width: none; }
+  .safety-cluster { margin-left: auto; padding-left: 8px; }
+  .control-bar { overflow-x: auto; gap: 8px; padding: 4px 8px; }
+  .control-bar .show-control { order: -1; margin-left: 0; padding-left: 0; border-left: 0; }
+  .control-bar .show-control .group-label { display: none; }
+  .control-bar .edit-tools { flex-shrink: 0; }
+  .btn-text { display: none; }
+  .select-badge .select-name { display: none; }
+  .setup-layout { grid-template-columns: 1fr; grid-template-rows: auto minmax(0, 1fr); }
+  .setup-list { flex-direction: row; overflow-x: auto; }
+  .setup-item { white-space: nowrap; }
+  body[data-section="sound"] .split-workspace .console-bank,
+  body[data-tab="stage"] .split-workspace .console-bank { height: 214px; }
+  body[data-tab="mixer"] .strip-info .ov-sends, body[data-tab="mixer"] .strip-info .ov-curves { display: none; }
+}
+
+/* Touch (WCAG 2.2 target size, project rule 44 px): every control a finger can hit. */
+@media (pointer: coarse) {
+  button, select, [role="button"], .seg-btn, .cat-chip, .eq-band-pill, .setup-item { min-height: 44px; }
+  .hw-btn.icon, .btn-text + *, #btn-undo, #btn-redo, .cue-tab, .cat-chip, .eq-band-pill, .seg-btn { min-width: 44px; }
+  input[type="range"] { min-height: 44px; }
+  .ov-eq-svg { height: 44px; }
+  .ov-comp-box { min-height: 44px; min-width: 44px; }
+  .ov-curves { grid-template-columns: 1fr 44px; }
+  .strip-pan-ctrl input[type="range"] { height: 44px; }
+}
+@media (pointer: coarse) {
+  #btn-eq-reset { min-height: 44px; min-width: 44px; }
+  .bus-select { min-width: 44px; }
+}
+@media (max-width: 760px) {
+  .strip-pan-ctrl .strip-pan-val { display: none; } /* the slider is the control; its value shows in the inspector */
+  .strip-pan-ctrl input[type="range"] { min-width: 44px; }
+}
+
+/* Header never wraps its labels; lamps are secondary detail (the pill carries the state). */
+.app-header .brand-mark, .app-header .status-pill, .app-header .link, .app-header .scene-display, .app-header .cue-group { white-space: nowrap; }
+@media (max-width: 1180px) {
+  .app-header .link-lamps { display: none; }
+  .app-header .brand-sub { display: none; }
+}
+body[data-section="sound"] .split-workspace .console-bank,
+body[data-tab="stage"] .split-workspace .console-bank { height: 268px; }
+body[data-section="sound"] .strip.master .scribble, body[data-tab="stage"] .strip.master .scribble { padding-bottom: 2px; }
+@media (max-width: 760px) {
+  body[data-section="sound"] .split-workspace .console-bank,
+  body[data-tab="stage"] .split-workspace .console-bank { height: 250px; }
+}
+body[data-section="sound"] .strip-readout, body[data-tab="stage"] .strip-readout { flex: 0 0 auto; }
+body[data-section="sound"] .fader-well, body[data-tab="stage"] .fader-well { min-height: 0; }
+@media (max-width: 760px) {
+  body[data-section="sound"] .split-workspace .console-bank,
+  body[data-tab="stage"] .split-workspace .console-bank { height: 292px; }
+  body[data-section="sound"] .fader-zone, body[data-tab="stage"] .fader-zone { min-height: 100px; }
+  body[data-section="sound"] .fader-well, body[data-tab="stage"] .fader-well { min-height: 100px; }
 }

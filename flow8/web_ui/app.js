@@ -210,11 +210,11 @@
       return { ok: false, pill, banner: `MIXER NOT CONNECTED — ${usbWhy}`, title: usbWhy };
     }
     if (mode === 'ble') {
-      return { ok: false, pill: ble.connected ? 'BLE WAITING' : 'BLE NOT FOUND', banner: `MIXER NOT CONNECTED — ${bleWhy} Switch to USB MIDI on Setup, Routing if you have the cable.`, title: bleWhy };
+      return { ok: false, pill: ble.connected ? 'BLE WAITING' : 'BLE NOT FOUND', banner: `MIXER NOT CONNECTED — ${bleWhy} Switch to USB MIDI on Setup, Connection if you have the cable.`, title: bleWhy };
     }
     const usbOk = !!usb.connected;
     const text = usbOk
-      ? `HYBRID mode needs Bluetooth for commands. USB is ready, but ${bleWhy} Switch to USB MIDI on Setup, Routing.`
+      ? `HYBRID mode needs Bluetooth for commands. USB is ready, but ${bleWhy} Switch to USB MIDI on Setup, Connection.`
       : `${usbWhy} ${bleWhy}`;
     return { ok: false, pill: usbOk ? 'HYBRID: BLE DOWN' : 'NOT CONNECTED', banner: `MIXER NOT CONNECTED — ${text}`, title: text };
   }
@@ -948,6 +948,30 @@
     return { sid: layer, fader: b.fader, prov: b.faderProvenance, commit: (v) => postAction({ action: 'setBusFader', bus: layer, value: v }) };
   }
 
+  // Read-only summary under each scribble strip (full-size bank only): input
+  // type, locked-feature chips, sends, EQ curve and compressor. Moved here from
+  // the old overview pane so the strips are shown once.
+  function stripInfo(ch) {
+    const gainStr = ch.index <= 4 ? gainText(ch.gain) : 'LINE';
+    const compVal = ch.index <= 4 ? Math.round(((ch.compressor || 0) / 127) * 100) : null;
+    const s = ch.sends || {};
+    const bar = (label, v, color) => `<div class="ov-send-row"><span>${label}</span><div class="ov-send-track"><div class="ov-send-fill" style="width:${Math.round(((v || 0) / 127) * 100)}%;background:${color}"></div></div></div>`;
+    return `<div class="strip-info">
+      <div class="ov-head"><span class="ov-tag">${ch.index <= 4 ? 'GAIN' : 'INPUT'}</span><span class="ov-gain" title="${esc(lockReason('gain'))}">${gainStr}</span></div>
+      <div class="ov-chips">
+        <span class="ov-chip locked" title="${esc(lockReason('routing'))}">Ø</span>
+        ${ch.index <= 2 ? `<span class="ov-chip locked" title="${esc(lockReason('phantom'))}">48V</span>` : ''}
+        ${ch.index >= 5 && ch.index <= 6 ? `<span class="ov-chip locked" title="${esc(lockReason('stereoLink'))}">LINK</span>` : ''}
+        ${ch.index <= 4 ? `<span class="ov-chip">LC ${hpfHz(ch.lowCut || 0)}</span>` : ''}
+      </div>
+      <div class="ov-sends">${bar('M1', s.mon1, '#34D399')}${bar('M2', s.mon2, '#34D399')}${bar('FX1', s.fx1, '#A78BFA')}${bar('FX2', s.fx2, '#A78BFA')}</div>
+      <div class="ov-curves">
+        <svg class="ov-eq-svg" viewBox="0 0 60 22" preserveAspectRatio="none" role="button" tabindex="0" aria-label="Open EQ for channel ${ch.index}"><line x1="0" y1="11" x2="60" y2="11" stroke="#242933" stroke-width="1"/><path d="${eqThumbPath(ch)}"/></svg>
+        <div class="ov-comp-box" role="button" tabindex="0" aria-label="Open compressor for channel ${ch.index}">${compVal == null ? '—' : ch.compressorProvenance === 'UNSYNCED' ? '--' : `${compVal}%`}</div>
+      </div>
+    </div>`;
+  }
+
   function renderConsole() {
     if (!session) return;
     const link = linkSummary(session);
@@ -989,6 +1013,7 @@
           </div>
           <div class="scribble-name" title="${esc(name)}">${esc(name)}</div>
         </div>
+        ${stripInfo(ch)}
         <div class="lamp-row">${LAMPS(sid, prov)}</div>
         <div class="strip-pan-ctrl" title="Pan L–C–R">
           <input type="range" min="0" max="127" value="${ch.pan}" aria-label="${esc(name)} pan" />
@@ -1005,6 +1030,14 @@
       strip.querySelector('.scribble').onkeydown = (e) => {
         if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectChannel(ch.index); }
       };
+      const openTool = (tab) => (e) => {
+        if (e.type === 'keydown' && e.key !== 'Enter' && e.key !== ' ') return;
+        e.preventDefault(); e.stopPropagation(); selectChannel(ch.index, tab);
+      };
+      const eqThumb = strip.querySelector('.ov-eq-svg');
+      const compBox = strip.querySelector('.ov-comp-box');
+      eqThumb.onclick = eqThumb.onkeydown = openTool('eq');
+      compBox.onclick = compBox.onkeydown = openTool('comp');
       const panInput = strip.querySelector('.strip-pan-ctrl input');
       const panLabel = strip.querySelector('.strip-pan-val');
       panInput.oninput = () => { panLabel.textContent = panText(+panInput.value); strip.classList.remove('pan-unk'); };
@@ -1461,22 +1494,6 @@
   }
 
   // ---------- Setup view ----------
-  const SETUP_PAGES = {
-    inputs: renderInputsPage, snapshots: renderSnapshotsPage, library: renderLibraryPage,
-    showmodes: renderShowModesPage, prefs: renderPrefsPage, routing: renderRoutingPage, info: renderInfoPage,
-  };
-  function renderSetup() {
-    document.querySelectorAll('.setup-tab').forEach((t) => {
-      const on = t.dataset.page === setupPage;
-      t.classList.toggle('active', on);
-      t.setAttribute('aria-current', on ? 'page' : 'false');
-    });
-    const page = document.getElementById('setup-page');
-    const scroll = page.scrollTop;
-    page.innerHTML = '';
-    SETUP_PAGES[setupPage](page);
-    page.scrollTop = scroll;
-  }
   function pageHead(page, title, actions = '') {
     const head = document.createElement('div');
     head.className = 'page-head';
@@ -1640,7 +1657,7 @@
       <a class="key-btn" id="lib-export" href="/api/library/export" download="flow8-snapshot-library.json">EXPORT</a>
       <button class="key-btn accent" id="lib-new">NEW</button>`);
     page.querySelectorAll('[data-sort]').forEach((b) => {
-      b.onclick = () => { prefs.librarySort = b.dataset.sort; savePrefs(); renderSetup(); };
+      b.onclick = () => { prefs.librarySort = b.dataset.sort; savePrefs(); renderTopPane(); };
     });
     page.querySelector('#lib-new').onclick = async () => {
       const name = await promptName('NEW SNAPSHOT', '', 'SAVE');
@@ -1976,58 +1993,6 @@
     }
     d += ` T ${xs[3].toFixed(1)} ${ys[3].toFixed(1)} L ${w} ${h / 2}`;
     return d;
-  }
-
-  function renderMixerOverview(pane) {
-    const grid = document.createElement('div');
-    grid.className = 'mixer-overview-grid';
-    session.channels.filter((c) => c.index <= 7).forEach((ch) => {
-      const isSel = ch.index === selectedCh;
-      const col = document.createElement('div');
-      col.className = 'ov-col' + (isSel ? ' selected' : '');
-      const gainStr = ch.index <= 4 ? gainText(ch.gain) : 'LINE';
-      const compVal = ch.index <= 4 ? Math.round(((ch.compressor || 0) / 127) * 100) : null;
-      const s = ch.sends || {};
-      col.innerHTML = `
-        <div class="ov-head">
-          <span class="ov-tag">${String(ch.index).padStart(2, '0')} ${esc(chName(ch)).slice(0, 8)}</span>
-          <span class="ov-gain" title="${esc(lockReason('gain'))}">${gainStr}</span>
-        </div>
-        <div class="ov-chips">
-          <span class="ov-chip locked" title="${esc(lockReason('routing'))}">Ø</span>
-          ${ch.index <= 2 ? `<span class="ov-chip locked" title="${esc(lockReason('phantom'))}">48V</span>` : ''}
-          ${ch.index >= 5 && ch.index <= 6 ? `<span class="ov-chip locked" title="${esc(lockReason('stereoLink'))}">LINK</span>` : ''}
-          ${ch.index <= 4 ? `<span class="ov-chip">LC ${hpfHz(ch.lowCut || 0)}</span>` : ''}
-        </div>
-        <div class="ov-sends">
-          <div class="ov-send-row"><span>M1</span><div class="ov-send-track"><div class="ov-send-fill" style="width:${Math.round(((s.mon1 || 0) / 127) * 100)}%;background:#34D399"></div></div></div>
-          <div class="ov-send-row"><span>M2</span><div class="ov-send-track"><div class="ov-send-fill" style="width:${Math.round(((s.mon2 || 0) / 127) * 100)}%;background:#34D399"></div></div></div>
-          <div class="ov-send-row"><span>FX1</span><div class="ov-send-track"><div class="ov-send-fill" style="width:${Math.round(((s.fx1 || 0) / 127) * 100)}%;background:#A78BFA"></div></div></div>
-          <div class="ov-send-row"><span>FX2</span><div class="ov-send-track"><div class="ov-send-fill" style="width:${Math.round(((s.fx2 || 0) / 127) * 100)}%;background:#A78BFA"></div></div></div>
-        </div>
-        <div class="ov-curves">
-          <svg class="ov-eq-svg" viewBox="0 0 60 22" preserveAspectRatio="none" title="Tap to open EQ">
-            <line x1="0" y1="11" x2="60" y2="11" stroke="#242933" stroke-width="1"/>
-            <path d="${eqThumbPath(ch)}"/>
-          </svg>
-          <div class="ov-comp-box" title="Tap to open Comp">${compVal == null ? '—' : ch.compressorProvenance === 'UNSYNCED' ? '--' : `${compVal}%`}</div>
-        </div>
-      `;
-      col.onclick = () => selectChannel(ch.index);
-      col.querySelector('.ov-eq-svg').onclick = (e) => { e.stopPropagation(); selectChannel(ch.index, 'eq'); };
-      col.querySelector('.ov-comp-box').onclick = (e) => { e.stopPropagation(); selectChannel(ch.index, 'comp'); };
-      grid.appendChild(col);
-    });
-    const m = masterOf(activeLayer);
-    const mCol = document.createElement('div');
-    mCol.className = 'ov-col master-col';
-    mCol.innerHTML = `
-      <div class="ov-head"><span class="ov-tag">${LAYERS[activeLayer].label}</span><span class="ov-gain">${m.prov === 'UNSYNCED' ? '--' : midiToDbStr(m.fader)}</span></div>
-      <div class="ov-chips"><span class="ov-chip locked">9-GEQ</span><span class="ov-chip locked">LIMIT</span></div>
-      <p class="sec-note" style="margin:auto 0 0;font-size:12px;">Tap any strip to select · Double-click EQ or Comp to edit</p>
-    `;
-    grid.appendChild(mCol);
-    pane.appendChild(grid);
   }
 
   function renderCueEqTab(pane) {
@@ -2376,27 +2341,40 @@
   }
 
   function renderCueSetupTab(pane) {
-    const nav = document.createElement('div');
-    nav.className = 'cat-chips';
     const pages = [
-      ['inputs', 'CONFIGURE INPUTS'],
-      ['snapshots', 'MIXER SNAPSHOTS (15)'],
-      ['library', 'SNAPSHOT LIBRARY'],
-      ['showmodes', 'SHOW MODES'],
-      ['prefs', 'PREFERENCES'],
-      ['routing', 'ROUTING'],
-      ['info', 'INFO'],
+      ['inputs', 'Inputs'],
+      ['snapshots', 'Snapshots'],
+      ['showmodes', 'Show modes'],
+      ['prefs', 'Preferences'],
+      ['routing', 'Connection'],
+      ['info', 'Info'],
     ];
-    nav.innerHTML = pages.map(([id, label]) => `<button class="cat-chip ${setupPage === id ? 'active' : ''}" data-sp="${id}">${label}</button>`).join('');
-    nav.querySelectorAll('.cat-chip').forEach((b) => {
+    if (setupPage === 'library') setupPage = 'snapshots'; // the library now lives on the Snapshots page
+    if (!pages.some(([id]) => id === setupPage)) setupPage = 'inputs';
+    const layout = document.createElement('div');
+    layout.className = 'setup-layout';
+    const nav = document.createElement('nav');
+    nav.className = 'setup-list';
+    nav.setAttribute('aria-label', 'Setup pages');
+    nav.innerHTML = pages.map(([id, label]) =>
+      `<button class="setup-item${setupPage === id ? ' active' : ''}" data-sp="${id}"${setupPage === id ? ' aria-current="page"' : ''}>${label}</button>`).join('');
+    nav.querySelectorAll('.setup-item').forEach((b) => {
       b.onclick = () => { setupPage = b.dataset.sp; renderTopPane(); };
     });
-    pane.appendChild(nav);
     const body = document.createElement('div');
-    pane.appendChild(body);
+    body.className = 'setup-body';
+    layout.append(nav, body);
+    pane.appendChild(layout);
     if (setupPage === 'inputs') renderInputsPage(body);
-    else if (setupPage === 'snapshots') renderSnapshotsPage(body);
-    else if (setupPage === 'library') renderLibraryPage(body);
+    else if (setupPage === 'snapshots') {
+      // Scene slots and the saved library, stacked on one page (no second menu).
+      const slots = document.createElement('section');
+      const lib = document.createElement('section');
+      lib.className = 'setup-section';
+      body.append(slots, lib);
+      renderSnapshotsPage(slots);
+      renderLibraryPage(lib);
+    }
     else if (setupPage === 'showmodes') renderShowModesPage(body);
     else if (setupPage === 'prefs') renderPrefsPage(body);
     else if (setupPage === 'routing') renderRoutingPage(body);
@@ -2661,8 +2639,8 @@
     const pane = document.getElementById('top-pane');
     if (!pane || !session) return;
     pane.innerHTML = '';
-    if (topTab === 'mixer') renderMixerOverview(pane);
-    else if (topTab === 'stage') {
+    if (topTab === 'mixer') return; // Mix > Faders is the fader bank itself; no second copy of the strips
+    if (topTab === 'stage') {
       const stageHost = document.createElement('div');
       stageHost.className = 'stage-view';
       pane.appendChild(stageHost);
@@ -2680,8 +2658,8 @@
   // ---------- Views ----------
   // Ten views in four sections. Presets and Setup are single views, so they have no second row.
   const TAB_GROUP = {
-    mixer: 'mix', stage: 'mix', channel: 'mix',
-    input: 'sound', eq: 'sound', comp: 'sound', sends: 'sound', fx: 'sound',
+    mixer: 'mix', stage: 'mix',
+    input: 'sound', eq: 'sound', comp: 'sound', sends: 'sound', fx: 'sound', channel: 'sound',
     presets: 'presets', setup: 'setup',
   };
   const lastTabInGroup = { mix: 'mixer', sound: 'eq', presets: 'presets', setup: 'setup' };
@@ -2689,6 +2667,8 @@
     if (!session) return;
     document.body.dataset.view = view;
     const group = TAB_GROUP[topTab] || 'mix';
+    document.body.dataset.section = group; // CSS picks header tools and fader-bank size from these
+    document.body.dataset.tab = topTab;
     lastTabInGroup[group] = topTab;
     document.querySelectorAll('.cue-group').forEach((g) => {
       const on = g.dataset.group === group;
@@ -2939,8 +2919,6 @@
     if (res.ok) showToast(`Pasted DSP from ${dspClipboard.sourceName} to CH ${String(ch.index).padStart(2, '0')} (1 undo step).`);
     loadSession();
   };
-  document.getElementById('setup-close').onclick = () => setView(lastLiveView);
-  document.querySelectorAll('.setup-tab').forEach((t) => { t.onclick = () => setView('setup', t.dataset.page); });
   document.getElementById('insp-prev').onclick = () => stepInspector(-1);
   document.getElementById('insp-next').onclick = () => stepInspector(1);
 
