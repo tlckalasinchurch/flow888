@@ -38,6 +38,8 @@ app/
 investigation.cany/
 cueair_extracted/
 rea_setup_output.json
+tools/output/
+tools/__pycache__/
 
 # --- OS / editor noise ----------------------------------------------------
 Thumbs.db
