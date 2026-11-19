@@ -25,7 +25,7 @@ from flow8.ui.components.controls import (
     VerticalFader,
 )
 from flow8.ui.components.command_log import CommandLogPanel
-from flow8.ui.components.scene_bar import SceneBar, slot_name
+from flow8.ui.components.scene_bar import SLOT_COUNT, SceneBar, slot_name
 from flow8.ui.components.channel_detail import (
     MAIN_TARGET,
     ChannelDetailPanel,
@@ -2127,7 +2127,7 @@ class MixerConsole(tk.Frame):
             names = set(self.service.scenes.names())
         except Exception:
             return set()
-        return {slot for slot in range(1, 9) if slot_name(slot) in names}
+        return {slot for slot in range(1, SLOT_COUNT + 1) if slot_name(slot) in names}
 
     def _refresh_scene_slots(self) -> None:
         self.scene_bar.set_populated(self._saved_slots())

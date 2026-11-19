@@ -150,5 +150,100 @@ class HubSnapshotTests(unittest.TestCase):
         ctx.exception.close()
 
 
+class DesktopScenesViewAndThaiLibraryTests(unittest.TestCase):
+    def setUp(self):
+        import tkinter as tk
+        from flow8.ui import theme
+        from flow8.ui.app import Flow8App
+
+        self.root = tk.Tk()
+        self.root.withdraw()
+        self.service = Flow8Service(auto_connect=False)
+        self.app = Flow8App(root=self.root, service=self.service, show_placeholder=False)
+        self.addCleanup(self.app.close)
+        self.view = self.app.scenes_view
+
+    def test_fifteen_slots_reset_lock_and_what_to_load_partial_recall(self):
+        # 15 slots + safety-locked slot 16 RESET
+        self.assertEqual(sorted(self.view._slot_rows.keys()), list(range(1, 16)))
+        self.assertEqual(str(self.view.reset_slot_btn.cget("state")), "disabled")
+        self.assertIn("ROUT (LOCKED)", str(self.view.rout_scope_label.cget("text")))
+
+        # Seed CH 1 fader + MON 1 send + FX 1 bus master + Main L/R fader
+        self.service.set_fader(1, 85)
+        self.service.set_send(1, "mon1", 65, unit="raw")
+        self.service.set_bus_fader("fx1", 72)
+        self.service.set_fader(8, 100)
+        self.view._capture_slot(15)
+        self.assertIn("SCENE 15", self.service.scenes.names())
+        self.assertFalse(self.view.scene_edited)
+
+        # Modify all 4 scopes
+        self.service.set_fader(1, 20)
+        self.service.set_send(1, "mon1", 10, unit="raw")
+        self.service.set_bus_fader("fx1", 15)
+        self.service.set_fader(8, 50)
+
+        # Partial recall: only MON + FX checked in WHAT TO LOAD
+        self.view.set_recall_scope(["MON", "FX"])
+        self.view._recall_slot(15)
+        self.assertTrue(self.view.scene_edited)
+        self.assertIn("EDITED", self.view.current_scene_var.get())
+        self.assertEqual(self.service.state_store.get_parameter("ch1.send_mon1").commanded_raw_midi, 65)
+        self.assertEqual(self.service.state_store.get_parameter("fx1.fader").commanded_raw_midi, 72)
+        # CH and MAIN were excluded by WHAT TO LOAD -> remain untouched
+        self.assertEqual(self.service.state_store.get_parameter("ch1.fader").commanded_raw_midi, 20)
+        self.assertEqual(self.service.state_store.get_parameter("main.fader").commanded_raw_midi, 50)
+
+        # Full recall clears EDITED marker and restores all scopes
+        self.view.set_recall_scope(["CH", "FX", "MAIN", "MON"])
+        self.view._recall_slot(15)
+        self.assertFalse(self.view.scene_edited)
+        self.assertEqual(self.view.current_scene_var.get(), "SCENE 15")
+        self.assertEqual(self.service.state_store.get_parameter("ch1.fader").commanded_raw_midi, 85)
+        self.assertEqual(self.service.state_store.get_parameter("main.fader").commanded_raw_midi, 100)
+
+    def test_thai_snapshot_library_search_sort_and_responsive_viewports(self):
+        self.service.set_fader(1, 90)
+        self.service.set_eq_band(1, "hi", 78, unit="raw")
+        saved_thai = self.view.save_to_library("อาจารย์ สรรเสริญ")
+        self.assertIsNotNone(saved_thai)
+        self.assertEqual(saved_thai["name"], "อาจารย์ สรรเสริญ")
+
+        self.service.set_fader(1, 68)
+        saved_worship = self.view.save_to_library("ทีมนมัสการ รอบเช้า")
+        self.assertIsNotNone(saved_worship)
+
+        # Search by Thai substring
+        self.view.search_var.set("สรรเสริญ")
+        filtered = self.view.filtered_library_entries()
+        self.assertEqual(len(filtered), 1)
+        self.assertEqual(filtered[0]["name"], "อาจารย์ สรรเสริญ")
+
+        # Clear search, sort by name, and load preset
+        self.view.search_var.set("")
+        self.view.toggle_sort_mode()
+        self.assertEqual(self.view.sort_mode_var.get(), "name")
+        self.assertTrue(self.view.load_library_entry(saved_thai["id"]))
+        self.assertEqual(self.service.state_store.get_parameter("ch1.fader").commanded_raw_midi, 90)
+
+        # Verify Thai labels and 15-slot grid render without clipping at 1280x720 and 1366x768
+        self.app.show_page("scenes")
+        self.root.deiconify()
+        self.root.minsize(1280, 680)
+        for geom in ("1280x720+0+0", "1366x768+0+0"):
+            self.root.geometry(geom)
+            self.root.update()
+            self.root.update_idletasks()
+            row_info = self.view.library_row_widgets[saved_thai["id"]]
+            lbl = row_info["name_label"]
+            self.assertEqual(str(lbl.cget("text")), "อาจารย์ สรรเสริญ")
+            self.assertGreaterEqual(lbl.winfo_width(), lbl.winfo_reqwidth(), f"Thai preset clipped at {geom}")
+            self.assertLessEqual(
+                self.view.winfo_rooty() + self.view.winfo_height(),
+                self.root.winfo_rooty() + self.root.winfo_height(),
+            )
+
+
 if __name__ == "__main__":
     unittest.main()

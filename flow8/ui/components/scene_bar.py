@@ -13,11 +13,11 @@ from typing import Callable, Iterable, Optional
 
 from flow8.ui import theme
 
-SLOT_COUNT = 8
+SLOT_COUNT = 15
 
 
 def slot_name(slot: int) -> str:
-    """The service-side scene name for a UI slot (1-8)."""
+    """The service-side scene name for a UI slot (1-15)."""
     return f"SCENE {slot}"
 
 
@@ -47,25 +47,42 @@ class SceneBar(tk.Frame):
         tk.Label(
             self, text="SCENES", font=self.fonts["status_key"],
             fg=colors["text_secondary"], bg=colors["background"],
-        ).pack(side="left", padx=(0, 6))
+        ).pack(side="left", padx=(0, 4))
+
+        slots_grid = tk.Frame(self, bg=colors["background"])
+        slots_grid.pack(side="left")
 
         for slot in range(1, SLOT_COUNT + 1):
             button = tk.Button(
-                self,
-                font=self.fonts["caption"],
+                slots_grid,
+                font=self.fonts["status_key"],
                 bd=0,
                 relief="flat",
                 cursor="hand2",
-                padx=3,
-                pady=1,
-                highlightthickness=2,
+                padx=2,
+                pady=0,
+                highlightthickness=1,
                 command=lambda s=slot: self.select_slot(s),
             )
-            button.pack(side="left", padx=1)
+            row = 0 if slot <= 8 else 1
+            col = (slot - 1) if slot <= 8 else (slot - 9)
+            button.grid(row=row, column=col, padx=1, pady=0, sticky="ew")
             self.slot_buttons[slot] = button
 
+        # 16th cell in the 2x8 grid: safety-locked hardware RESET indicator (PC 16 blocked)
+        self.reset_indicator = tk.Label(
+            slots_grid,
+            text="RST",
+            font=self.fonts["status_key"],
+            fg=colors["warning"],
+            bg=colors["safety_bg"],
+            padx=2,
+            pady=0,
+        )
+        self.reset_indicator.grid(row=1, column=7, padx=1, pady=0, sticky="ew")
+
         self.capture_button = self._action_button("CAPTURE", self._capture_clicked)
-        self.capture_button.pack(side="left", padx=(8, 2))
+        self.capture_button.pack(side="left", padx=(6, 2))
         self.recall_button = self._action_button("RECALL", self._recall_clicked)
         self.recall_button.pack(side="left")
 

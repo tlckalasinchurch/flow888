@@ -29,7 +29,7 @@ class SceneManager:
         "send_mon1", "send_mon2", "send_fx1", "send_fx2",
     })
 
-    def __init__(self, max_snapshots: int = 8, state_provider: Optional[Callable[[], Mapping[Any, Mapping[str, Any]]]] = None,
+    def __init__(self, max_snapshots: int = 15, state_provider: Optional[Callable[[], Mapping[Any, Mapping[str, Any]]]] = None,
                  state_loader: Optional[Callable[[Mapping[Any, Mapping[str, Any]]], Any]] = None):
         if max_snapshots < 1:
             raise ValueError("max_snapshots must be positive")

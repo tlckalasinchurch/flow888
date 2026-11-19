@@ -431,6 +431,9 @@ class Flow8App:
             return False
         from flow8.lan_hub import Flow8LanHub
         hub = Flow8LanHub(self.service)
+        sv = getattr(self, "scenes_view", None)
+        if sv is not None and hasattr(sv, "library"):
+            hub.library = sv.library
         try:
             hub.start()
         except Exception as exc:

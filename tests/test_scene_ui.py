@@ -53,7 +53,7 @@ class _Case(unittest.TestCase):
 
 class SlotStateTests(_Case):
     def test_eight_slots_start_empty_and_recall_is_disabled(self):
-        self.assertEqual(sorted(self.bar.slot_buttons), list(range(1, 9)))
+        self.assertEqual(sorted(self.bar.slot_buttons), list(range(1, 16)))
         for slot, button in self.bar.slot_buttons.items():
             self.assertFalse(self.bar.slot_populated(slot))
             self.assertEqual(button.cget("text"), f"{slot}○")
