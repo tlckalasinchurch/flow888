@@ -31,6 +31,7 @@ from flow8.parameter_mapping import fader_midi_to_db, pan_midi_to_percent
 from flow8.scenes import SceneManager, SceneSnapshot
 from flow8.state_model import EventSource, Flow8StateStore, ParameterProvenance, ParameterState
 from flow8.telemetry import TelemetryStats, decode, inbound_parameter_map, observed_value
+from flow8.transport_router import TRANSPORT_FEATURES, TransportRouter
 
 
 LEDGER_CAPACITY = 50
@@ -97,9 +98,16 @@ class Flow8Service:
         self.state_store = Flow8StateStore()
         self.midi_out = Flow8MidiOut()
         self.midi_in = Flow8MidiIn()
+        # Single-writer transport router: every boundary command is routed to
+        # exactly one of USB MIDI / BLE according to the active mode.
+        self._ble_transport: Any = None
+        self._transport_router = TransportRouter(
+            self.midi_out, ble_provider=lambda: self._ble_transport
+        )
         self.command_boundary = Flow8CommandBoundary(
             midi_out=self.midi_out,
             state_store=self.state_store,
+            transport_router=self._transport_router,
         )
         self.parameter_engine = Flow8ParameterEngine(
             command_boundary=self.command_boundary,
@@ -144,7 +152,6 @@ class Flow8Service:
         self._preview_lock = threading.Lock()
         self._previews: dict[str, dict[str, Any]] = {}
         self._transport_mode: str = "usb_midi"
-        self._ble_transport: Any = None
 
         if auto_connect:
             self.connect()
@@ -157,10 +164,16 @@ class Flow8Service:
             return self._transport_mode
 
     def set_transport_mode(self, mode: str) -> str:
-        """Switch between 'usb_midi', 'ble', and 'hybrid' (BLE 2-way + USB meters)."""
+        """Switch between 'usb_midi', 'ble', and 'hybrid' (BLE faders + USB rest/meters).
+
+        The router enforces the single-writer policy: in 'ble' mode only the
+        verified BLE fader set (strips 1-6) is accepted; everything else is
+        rejected explicitly instead of silently falling back to USB.
+        """
         m_key = str(mode or "usb_midi").lower()
         if m_key not in ("usb_midi", "ble", "hybrid"):
             raise ValueError(f"Unsupported transport mode: {mode!r}")
+        self._transport_router.set_mode(m_key)
         with self._lock:
             self._transport_mode = m_key
             ble = self._ble_transport
@@ -170,6 +183,9 @@ class Flow8Service:
                 ble = BleTransport(
                     on_parameter=self._on_ble_parameter,
                     on_status=lambda _st: self._notify_listeners(STATE_CHANGED_EVENT, None),
+                    on_snapshot_names=lambda _names: self._notify_listeners(
+                        STATE_CHANGED_EVENT, None
+                    ),
                 )
                 with self._lock:
                     self._ble_transport = ble
@@ -324,6 +340,86 @@ class Flow8Service:
         """Most recent connection error, if a port could not be opened."""
         with self._lock:
             return self._connection_error
+
+    @property
+    def control_connected(self) -> bool:
+        """True when the *active control transport* is connected.
+
+        USB audio meters keep flowing over MIDI IN regardless of this flag;
+        this reports only whether commands can currently be dispatched.
+        """
+        mode = self._transport_router.mode
+        if mode == "usb_midi":
+            return self.midi_out.is_connected
+        with self._lock:
+            ble = self._ble_transport
+        if ble is None:
+            return False
+        snap = ble.status_snapshot()
+        return bool(snap.get("connected") and snap.get("authenticated"))
+
+    def transport_status(self) -> dict[str, Any]:
+        """Connection/transport/auth/error snapshot for UI and LAN hub."""
+        mode = self._transport_router.mode
+        with self._lock:
+            ble = self._ble_transport
+        ble_snap = ble.status_snapshot() if ble is not None else {
+            "connected": False,
+            "authenticated": False,
+            "deviceName": None,
+            "deviceAddress": None,
+            "error": None,
+        }
+        last_ble_error = ble_snap.get("error")
+        return {
+            "mode": mode,
+            "usb": {
+                "connected": self.midi_out.is_connected,
+                "listening": self.midi_in.is_listening,
+                "metersLive": self.meter_feed_live,
+                "error": self._connection_error,
+            },
+            "ble": {
+                "connected": bool(ble_snap.get("connected")),
+                "authenticated": bool(ble_snap.get("authenticated")),
+                "deviceName": ble_snap.get("device"),
+                "deviceAddress": ble_snap.get("address"),
+                "packetsRx": ble_snap.get("packetsRx", 0),
+                "packetsTx": ble_snap.get("packetsTx", 0),
+                "dumpChunks": ble_snap.get("dumpChunks", 0),
+                "dumpBytes": ble_snap.get("dumpBytes", 0),
+                "lastError": last_ble_error,
+                "error": last_ble_error,
+            },
+            "controlConnected": self.control_connected,
+            "lastError": (
+                last_ble_error
+                if mode in ("ble", "hybrid") and last_ble_error
+                else self._connection_error
+            ),
+            "features": TRANSPORT_FEATURES.get(mode, {}),
+            "featuresByTransport": TRANSPORT_FEATURES,
+        }
+
+    def state_sync_snapshot(self) -> dict[str, Any]:
+        """Per-parameter synchronization rollup for status reporting."""
+        counts: dict[str, int] = {}
+        divergent: list[str] = []
+        for param_id, snap in self.state_store.get_all_parameters().items():
+            key = str(snap.get("sync_status", "unknown"))
+            counts[key] = counts.get(key, 0) + 1
+            if key == "divergent":
+                divergent.append(param_id)
+        return {
+            "counts": counts,
+            "divergent": divergent,
+            "note": (
+                "commanded/observed values are tracked; hardware verification "
+                "requires an explicit observed confirmation (3068-byte state "
+                "dump decoding is not yet verified and is intentionally "
+                "unsupported)"
+            ),
+        }
 
     def add_listener(self, listener: Callable[[str, Any], None]) -> None:
         """Register listener for state changes: listener(param_id, value)."""
@@ -576,9 +672,6 @@ class Flow8Service:
             )
         else:
             return
-        if self._transport_mode in ("ble", "hybrid") and self._ble_transport is not None and 1 <= channel_index <= 6:
-            if self._ble_transport.is_connected:
-                self._ble_transport.send_fader(channel_index, clamped)
         self._record("fader", channel_index, previous, clamped)
 
     def set_bus_fader(self, bus_id: str, raw_value: int) -> None:

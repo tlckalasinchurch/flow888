@@ -53,11 +53,12 @@ class Flow8CommandRejectedError(Flow8CommandError):
 
 class DispatchStatus:
     """Explicit, non-overlapping dispatch outcomes."""
-    REJECTED = "REJECTED"                    # not in allowlist
+    REJECTED = "REJECTED"                    # not in allowlist / refused by transport policy
     VALIDATION_FAILED = "VALIDATION_FAILED"  # value out of range / bad type
     ACCEPTED_OFFLINE = "ACCEPTED_OFFLINE"    # validated + state committed, NOT sent
     DRIVER_DISPATCHED = "DRIVER_DISPATCHED"  # handed to WinMM (device may not have applied)
-    DISPATCH_FAILED = "DISPATCH_FAILED"      # connected, but the driver call failed
+    BLE_WRITE_ACCEPTED = "BLE_WRITE_ACCEPTED"  # GATT write accepted (mixer application unconfirmed)
+    DISPATCH_FAILED = "DISPATCH_FAILED"      # connected, but the transport call failed
 
 
 # MIDI channel assignment for the output/send buses (protocol chart sec. 3)
@@ -103,6 +104,8 @@ class CommandLogEntry:
     verification_level: Optional[VerificationLevel] = None
     midi_channel: Optional[int] = None
     midi_cc: Optional[int] = None
+    # Which control transport accepted the command ("usb_midi"/"ble"), if any.
+    transport: Optional[str] = None
 
 
 def _expected_channel_for_param(param_id: str) -> Optional[int]:
@@ -235,9 +238,18 @@ class Flow8CommandBoundary:
     # Structural self-check: a malformed allowlist fails at import, not at runtime.
     _validate_allowlist(ACTIVE_ALLOWLIST)
 
-    def __init__(self, midi_out: Flow8MidiOut, state_store: Flow8StateStore):
+    def __init__(
+        self,
+        midi_out: Flow8MidiOut,
+        state_store: Flow8StateStore,
+        transport_router: Optional[Any] = None,
+    ):
         self._midi_out = midi_out
         self._state_store = state_store
+        # Optional TransportRouter (flow8/transport_router.py). When present it
+        # is the single writer chooser for every command; when absent the
+        # legacy USB-only path below is used unchanged.
+        self._transport_router = transport_router
         self._lock = threading.RLock()
         self._log: List[CommandLogEntry] = []
 
@@ -436,20 +448,47 @@ class Flow8CommandBoundary:
         # 3. Hardware Dispatch (only if connected)
         dispatch_success = True
         driver_dispatched = False
+        transport_used: Optional[str] = None
+        transport_rejected: Optional[str] = None
         err_msg = None
-        if self._midi_out.is_connected:
-            try:
+        router = self._transport_router
+        try:
+            if router is not None:
+                # The router enforces the single-writer transport policy (USB /
+                # BLE / Hybrid). It runs inside dispatch_scope so a phantom-ON
+                # permit still wraps whichever transport performs the send.
+                with dispatch_scope:
+                    transport_used = router.dispatch(param_id, spec, raw_midi)
+                if transport_used is None:
+                    # No control transport connected: accepted but NOT sent.
+                    dispatch_status = DispatchStatus.ACCEPTED_OFFLINE
+                else:
+                    driver_dispatched = True
+                    dispatch_status = (
+                        DispatchStatus.BLE_WRITE_ACCEPTED
+                        if transport_used == "ble"
+                        else DispatchStatus.DRIVER_DISPATCHED
+                    )
+            elif self._midi_out.is_connected:
                 with dispatch_scope:
                     self._midi_out.send_cc(spec["channel"], spec["cc"], raw_midi)
                 driver_dispatched = True
+                transport_used = "usb_midi"
                 dispatch_status = DispatchStatus.DRIVER_DISPATCHED
-            except Exception as e:
-                dispatch_success = False
-                dispatch_status = DispatchStatus.DISPATCH_FAILED
-                err_msg = str(e)
-        else:
-            # Offline: validated and accepted, but NOTHING was sent to the driver.
-            dispatch_status = DispatchStatus.ACCEPTED_OFFLINE
+            else:
+                # Offline: validated and accepted, but NOTHING was sent to the driver.
+                dispatch_status = DispatchStatus.ACCEPTED_OFFLINE
+        except Flow8CommandRejectedError as rej:
+            # Transport policy refusal (e.g. parameter unsupported over BLE).
+            # Logged as REJECTED — distinct from an actual transport failure.
+            transport_rejected = str(rej)
+            dispatch_success = False
+            dispatch_status = DispatchStatus.REJECTED
+            err_msg = transport_rejected
+        except Exception as e:
+            dispatch_success = False
+            dispatch_status = DispatchStatus.DISPATCH_FAILED
+            err_msg = str(e)
 
         elapsed_us = (time.perf_counter() - t0) * 1e6
 
@@ -480,7 +519,7 @@ class Flow8CommandBoundary:
             latency_us=round(elapsed_us, 2),
             dispatched_to_hardware=driver_dispatched,
             error_message=err_msg,
-            command_accepted=True,
+            command_accepted=transport_rejected is None,
             driver_dispatched=driver_dispatched,
             hardware_applied=None,  # never confirmed without an observation channel
             raw_midi_prepared=raw_midi,
@@ -489,11 +528,14 @@ class Flow8CommandBoundary:
             verification_level=state.verification_level if state else None,
             midi_channel=spec["channel"],
             midi_cc=spec["cc"],
+            transport=transport_used,
         )
 
         with self._lock:
             self._log.append(entry)
 
+        if transport_rejected is not None:
+            raise Flow8CommandRejectedError(transport_rejected)
         if not dispatch_success:
             raise Flow8CommandError(
                 f"Hardware dispatch failed for '{param_id}' "
