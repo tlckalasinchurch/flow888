@@ -1,5 +1,6 @@
 """Unit tests for flow8/ble_transport.py codec, echo suppression, and service integration."""
 
+import asyncio
 import json
 import threading
 import time
@@ -87,6 +88,111 @@ class BleEchoAndServiceTests(NoHardwareMixin, unittest.TestCase):
         # Auth ack marks authenticated
         tr._handle_notification(build_ble_packet(PKT_AUTH_ACK))
         self.assertTrue(tr.is_connected or tr.status_snapshot()["authenticated"])
+
+    def test_connected_but_unauthenticated_is_not_ready(self):
+        tr = BleTransport()
+        tr._connected = True
+        # GATT link up but no 0x36 ACK yet: not ready for control writes.
+        self.assertFalse(tr.is_connected)
+        self.assertFalse(tr.status_snapshot()["authenticated"])
+        tr._handle_notification(build_ble_packet(PKT_AUTH_ACK))
+        self.assertTrue(tr.is_connected)
+        self.assertTrue(tr.status_snapshot()["authenticated"])
+
+    def test_malformed_packets_are_dropped(self):
+        observed = []
+        tr = BleTransport(on_parameter=lambda pid, val: observed.append((pid, val)))
+        good = encode_fader_command(1, 64)
+        # Corrupt the checksum
+        bad = bytearray(good)
+        bad[-1] ^= 0xFF
+        tr._handle_notification(bytes(bad))
+        # Truncated packet
+        tr._handle_notification(good[:3])
+        # Empty
+        tr._handle_notification(b"")
+        self.assertEqual(observed, [])
+        self.assertEqual(tr.status_snapshot()["packetsRx"], 3)
+        # Sanity: the intact packet still decodes
+        tr._handle_notification(good)
+        self.assertEqual(len(observed), 1)
+
+    def test_state_dump_chunks_counted_never_decoded(self):
+        observed = []
+        tr = BleTransport(on_parameter=lambda pid, val: observed.append((pid, val)))
+        chunk = build_ble_packet(0x38, b"\x00" * 20)
+        tr._handle_notification(chunk)
+        tr._handle_notification(chunk)
+        snap = tr.status_snapshot()
+        self.assertEqual(snap["dumpChunks"], 2)
+        self.assertEqual(snap["dumpBytes"], 2 * len(chunk))
+        self.assertIsNotNone(snap["lastDumpAt"])
+        self.assertEqual(observed, [])  # dump is observed, never applied as params
+
+    def test_gatt_validation_requires_flow8_service_and_characteristic(self):
+        from flow8.ble_transport import (
+            FLOW8_DATA_CHAR_UUID,
+            FLOW8_SERVICE_UUID,
+            BleTransport,
+        )
+
+        class FakeChar:
+            pass
+
+        class FakeServices:
+            def __init__(self, uuids, has_char):
+                self._svcs = [mock.Mock(uuid=u) for u in uuids]
+                self._has_char = has_char
+
+            def __iter__(self):
+                return iter(self._svcs)
+
+            def get_characteristic(self, uuid):
+                if self._has_char and uuid == FLOW8_DATA_CHAR_UUID:
+                    return FakeChar()
+                return None
+
+        client = mock.Mock()
+        client.services = FakeServices([FLOW8_SERVICE_UUID], has_char=True)
+        BleTransport._require_flow8_gatt(client)  # must not raise
+
+        client.services = FakeServices(["0000180f-0000-1000-8000-00805f9b34fb"], has_char=True)
+        with self.assertRaises(RuntimeError):
+            BleTransport._require_flow8_gatt(client)
+
+        client.services = FakeServices([FLOW8_SERVICE_UUID], has_char=False)
+        with self.assertRaises(RuntimeError):
+            BleTransport._require_flow8_gatt(client)
+
+    def test_write_packet_serializes_concurrent_writes(self):
+        tr = BleTransport()
+        order = []
+
+        class FakeClient:
+            is_connected = True
+
+            async def write_gatt_char(self, uuid, payload, response=False):
+                order.append(("start", payload[0]))
+                await asyncio.sleep(0.01)
+                order.append(("end", payload[0]))
+
+        tr._client = FakeClient()
+
+        async def run():
+            await asyncio.gather(
+                tr._write_packet(bytes([0x11, 0x01, 0x12])),
+                tr._write_packet(bytes([0x22, 0x01, 0x23])),
+                tr._write_packet(bytes([0x33, 0x01, 0x34])),
+            )
+
+        asyncio.run(run())
+        # No interleaving: every "start" is followed by its "end" before the next start.
+        starts = [i for i, (tag, _) in enumerate(order) if tag == "start"]
+        ends = [i for i, (tag, _) in enumerate(order) if tag == "end"]
+        self.assertEqual(len(starts), 3)
+        for s, e in zip(starts, ends):
+            self.assertEqual(e, s + 1)
+        self.assertEqual(tr.status_snapshot()["packetsTx"], 3)
 
     def test_service_and_hub_transport_mode_switching(self):
         svc = Flow8Service(auto_connect=False)
