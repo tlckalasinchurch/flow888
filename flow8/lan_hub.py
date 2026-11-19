@@ -512,10 +512,12 @@ class Flow8LanHub:
                 for band in ("low", "low_mid", "hi_mid", "hi")
             }
             eq_prov = self._param_raw(f"ch{idx}.eq_low", 64)[1]
-            sends = {
-                target: int(self._param_raw(f"ch{idx}.send_{target}", 0)[0])
+            send_raw = {
+                target: self._param_raw(f"ch{idx}.send_{target}", 0)
                 for target in ("mon1", "mon2", "fx1", "fx2")
             }
+            sends = {target: int(raw) for target, (raw, _) in send_raw.items()}
+            sends_prov = {target: prov for target, (_, prov) in send_raw.items()}
             low_cut, lc_prov = self._param_raw(f"ch{idx}.low_cut", 0) if idx <= 4 else (0, UNSUPPORTED)
             comp, comp_prov = self._param_raw(f"ch{idx}.compressor", 0) if idx <= 4 else (0, UNSUPPORTED)
             # Gain and +48V are shown read-only: the LAN remote never sends them.
@@ -544,6 +546,7 @@ class Flow8LanHub:
                 "phantom": None if phantom is None else bool(phantom),
                 "phantomProvenance": ph_prov,
                 "sends": sends,
+                "sendsProvenance": sends_prov,
             })
         main_f, main_f_prov = self._param_raw("main.fader", 101)
         main_b, main_b_prov = self._param_raw("main.balance", 64)

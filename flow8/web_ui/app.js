@@ -253,6 +253,11 @@
     UNSUPPORTED: ['N/A', 'Not available on the FLOW 8.'],
   };
   const provCode = (p) => (PROV[p] ? PROV[p][0] : p);
+  // 3-letter form for strips under 1180 px, where the long code does not fit.
+  const PROV_SHORT = { UNSYNCED: 'UNS', COMMANDED: 'CMD', OBSERVED: 'OBS', DISPATCH_FAILED: 'ERR', UNSUPPORTED: 'N/A' };
+  const provBadge = (p, hint) =>
+    `<span class="scribble-prov prov-${p}" role="img" aria-label="${esc(hint)}" title="${esc(hint)}">` +
+    `<span class="prov-long">${provCode(p)}</span><span class="prov-short" aria-hidden="true">${PROV_SHORT[p] || p}</span></span>`;
   const provTitle = (p) => (PROV[p] ? PROV[p][1] : p);
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const lockReason = (key) => (session && session.locked && session.locked[key]) || 'Not available over MIDI.';
@@ -894,7 +899,11 @@
     if (!session) return;
     applyConnectionState(!!session.midiConnected);
     const allMuted = session.channels.filter((c) => c.index <= 7).every((c) => c.mute);
-    document.getElementById('btn-mute-all').textContent = allMuted ? 'UNMUTE ALL' : 'MUTE ALL';
+    const muteAllBtn = document.getElementById('btn-mute-all');
+    muteAllBtn.textContent = allMuted ? 'UNMUTE ALL' : 'MUTE ALL';
+    muteAllBtn.dataset.hold = allMuted ? '' : 'arm'; // only muting needs the hold
+    muteAllBtn.title = allMuted ? 'Restore every input mute to unmuted.' : 'Hold 0.6 s to mute all inputs.';
+    document.getElementById('all-muted-chip').hidden = !allMuted;
     const bank = document.getElementById('console-bank');
     bank.innerHTML = '';
     const sendLayer = activeLayer !== 'main';
@@ -904,50 +913,54 @@
       const sid = stripIdForChannel(ch.index);
       const name = chName(ch);
       const val = sendLayer ? (ch.sends ? ch.sends[activeLayer] : 0) : ch.fader;
-      const prov = sendLayer ? (ch.sends ? 'COMMANDED' : 'UNSYNCED') : ch.faderProvenance;
-      const code = sendLayer ? `→${layer.label.replace(' ', '')}` : provCode(ch.faderProvenance);
-      const hint = sendLayer ? `Send level from ${name} to ${layer.label}` : provTitle(ch.faderProvenance);
+      // The send provenance comes from the hub, so a default 0 is never shown as a sent value.
+      const prov = sendLayer
+        ? ((ch.sendsProvenance && ch.sendsProvenance[activeLayer]) || 'UNSYNCED')
+        : ch.faderProvenance;
+      const hint = (sendLayer ? `Send level from ${name} to ${layer.label}. ` : '') + provTitle(prov);
+      // An UNSYNCED value is unknown: show it as unknown, never as a reading.
+      const faderUnk = prov === 'UNSYNCED';
+      const panUnk = ch.panProvenance === 'UNSYNCED';
+      const muteUnk = ch.muteProvenance === 'UNSYNCED';
       const selected = selectedCh === ch.index;
       const strip = document.createElement('div');
       strip.dataset.strip = sid;
-      strip.className = 'strip' + (ch.index === 7 ? ' usb' : '') + (selected ? ' selected' : '');
+      strip.className = 'strip' + (ch.index === 7 ? ' usb' : '') + (selected ? ' selected' : '') + (faderUnk ? ' fader-unk' : '') + (panUnk ? ' pan-unk' : '');
       strip.innerHTML = `
         <div class="mix-bar" aria-hidden="true"></div>
         <div class="scribble" role="button" tabindex="0" data-focus-key="scribble:${sid}" aria-label="${esc(name)}: select channel" aria-pressed="${selected}" style="--lcd:${lcdColor(ch)}">
           <div class="scribble-top">
             <span class="scribble-num">${String(ch.index).padStart(2, '0')} · ${STRIP_TAG[ch.index]}</span>
-            <span class="scribble-prov" title="${esc(hint)}">${code}</span>
+            ${provBadge(prov, hint)}
           </div>
           <div class="scribble-name" title="${esc(name)}">${esc(name)}</div>
         </div>
-        <button class="solo-btn" aria-disabled="true" title="${esc(lockReason('solo'))}">SOLO</button>
         <div class="lamp-row">${LAMPS(sid, prov)}</div>
         <div class="strip-pan-ctrl" title="Pan L–C–R">
           <input type="range" min="0" max="127" value="${ch.pan}" aria-label="${esc(name)} pan" />
-          <span class="strip-pan-val">${panText(ch.pan)}</span>
+          <span class="strip-pan-val">${panUnk ? '--' : panText(ch.pan)}</span>
         </div>
         <div class="fader-zone">
           ${METER(sid)}
           ${FADER_WELL(`fader:${sid}:${activeLayer}`)}
         </div>
-        <div class="strip-readout">${midiToDbStr(val)}</div>
-        <button class="mute-switch ${ch.mute ? 'muted' : ''}" data-focus-key="mute:${sid}" aria-pressed="${ch.mute}" aria-label="Mute ${esc(name)}">${ch.mute ? 'MUTED' : 'MUTE'}</button>
+        <div class="strip-readout${faderUnk ? ' unk' : prov === 'OBSERVED' ? ' obs' : ''}">${faderUnk ? '--' : midiToDbStr(val)}</div>
+        <button class="mute-switch ${ch.mute ? 'muted' : ''}${muteUnk ? ' unknown' : ''}" data-focus-key="mute:${sid}" aria-pressed="${muteUnk ? 'mixed' : ch.mute}" aria-label="Mute ${esc(name)}${muteUnk ? ' (state unknown)' : ''}"${muteUnk ? ' title="Mute state unknown: not sent or reported yet"' : ''}>${ch.mute ? 'MUTED' : 'MUTE'}</button>
       `;
       strip.querySelector('.scribble').onclick = () => selectChannel(ch.index);
       strip.querySelector('.scribble').onkeydown = (e) => {
         if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectChannel(ch.index); }
       };
-      strip.querySelector('.solo-btn').onclick = () => showToast(lockReason('solo'));
       const panInput = strip.querySelector('.strip-pan-ctrl input');
       const panLabel = strip.querySelector('.strip-pan-val');
-      panInput.oninput = () => { panLabel.textContent = panText(+panInput.value); };
+      panInput.oninput = () => { panLabel.textContent = panText(+panInput.value); strip.classList.remove('pan-unk'); };
       panInput.onchange = () => postAction({ action: 'setPan', channel: ch.index, value: +panInput.value });
       strip.querySelector('.mute-switch').onclick = () =>
         postAction({ action: 'setMute', channel: ch.index, value: !ch.mute }).then(scheduleReload);
       const readout = strip.querySelector('.strip-readout');
       attachVerticalFader(
-        strip.querySelector('.fader-well'), val,
-        (v) => { readout.textContent = midiToDbStr(v); },
+        strip.querySelector('.fader-well'), faderUnk ? 0 : val,
+        (v) => { readout.textContent = midiToDbStr(v); readout.classList.remove('unk'); strip.classList.remove('fader-unk'); },
         (v) => (sendLayer
           ? postAction({ action: 'setSend', channel: ch.index, target: activeLayer, value: v })
           : postAction({ action: 'setFader', channel: ch.index, value: v })),
@@ -958,37 +971,38 @@
 
     // The master strip follows the selected mix, with a Bus selector dropdown.
     const m = masterOf(activeLayer);
+    const mUnk = m.prov === 'UNSYNCED';
+    const mainBal = session.channels.find((c) => c.index === 8);
     const selected = insp && insp.kind === 'bus' && insp.id === activeLayer;
     const strip = document.createElement('div');
     strip.dataset.strip = m.sid;
-    strip.className = 'strip master' + (selected ? ' selected' : '');
+    strip.className = 'strip master' + (selected ? ' selected' : '') + (mUnk ? ' fader-unk' : '');
     strip.innerHTML = `
       <div class="mix-bar" aria-hidden="true"></div>
       <div class="scribble master-lcd" role="button" tabindex="0" data-focus-key="scribble:master" aria-label="${layer.label} master">
         <div class="scribble-top">
           <span class="scribble-num">MAIN LR</span>
-          <span class="scribble-prov" title="${esc(provTitle(m.prov))}">${provCode(m.prov)}</span>
+          ${provBadge(m.prov, provTitle(m.prov))}
         </div>
         <select class="bus-select" aria-label="Select fader bus">
           ${LAYER_ORDER.map((id) => `<option value="${id}" ${id === activeLayer ? 'selected' : ''}>${LAYERS[id].label}</option>`).join('')}
         </select>
       </div>
-      <button class="solo-btn" aria-disabled="true" title="${esc(lockReason('solo'))}">BUS</button>
       <div class="lamp-row">${LAMPS(m.sid, m.prov)}</div>
-      <div class="strip-pan"><span class="strip-pan-val">${activeLayer === 'main' ? `BAL ${panText(session.channels.find((c) => c.index === 8).pan)}` : layer.name}</span></div>
+      <div class="strip-pan"><span class="strip-pan-val">${activeLayer === 'main' ? `BAL ${mainBal.panProvenance === 'UNSYNCED' ? '--' : panText(mainBal.pan)}` : layer.name}</span></div>
       <div class="fader-zone">
         ${METER(m.sid)}
         ${FADER_WELL(`fader:master:${activeLayer}`)}
       </div>
-      <div class="strip-readout">${midiToDbStr(m.fader)}</div>
-      <div class="mute-na" title="The FLOW 8 has no MIDI mute for the ${layer.label} bus.">NO MUTE</div>
+      <div class="strip-readout${mUnk ? ' unk' : m.prov === 'OBSERVED' ? ' obs' : ''}">${mUnk ? '--' : midiToDbStr(m.fader)}</div>
+      <div class="mute-spacer" aria-hidden="true"></div>
     `;
     const busSel = strip.querySelector('.bus-select');
     busSel.onclick = (e) => e.stopPropagation();
     busSel.onchange = () => setLayer(busSel.value);
     const readout = strip.querySelector('.strip-readout');
-    attachVerticalFader(strip.querySelector('.fader-well'), m.fader,
-      (v) => { readout.textContent = midiToDbStr(v); }, m.commit, `${layer.label} master fader`);
+    attachVerticalFader(strip.querySelector('.fader-well'), mUnk ? 0 : m.fader,
+      (v) => { readout.textContent = midiToDbStr(v); readout.classList.remove('unk'); strip.classList.remove('fader-unk'); }, m.commit, `${layer.label} master fader`);
     bank.appendChild(strip);
     requestAnimationFrame(updateScrollHint);
   }
@@ -1103,18 +1117,16 @@
     const aside = document.getElementById('inspector');
     aside.style.setProperty('--insp-accent', lcdColor(ch));
 
-    // Channel keys: mute, solo, rename, presets.
+    // Channel keys: mute, rename, presets.
     const keys = document.createElement('div');
     keys.className = 'insp-keys';
     keys.innerHTML = `
       <button class="mute-switch ${ch.mute ? 'muted' : ''}" data-focus-key="insp-mute" aria-pressed="${ch.mute}">${ch.mute ? 'MUTED' : 'MUTE'}</button>
-      <button class="key-btn locked" data-focus-key="insp-solo" aria-disabled="true" title="${esc(lockReason('solo'))}">SOLO</button>
       <button class="key-btn" data-focus-key="insp-rename">✎ RENAME</button>
       <button class="key-btn accent" data-focus-key="insp-presets">★ PRESETS</button>`;
     keys.children[0].onclick = () => postAction({ action: 'setMute', channel: idx, value: !ch.mute }).then(scheduleReload);
-    keys.children[1].onclick = () => showToast(lockReason('solo'));
-    keys.children[2].onclick = () => openScribbleModal(ch);
-    keys.children[3].onclick = () => { closeInspector(); selectChannel(idx, 'presets'); };
+    keys.children[1].onclick = () => openScribbleModal(ch);
+    keys.children[2].onclick = () => { closeInspector(); selectChannel(idx, 'presets'); };
     body.appendChild(keys);
 
     // Input stage.
@@ -1779,6 +1791,7 @@
       <dt>LINK WATCHDOG</dt><dd>${tel.watchdog ? 'Running' : 'Off'} · auto-reconnect ${tel.autoReconnect ? 'on' : 'off'}</dd>
       <dt>MIDI OUT DISPATCH</dt><dd>${Number(disp.commands || 0)} commands · ${Number(disp.driverDispatched || 0)} accepted by the driver · last ${lastSent}</dd>
       <dt>METERS</dt><dd>${esc(ms.detail || 'Off')}${ms.device ? ` (${esc(ms.device)})` : ''}</dd>
+      <dt>SOLO</dt><dd>Solo is not available over MIDI.</dd>
       <dt>SNAPSHOT LIBRARY</dt><dd>${(session.library || []).length} snapshots on the host computer</dd>
       <dt>OPEN ON A TABLET</dt><dd id="info-urls">…</dd></dl>`;
     page.appendChild(sec);
@@ -1859,7 +1872,7 @@
     if (numEl) numEl.textContent = String(ch.index).padStart(2, '0');
     if (nameEl) nameEl.textContent = chName(ch);
     const pasteBtn = document.getElementById('btn-paste');
-    if (pasteBtn) pasteBtn.disabled = !dspClipboard;
+    if (pasteBtn) pasteBtn.hidden = !dspClipboard;
   }
 
   function selectChannel(idx, switchTab = null) {
@@ -1942,7 +1955,7 @@
             <line x1="0" y1="11" x2="60" y2="11" stroke="#242933" stroke-width="1"/>
             <path d="${eqThumbPath(ch)}"/>
           </svg>
-          <div class="ov-comp-box" title="Tap to open Comp">${compVal == null ? '—' : `${compVal}%`}</div>
+          <div class="ov-comp-box" title="Tap to open Comp">${compVal == null ? '—' : ch.compressorProvenance === 'UNSYNCED' ? '--' : `${compVal}%`}</div>
         </div>
       `;
       col.onclick = () => selectChannel(ch.index);
@@ -1954,9 +1967,9 @@
     const mCol = document.createElement('div');
     mCol.className = 'ov-col master-col';
     mCol.innerHTML = `
-      <div class="ov-head"><span class="ov-tag">${LAYERS[activeLayer].label}</span><span class="ov-gain">${midiToDbStr(m.fader)}</span></div>
+      <div class="ov-head"><span class="ov-tag">${LAYERS[activeLayer].label}</span><span class="ov-gain">${m.prov === 'UNSYNCED' ? '--' : midiToDbStr(m.fader)}</span></div>
       <div class="ov-chips"><span class="ov-chip locked">9-GEQ</span><span class="ov-chip locked">LIMIT</span></div>
-      <p class="sec-note" style="margin:auto 0 0;font-size:11px;">Tap any strip to select · Double-click EQ or Comp to edit</p>
+      <p class="sec-note" style="margin:auto 0 0;font-size:12px;">Tap any strip to select · Double-click EQ or Comp to edit</p>
     `;
     grid.appendChild(mCol);
     pane.appendChild(grid);
@@ -2608,14 +2621,30 @@
   }
 
   // ---------- Views ----------
+  // Ten views in four sections. Presets and Setup are single views, so they have no second row.
+  const TAB_GROUP = {
+    mixer: 'mix', stage: 'mix', channel: 'mix',
+    input: 'sound', eq: 'sound', comp: 'sound', sends: 'sound', fx: 'sound',
+    presets: 'presets', setup: 'setup',
+  };
+  const lastTabInGroup = { mix: 'mixer', sound: 'eq', presets: 'presets', setup: 'setup' };
   function renderView() {
     if (!session) return;
     document.body.dataset.view = view;
+    const group = TAB_GROUP[topTab] || 'mix';
+    lastTabInGroup[group] = topTab;
+    document.querySelectorAll('.cue-group').forEach((g) => {
+      const on = g.dataset.group === group;
+      g.classList.toggle('active', on);
+      g.setAttribute('aria-selected', on ? 'true' : 'false');
+    });
     document.querySelectorAll('.cue-tab').forEach((b) => {
       const on = b.dataset.tab === topTab;
+      b.hidden = b.dataset.group !== group;
       b.classList.toggle('active', on);
       b.setAttribute('aria-selected', on ? 'true' : 'false');
     });
+    document.getElementById('cue-tabs').hidden = !Array.from(document.querySelectorAll('.cue-tab')).some((b) => !b.hidden);
     updateSelectBadge();
     renderTopPane();
     renderConsole(); // persistent bottom fader bank + connection banner
@@ -2800,15 +2829,10 @@
   });
 
   // ---------- Bus selector ----------
-  // Tap a mix to put it on the faders. Tap the active mix again to open its settings.
+  // The Bus dropdown on the master strip puts a mix on the faders.
   function setLayer(layer, render = true, syncHub = true) {
     activeLayer = layer;
     document.body.dataset.layer = layer;
-    document.querySelectorAll('.bus-tab').forEach((b) => {
-      const on = b.dataset.layer === layer;
-      b.classList.toggle('active', on);
-      b.setAttribute('aria-pressed', on ? 'true' : 'false');
-    });
     // A bus Inspector follows the selected mix.
     if (insp && insp.kind === 'bus') insp = { kind: 'bus', id: layer };
     if (syncHub) {
@@ -2820,20 +2844,10 @@
     }
     if (render) renderView();
   }
-  document.querySelectorAll('.bus-tab').forEach((btn) => {
-    btn.title = `Put the ${LAYERS[btn.dataset.layer].label} mix on the faders. Tap again for its settings.`;
-    btn.onclick = () => {
-      const layer = btn.dataset.layer;
-      if (layer !== activeLayer) { setLayer(layer); return; }
-      if (insp && insp.kind === 'bus' && insp.id === layer) closeInspector();
-      else openInspector({ kind: 'bus', id: layer });
-    };
-  });
-
   document.getElementById('insp-close').onclick = closeInspector;
   document.querySelectorAll('.cue-tab').forEach((b) => { b.onclick = () => setTopTab(b.dataset.tab); });
+  document.querySelectorAll('.cue-group').forEach((g) => { g.onclick = () => setTopTab(lastTabInGroup[g.dataset.group]); });
   document.getElementById('select-badge').onclick = () => selectChannel((selectedCh % 7) + 1);
-  document.getElementById('btn-clear-solo').onclick = () => showToast(lockReason('solo'));
   document.getElementById('btn-flowai').onclick = () => { flowAiOpen = !flowAiOpen; renderFlowAiDrawer(); };
   document.getElementById('plan-close').onclick = closePlanPanel;
   document.getElementById('plan-discard').onclick = closePlanPanel;
@@ -2873,7 +2887,7 @@
   document.getElementById('insp-prev').onclick = () => stepInspector(-1);
   document.getElementById('insp-next').onclick = () => stepInspector(1);
 
-  document.getElementById('btn-mute-all').onclick = async () => {
+  async function toggleMuteAll() {
     if (!session || !session.channels) return;
     // Toggle: if every input is already muted, the button restores them.
     const inputs = session.channels.filter((c) => c.index <= 7);
@@ -2881,7 +2895,13 @@
     const res = await postAction({ action: 'muteAll', value: !allMuted });
     if (res.ok) showToast(allMuted ? 'All inputs unmuted.' : 'All inputs muted. Press UNMUTE ALL to restore.');
     loadSession();
-  };
+  }
+  // Muting the whole PA needs a 0.6 s hold. Restoring is a single tap.
+  const muteAllBtn = document.getElementById('btn-mute-all');
+  attachHold(muteAllBtn, 600, toggleMuteAll, () => {
+    if (muteAllBtn.dataset.hold === 'arm') showToast('Hold MUTE ALL for 0.6 s to mute every input.');
+    else toggleMuteAll();
+  });
   document.getElementById('btn-undo').onclick = () => postAction({ action: 'undo' }).then(scheduleReload);
   document.getElementById('btn-redo').onclick = () => postAction({ action: 'redo' }).then(scheduleReload);
   document.getElementById('btn-close-scribble').onclick = () => closeModal('scribble-modal');

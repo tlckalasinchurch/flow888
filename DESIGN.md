@@ -11,7 +11,7 @@ colors:
   border-light: "#2C313A"
   text-primary: "#E7E9EE"
   text-secondary: "#A1A7B0"
-  text-muted: "#828B98"
+  text-muted: "#88909D"
   signal-cyan: "#3FD2E0"
   signal-amber: "#FFB020"
   signal-emerald: "#34D399"
@@ -105,13 +105,15 @@ A dark slate neutral ladder carries every surface; a small signal set carries me
 - **Panel** (`#14171C`), **Card** (`#191C22`), **Elevated** (`#22262D`): ascending surface steps.
 - **Well** (`#0A0B0E`): recessed areas (fader wells, LCD-style readouts, pills).
 - **Border Dark** (`#1F232A`) and **Border Light** (`#2C313A`): 1px separators.
-- **Text Primary** (`#E7E9EE`), **Secondary** (`#A1A7B0`), **Muted** (`#828B98`).
+- **Text Primary** (`#E7E9EE`), **Secondary** (`#A1A7B0`), **Muted** (`#88909D`, 4.72:1 on the Elevated step so it passes AA on every surface).
 - **Mix Main** (`#E6E8EB`): the MAIN mix identity (silver).
 
 ### Named Rules
 **The Colour-Is-Meaning Rule.** A saturated hue appears only when it names a state, a mix, or a selection. If removing the colour loses no information, remove it.
 
 **The Provenance Rule.** UNSYNCED, COMMANDED and OBSERVED values must look different from each other. Never render an unknown value in the same treatment as a mixer reading (PRODUCT.md, SR-08, SR-11).
+
+**The Unknown-Reads-Unknown Rule.** An UNSYNCED value shows `--` in Muted with a dashed edge, the fader cap is parked and dashed, and mute is neutral. LED Green is reserved for OBSERVED readouts. A 3-letter provenance badge (UNS / CMD / OBS) stays visible on every strip at every width.
 
 ## Typography
 
@@ -123,7 +125,7 @@ A dark slate neutral ladder carries every surface; a small signal set carries me
 - **Title** (700, 16px, 0.12em tracking): the brand mark and panel headers.
 - **Body** (500-600, 13px, 0.01em): values, list rows, readouts. Sizes observed: 12, 13, 14, 15px most common.
 - **Label** (700, 12px, 0.06em, uppercase): link names, pills, tags.
-- **Micro** (9-11px): tick and unit text only; never for actionable controls.
+- **Floor:** 12px. Nothing in the console is set smaller.
 
 ### Named Rules
 **The Tabular Numerals Rule.** Every number that can change live uses tabular figures.
@@ -161,6 +163,12 @@ Small, hardware-like radii: 2px, 3px, 4px, 5px, 6px, 8px, with 3px the most comm
 
 ### Status Pill
 - **Style:** `{colors.well}` fill, 1px `{colors.border-light}` border, amber label text, fully rounded.
+
+### Navigation
+- **Four sections** (Mix, Sound, Presets, Setup) in the top bar; Mix and Sound show a second row of views (Mixer, Stage, Channel / Input, EQ, Comp, Sends, FX). Touch targets are 44px.
+
+### MUTE ALL
+- Muting needs a 0.6s hold with a visible progress bar; restoring is a single tap. At least 24px separates it from LOCK, and an ALL MUTED chip stays in the status strip while it is active.
 
 ### Pads and Buttons
 - **Tap pad / hardware button:** `{colors.elevated}` fill, 1px light border, 5px radius, 14px 700-weight label with 0.08em tracking, 44px minimum height on coarse pointers.
