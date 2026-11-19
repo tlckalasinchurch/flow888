@@ -1805,7 +1805,7 @@
     } catch (_) { /* the hub banner reports the failure */ }
   }
 
-  // ---------- CueAir Split-Screen Pro Console ----------
+  // ---------- Split-Screen Pro Console ----------
   // Clean-room Thai catalog (original content, no CueAir data). Loaded additively
   // from /api/presets/thai; values arrive as exact raw MIDI, so the plan that the
   // engineer reviews is exactly what will be sent.

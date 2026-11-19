@@ -145,6 +145,28 @@ class TransportRouterModeTests(unittest.TestCase):
             self.assertEqual(midi.sent, [])  # no double-send
             self.assertEqual(ble.sent, [])
 
+    def test_hybrid_ble_drop_between_selection_and_write_never_falls_back(self):
+        class FlippingBle(FakeBle):
+            """is_connected is True at selection, False on every later read."""
+
+            def __init__(self):
+                super().__init__()
+                self._reads = 0
+
+            @property
+            def is_connected(self):
+                self._reads += 1
+                return self._reads == 1
+
+        ble = FlippingBle()
+        router, midi = self._router(ble=ble)
+        router.set_mode("hybrid")
+        with self.assertRaises(Flow8CommandError) as ctx:
+            router.dispatch("ch2.fader", FADER_SPEC, 80)
+        self.assertNotIsInstance(ctx.exception, Flow8CommandRejectedError)
+        self.assertEqual(midi.sent, [])  # no USB fallback
+        self.assertEqual(ble.sent, [])
+
     def test_concurrent_dispatches_are_serialized_per_transport(self):
         ble = FakeBle()
         midi = FakeMidiOut()
@@ -240,6 +262,27 @@ class BoundaryRouterIntegrationTests(NoHardwareMixin, unittest.TestCase):
         with self.assertRaises(Flow8CommandRejectedError):
             boundary.execute_command("ch1.fader", 100)
         self.assertIsNone(self._param_state(boundary, "ch1.fader").commanded_raw_midi)
+
+    def test_hybrid_ble_drop_midflight_is_dispatch_failed_and_commits_nothing(self):
+        class FlippingBle(FakeBle):
+            def __init__(self):
+                super().__init__()
+                self._reads = 0
+
+            @property
+            def is_connected(self):
+                self._reads += 1
+                return self._reads == 1
+
+        ble = FlippingBle()
+        boundary, midi = self._boundary("hybrid", ble)
+        with self.assertRaises(Flow8CommandError):
+            boundary.execute_command("ch1.fader", 100)
+        self.assertEqual(midi.sent, [])
+        self.assertEqual(ble.sent, [])
+        self.assertIsNone(self._param_state(boundary, "ch1.fader").commanded_raw_midi)
+        last = boundary.command_log[-1]
+        self.assertEqual(last.dispatch_status, DispatchStatus.DISPATCH_FAILED)
 
     def test_ble_write_returns_false_is_dispatch_failed(self):
         boundary, _ = self._boundary("ble", FakeBle(accept=False))

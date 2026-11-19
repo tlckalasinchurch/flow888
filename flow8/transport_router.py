@@ -144,7 +144,7 @@ class TransportRouter:
             # BLE was chosen as this command's single writer. If the write then
             # fails (disconnect mid-write, GATT error), the command fails — it
             # is never retried over USB, so it cannot be applied twice.
-            return self._dispatch_ble(param_id, raw_midi, ble=ble)
+            return self._dispatch_ble(param_id, raw_midi, ble=ble, required=True)
         return self._dispatch_usb(spec, raw_midi)
 
     def _ble(self) -> Optional[Any]:
@@ -169,9 +169,17 @@ class TransportRouter:
         required: bool = False,
         ble: Optional[Any] = None,
     ) -> Optional[str]:
+        selected = ble is not None  # caller already chose BLE as the single writer
         if ble is None:
             ble = self._ble()
         if ble is None or not ble.is_connected:
+            if required and selected:
+                # Hybrid: link dropped between selection and write. A transport
+                # failure (DISPATCH_FAILED), never ACCEPTED_OFFLINE or a USB retry.
+                raise Flow8CommandError(
+                    f"BLE transport dropped before '{param_id}' was written. "
+                    "No command was sent and no USB fallback was used."
+                )
             if required:
                 # Fail closed: BLE mode never accepts a command it cannot send.
                 raise Flow8CommandRejectedError(
