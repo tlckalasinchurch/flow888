@@ -40,6 +40,7 @@ Connected in 5.6 s; the service is present.
 | `0035594a-a8e7-4b1a-a6b1-cd5243059a57` | `read` | 0 | `0900` |
 | `0036594a-a8e7-4b1a-a6b1-cd5243059a57` | `read` | 0 | `e52d` |
 
+- **Repeat read, 2026-11-20 (VERIFIED, PC, read-only, nothing written, notifications not enabled):** two reads each, same connection, address `E2:CE:15:BA:E1:4D`: `0035594a` = `0900` both times, `0036594a` = `e52d` both times. Same as the first read and same as the nRF Connect value for `0035`. Service data in that scan: `00523f4576e95a`. Connected in 2.8 s. So both values were stable across the reads taken in this work. Whether they change with mixer state or firmware is UNKNOWN. This is the first stable read of `0036` that the owner's LightBlue session did not obtain (see 1.3a).
 - `start_notify` on `0034…` fails: `BleakGATTProtocolError(3, 'GATT Protocol Error: Write Not Permitted')`. Same error as the older `tools/output/ble_watch_stdout.log`.
 - 12 s of listening with no write: 0 notifications.
 
