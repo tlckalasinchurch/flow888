@@ -74,6 +74,7 @@ button { font-family: var(--font-sans); }
 .link.fault { color: var(--led-amber); }
 .clock { font-size: 15px; font-weight: 600; color: var(--text-primary); min-width: 64px; text-align: right; font-variant-numeric: tabular-nums; }
 .status-pill {
+  min-height: 44px; cursor: pointer;
   display: flex; align-items: center; gap: 6px;
   font-size: 12px; font-weight: 700; letter-spacing: 0.06em;
   padding: 3px 10px; border-radius: 999px;
@@ -151,6 +152,19 @@ button { font-family: var(--font-sans); }
 .lock-btn[aria-pressed="true"] { color: #111; background: linear-gradient(180deg, #FFC24D 0%, #E89A0C 100%); border-color: #5C3A00; }
 .lock-btn::after { content: ""; position: absolute; left: 0; bottom: 0; height: 3px; width: 0; background: #111; }
 .lock-btn.holding::after { width: 100%; transition: width 0.8s linear; }
+.show-modes { display: flex; align-items: center; gap: 6px; }
+.show-mode-btn { position: relative; overflow: hidden; min-width: 64px; min-height: 44px; display: inline-flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1.1; }
+.show-mode-btn small { font-size: 12px; font-weight: 700; letter-spacing: 0.04em; color: var(--accent-amber); }
+.show-mode-btn.unset { border-style: dashed; border-color: var(--accent-amber); }
+.show-mode-btn::after { content: ""; position: absolute; left: 0; bottom: 0; height: 3px; width: 0; background: var(--accent-amber); }
+.show-mode-btn.holding::after { width: 100%; transition: width var(--hold-ms, 0.45s) linear; }
+.show-mode-undo { min-height: 44px; color: var(--accent-cyan); }
+.show-mode-card { margin: 12px 0; padding: 10px; border: 1px solid #0B0C0F; border-radius: 6px; background: var(--bg-well); }
+.show-mode-title { margin: 0 0 8px; font-size: 16px; letter-spacing: 0.08em; }
+.show-step { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 6px; }
+.show-step select, .show-step input { min-height: 44px; font-size: 14px; }
+.show-step input.text-input[type="number"] { width: 110px; }
+.show-mode-foot { display: flex; gap: 8px; margin-top: 8px; }
 .mute-all { position: relative; overflow: hidden; margin-left: 28px; }
 .mute-all::after { content: ""; position: absolute; left: 0; bottom: 0; height: 3px; width: 0; background: var(--accent-amber); }
 .mute-all[data-hold="arm"].holding::after { width: 100%; transition: width var(--hold-ms, 0.6s) linear; }
@@ -665,13 +679,16 @@ body.locked .status-strip { box-shadow: inset 0 -2px 0 var(--led-amber); }
 /* Phone: the Inspector is a bottom sheet; the bank stays visible above it. */
 @media (max-width: 760px) {
   .status-strip { padding: 5px 10px; gap: 8px; font-size: 12px; }
-  .link-lamps .link:nth-child(n+4) { display: none; }
-  .status-strip .status-pill, .scene-label { display: none; }
+  .link-lamps .link:nth-child(n+3) { display: none; }
+  .scene-label { display: none; }
+  .brand-mark .brand-sub { display: none; }
+  .status-pill { font-size: 12px; padding: 3px 8px; white-space: nowrap; }
   .clock { font-size: 13px; min-width: 0; }
   .topbar { padding: 6px 8px; gap: 6px; }
   /* Two rows: select, history and actions on top, the four sections full width below. */
   .topbar { flex-wrap: wrap; }
   .topbar .cue-groups { order: 3; flex: 1 0 100%; }
+  .topbar .show-modes, .topbar .show-mode-undo { order: 2; }
   .topbar .cue-group { max-width: none; }
   .toolbar-actions { margin-left: auto; }
   .scene-pad { width: 40px; }

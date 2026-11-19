@@ -30,7 +30,7 @@
       <span class="scene-edited">EDITED</span>
     </div>
     <time class="clock" id="clock" aria-label="Time"></time>
-    <div class="status-pill" id="status-pill" role="status">
+    <div class="status-pill" id="status-pill" role="status" tabindex="0" aria-label="Connection status. Press to open Routing.">
       <span class="status-dot"></span>
       <span id="status-text">CONNECTING</span>
     </div>
@@ -57,6 +57,9 @@
       <button class="cue-group" data-group="presets" role="tab" aria-selected="false">Presets</button>
       <button class="cue-group" data-group="setup" role="tab" aria-selected="false">Setup</button>
     </nav>
+
+    <div class="show-modes" id="show-modes" role="group" aria-label="Show modes"></div>
+    <button class="hw-btn show-mode-undo" id="show-mode-undo" hidden></button>
 
     <div class="toolbar-actions">
       <button class="hw-btn ai-btn" id="btn-flowai" aria-pressed="false" title="Open FlowAi Mix Assistant">FlowAi</button>
@@ -142,6 +145,7 @@
       <button class="setup-tab" data-page="inputs">CONFIGURE INPUTS</button>
       <button class="setup-tab" data-page="snapshots">MIXER SNAPSHOTS</button>
       <button class="setup-tab" data-page="library">SNAPSHOT LIBRARY</button>
+      <button class="setup-tab" data-page="showmodes">SHOW MODES</button>
       <button class="setup-tab" data-page="prefs">PREFERENCES</button>
       <button class="setup-tab" data-page="routing">ROUTING</button>
       <button class="setup-tab" data-page="info">INFO</button>

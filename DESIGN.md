@@ -170,6 +170,9 @@ Small, hardware-like radii: 2px, 3px, 4px, 5px, 6px, 8px, with 3px the most comm
 ### MUTE ALL
 - Muting needs a 0.6s hold with a visible progress bar; restoring is a single tap. At least 24px separates it from LOCK, and an ALL MUTED chip stays in the status strip while it is active.
 
+### Show Mode
+- `MC` and `BAND` sit in the top bar, 44px tall. A mode switches only after a 0.45s hold with a visible progress bar (same pattern as MUTE ALL); a tap shows a hint. A mode with a step NOT SET is dashed and says NOT SET, and does not run. After every switch an `UNDO <mode>` button stays on screen for 8s. Cuts (mutes, zeros) always run before raises, and +48V and preamp gain are never part of a mode.
+
 ### Pads and Buttons
 - **Tap pad / hardware button:** `{colors.elevated}` fill, 1px light border, 5px radius, 14px 700-weight label with 0.08em tracking, 44px minimum height on coarse pointers.
 

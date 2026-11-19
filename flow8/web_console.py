@@ -29,6 +29,7 @@ from typing import Any, Callable, Optional
 from flow8.audio_meter import Flow8AudioMeter
 from flow8.lan_hub import DEFAULT_LAN_PORT, Flow8LanHub
 from flow8.service import Flow8Service
+from flow8.show_mode_store import default_show_modes_path
 from flow8.snapshot_library import default_library_path
 
 LOOP_INTERVAL_S = 2.5
@@ -151,7 +152,8 @@ def run(
 
     service = service_factory(auto_connect=True)
     hub = hub_factory(service, host=getattr(args, "host", "0.0.0.0"),
-                      port=args.port, library_path=default_library_path())
+                      port=args.port, library_path=default_library_path(),
+                      show_modes_path=default_show_modes_path())
     meter: Optional[Flow8AudioMeter] = None
     app_window = None
     try:

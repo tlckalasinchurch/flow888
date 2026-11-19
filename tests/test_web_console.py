@@ -41,7 +41,7 @@ class FakeService:
 class FakeHub:
     instances = []
 
-    def __init__(self, service, host="0.0.0.0", port=0, library_path=None):
+    def __init__(self, service, host="0.0.0.0", port=0, library_path=None, show_modes_path=None):
         self.service = service
         self.host = host
         self.port = port
@@ -210,5 +210,60 @@ class EntryPointTests(unittest.TestCase):
         self.assertNotIn("--legacy-tk", studio)
 
 
+class ShowModeAssetsTests(unittest.TestCase):
+    """Static guard: the Show Mode controls and their hold time are in the shipped UI."""
+
+    UI = Path(web_console.__file__).parent / "web_ui"
+
+    def test_top_bar_has_show_mode_controls(self):
+        html = (self.UI / "index.html").read_text(encoding="utf-8")
+        self.assertIn('id="show-modes"', html)
+        self.assertIn('id="show-mode-undo"', html)
+        self.assertIn('data-page="showmodes"', html)
+
+    def test_show_mode_uses_a_450ms_hold_and_the_run_action(self):
+        js = (self.UI / "app.js").read_text(encoding="utf-8")
+        self.assertIn("SHOW_MODE_HOLD_MS = 450", js)
+        self.assertIn("attachHold(btn, SHOW_MODE_HOLD_MS", js)
+        self.assertIn("action: 'runShowMode'", js)
+        self.assertIn("action: 'saveShowMode'", js)
+
+    def test_undo_chip_is_hidden_when_anything_else_changes_the_mix(self):
+        js = (self.UI / "app.js").read_text(encoding="utf-8")
+        self.assertIn("function hideShowModeUndo", js)
+        self.assertIn("ev.action !== 'runShowMode'", js)
+
+    def test_editor_keeps_unsaved_edits_across_reloads(self):
+        js = (self.UI / "app.js").read_text(encoding="utf-8")
+        self.assertIn("showModeDrafts", js)
+        self.assertIn("showModeBusy", js)
+
+
 if __name__ == "__main__":
     unittest.main()
+
+
+class LinkStatusAssetsTests(unittest.TestCase):
+    """Static guard: the status pill states why the mixer is not usable."""
+
+    UI = Path(web_console.__file__).parent / "web_ui"
+
+    def test_link_summary_names_every_usb_diagnosis(self):
+        js = (self.UI / "app.js").read_text(encoding="utf-8")
+        self.assertIn("function linkSummary(", js)
+        for key in ("no_midi_devices", "flow8_not_listed", "open_failed", "devicesSeen"):
+            self.assertIn(key, js)
+
+    def test_connection_state_is_driven_by_the_link_summary(self):
+        js = (self.UI / "app.js").read_text(encoding="utf-8")
+        self.assertIn("linkSummary(session)", js)
+        self.assertIn("openRoutingFromPill", js)
+
+    def test_routing_page_lists_the_midi_devices_windows_sees(self):
+        js = (self.UI / "app.js").read_text(encoding="utf-8")
+        self.assertIn("MIDI OUT SEEN", js)
+
+    def test_pill_is_a_44px_touch_target(self):
+        import re
+        css = (self.UI / "styles.css").read_text(encoding="utf-8")
+        self.assertRegex(css, re.compile(r"\.status-pill\s*\{[^}]*min-height:\s*44px", re.S))

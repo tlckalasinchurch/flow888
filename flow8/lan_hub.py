@@ -24,6 +24,8 @@ from flow8.domain_model import LOGICAL_CHANNELS
 from flow8.presets import list_channel_presets
 from flow8.safety import BLOCKED_PARAMETER_TYPES
 from flow8.service import MAIN_CHANNEL, RECALL_SCOPES, SCENE_CAPACITY, Flow8Service
+from flow8.show_mode import compile_mode, unset_steps
+from flow8.show_mode_store import ShowModeStore
 from flow8.snapshot_library import SnapshotLibrary, default_library_path
 from flow8.state_model import ParameterProvenance
 
@@ -49,7 +51,7 @@ GESTURE_MAX_S = 20.0
 _MIX_ACTIONS = frozenset({
     "setFader", "setPan", "setMute", "muteAll", "setBusFader", "setEqBand",
     "setLowCut", "setCompressor", "setSend", "undo", "redo", "applyPreset",
-    "resetEqFlat", "libraryLoad", "pasteChannelDsp", "commitChangePlan",
+    "resetEqFlat", "libraryLoad", "pasteChannelDsp", "commitChangePlan", "runShowMode",
 })
 
 
@@ -83,7 +85,7 @@ LAN_LOCKED_FEATURES = {
 _OFFLINE_ACTIONS = frozenset({
     "setScribble", "librarySave", "libraryRename", "libraryDelete", "libraryImport",
     "setActiveBus", "setActiveView", "previewChangePlan", "beginGesture", "endGesture",
-    "setTransportMode", "bleDumpTrigger",
+    "setTransportMode", "bleDumpTrigger", "saveShowMode",
 })
 
 
@@ -122,10 +124,13 @@ class Flow8LanHub:
         host: str = "0.0.0.0",
         port: int = DEFAULT_LAN_PORT,
         library_path: Optional[Path] = None,
+        show_modes_path: Optional[Path] = None,
     ) -> None:
         self.service = service
         # library_path None: the library lives in memory only (tests, embedded use).
         self.library = SnapshotLibrary(library_path)
+        # show_modes_path None: the two Show Modes live in memory only (tests, embedded use).
+        self.show_modes = ShowModeStore(show_modes_path)
         self.host = host
         self._requested_port = port
         self._server: Optional[_ThreadedHTTPServer] = None
@@ -596,6 +601,8 @@ class Flow8LanHub:
             "recallScopes": list(RECALL_SCOPES),
             "library": self.library.summaries(),
             "libraryError": self.library.load_error,
+            "showModes": self.show_modes.summaries(),
+            "showModesError": self.show_modes.load_error,
             "lanPolicy": dict(LAN_POLICY),
             "locked": dict(LAN_LOCKED_FEATURES),
         }
@@ -820,6 +827,45 @@ class Flow8LanHub:
                         ),
                         **extra,
                     }
+            elif action == "saveShowMode":
+                extra = {"mode": self.show_modes.save(str(msg.get("id", "")), msg.get("steps"))}
+            elif action == "runShowMode":
+                from flow8.change_plan import make_plan
+
+                mode = self.show_modes.get(str(msg.get("id", "")))
+                unset = unset_steps(mode)
+                if unset:
+                    return 409, {
+                        "ok": False, "code": "show_mode_unset", "unsetSteps": unset,
+                        "error": f"{mode['name']} has {len(unset)} step(s) NOT SET. Set them in Setup > Show modes.",
+                    }
+                plan = make_plan(f"SHOW MODE · {mode['name']}", compile_mode(mode))
+                # One lock hold: a second client's run must see this run's values, and
+                # the guard must not see a value this same request is about to write.
+                with self.service._ledger_lock:
+                    rows, guard = self.service.stage_change_plan(plan)
+                    result = self.service.commit_change_plan(plan, guard=guard, require_guard=True)
+                if result.stale:
+                    return 409, {
+                        "ok": False, "mode": mode["name"], "rolledBack": False, "failed": [],
+                        "error": "The mix changed while the mode was running; nothing was sent. Hold the mode again.",
+                    }
+                if result.error:
+                    return 409, {
+                        "ok": False, "mode": mode["name"],
+                        "error": (
+                            "The mode failed and the values already sent were restored."
+                            if result.rolled_back else
+                            "The mode failed; some values could not be restored (their previous value "
+                            "was unknown). Check the mixer."
+                        ) + f" ({result.error})",
+                        "rolledBack": result.rolled_back, "failed": result.failed,
+                    }
+                extra = {
+                    "mode": mode["name"], "applied": result.applied, "skipped": result.skipped,
+                    "undoReady": result.undo_ready,
+                    "unknownBefore": sum(1 for row in rows if row.status == "change" and row.from_value is None),
+                }
             elif action == "resetEqFlat":
                 ch = int(msg["channel"])
                 with self.service._ledger_lock:

@@ -177,8 +177,56 @@
     }
   }
 
+  // One plain sentence for why the mixer can or cannot be controlled right now.
+  // Only observed facts: the transport snapshot the hub reports, never a guess.
+  function linkSummary(sess) {
+    const tr = (sess && sess.transport) || null;
+    if (!tr) {
+      const ok = !!(sess && sess.midiConnected);
+      return ok
+        ? { ok: true, pill: 'MIXER ONLINE', banner: '', title: 'The FLOW 8 is connected.' }
+        : { ok: false, pill: 'DISCONNECTED', banner: 'MIXER NOT CONNECTED — controls are locked. Connect the FLOW 8 to the host computer by USB.', title: 'No link to the FLOW 8. Commands are not sent.' };
+    }
+    const mode = tr.mode || 'usb_midi';
+    const usb = tr.usb || {};
+    const ble = tr.ble || {};
+    const label = { usb_midi: 'USB MIDI', ble: 'BLUETOOTH', hybrid: 'HYBRID' }[mode] || mode;
+    if (tr.controlConnected && (mode !== 'usb_midi' || sess.midiConnected !== false)) {
+      return { ok: true, pill: 'MIXER ONLINE', banner: '', title: `The FLOW 8 is connected (${label}). SENT values are what this app sent; the mixer does not report every value back.` };
+    }
+    const seen = (usb.devicesSeen || []).join(', ');
+    const usbWhy = {
+      no_midi_devices: 'Windows lists no MIDI devices. Check the USB cable and that the mixer is on.',
+      flow8_not_listed: `FLOW 8 is not in the Windows MIDI list${seen ? ` (seen: ${seen})` : ''}. Check the USB cable, that the mixer is on, and that it is in USB mode.`,
+      open_failed: `FLOW 8 is listed but could not be opened${usb.error ? `: ${usb.error}` : ''}. Another program may be using it.`,
+    }[usb.diagnosis] || (usb.error || 'USB MIDI is not connected.');
+    const bleWhy = ble.authenticated
+      ? 'Bluetooth is confirmed.'
+      : ble.connected
+        ? `Bluetooth is connected but the mixer has not confirmed it (RX ${ble.packetsRx || 0}).`
+        : `Bluetooth is not connected${ble.error ? `: ${ble.error}` : ''}.`;
+    if (mode === 'usb_midi') {
+      const pill = usb.diagnosis === 'open_failed' ? 'USB BUSY' : 'USB NOT FOUND';
+      return { ok: false, pill, banner: `MIXER NOT CONNECTED — ${usbWhy}`, title: usbWhy };
+    }
+    if (mode === 'ble') {
+      return { ok: false, pill: ble.connected ? 'BLE WAITING' : 'BLE NOT FOUND', banner: `MIXER NOT CONNECTED — ${bleWhy} Switch to USB MIDI on Setup, Routing if you have the cable.`, title: bleWhy };
+    }
+    const usbOk = !!usb.connected;
+    const text = usbOk
+      ? `HYBRID mode needs Bluetooth for commands. USB is ready, but ${bleWhy} Switch to USB MIDI on Setup, Routing.`
+      : `${usbWhy} ${bleWhy}`;
+    return { ok: false, pill: usbOk ? 'HYBRID: BLE DOWN' : 'NOT CONNECTED', banner: `MIXER NOT CONNECTED — ${text}`, title: text };
+  }
+
+  function openRoutingFromPill() {
+    setupPage = 'routing';
+    const tab = document.querySelector('.cue-group[data-group="setup"]');
+    if (tab) tab.click();
+  }
+
   // Show the connection state: banner, status pill, and locked controls.
-  function applyConnectionState(connected, message) {
+  function applyConnectionState(connected, message, pillText, pillTitle) {
     document.body.classList.toggle('offline', !connected);
     const banner = document.getElementById('conn-banner');
     banner.hidden = connected;
@@ -186,11 +234,16 @@
     const pill = document.getElementById('status-pill');
     pill.classList.toggle('online', connected);
     pill.classList.toggle('offline', !connected);
-    document.getElementById('status-text').textContent = connected ? 'MIXER ONLINE' : 'DISCONNECTED';
-    pill.title = connected
+    document.getElementById('status-text').textContent = pillText || (connected ? 'MIXER ONLINE' : 'DISCONNECTED');
+    pill.title = pillTitle || (connected
       ? 'The FLOW 8 is connected by USB MIDI. SENT values are what this app sent; the mixer does not report every value back.'
-      : 'No USB MIDI link to the FLOW 8. Commands are not sent.';
+      : 'No USB MIDI link to the FLOW 8. Commands are not sent.');
   }
+  (() => {
+    const pill = document.getElementById('status-pill');
+    pill.onclick = openRoutingFromPill;
+    pill.onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openRoutingFromPill(); } };
+  })();
 
   function confirmAction(title, text, okLabel, style = 'danger') {
     return new Promise((resolve) => {
@@ -897,7 +950,8 @@
 
   function renderConsole() {
     if (!session) return;
-    applyConnectionState(!!session.midiConnected);
+    const link = linkSummary(session);
+    applyConnectionState(link.ok, link.banner, link.pill, link.title);
     const allMuted = session.channels.filter((c) => c.index <= 7).every((c) => c.mute);
     const muteAllBtn = document.getElementById('btn-mute-all');
     muteAllBtn.textContent = allMuted ? 'UNMUTE ALL' : 'MUTE ALL';
@@ -1409,7 +1463,7 @@
   // ---------- Setup view ----------
   const SETUP_PAGES = {
     inputs: renderInputsPage, snapshots: renderSnapshotsPage, library: renderLibraryPage,
-    prefs: renderPrefsPage, routing: renderRoutingPage, info: renderInfoPage,
+    showmodes: renderShowModesPage, prefs: renderPrefsPage, routing: renderRoutingPage, info: renderInfoPage,
   };
   function renderSetup() {
     document.querySelectorAll('.setup-tab').forEach((t) => {
@@ -1720,6 +1774,7 @@
         <button class="seg-btn ${tMode === 'hybrid' ? 'on' : ''}" data-tmode="hybrid">HYBRID</button>
       </div>
       <dl class="info-list" style="margin-top:8px;">
+        <dt>MIDI OUT SEEN</dt><dd>${(tusb.devicesSeen || []).length ? esc(tusb.devicesSeen.join(' · ')) : (tusb.connected ? 'FLOW 8 is open' : 'none')}</dd>
         <dt>USB MIDI</dt><dd>${usbState}${tusb.listening ? ' · meters in' : ''}${tusb.error ? ` — ${esc(tusb.error)}` : ''}</dd>
         <dt>BLUETOOTH LE</dt><dd>${bleState}${tble.packetsRx != null ? ` · RX ${tble.packetsRx} / TX ${tble.packetsTx || 0}` : ''}${tble.dumpChunks ? ` · dump ${tble.dumpChunks} chunks` : ''}</dd>
         <dt>ACTIVE CONTROL</dt><dd>${tr.controlConnected ? 'READY' : 'NOT READY'} — ${esc(tfeat.control || tMode)}</dd>
@@ -2327,6 +2382,7 @@
       ['inputs', 'CONFIGURE INPUTS'],
       ['snapshots', 'MIXER SNAPSHOTS (15)'],
       ['library', 'SNAPSHOT LIBRARY'],
+      ['showmodes', 'SHOW MODES'],
       ['prefs', 'PREFERENCES'],
       ['routing', 'ROUTING'],
       ['info', 'INFO'],
@@ -2341,6 +2397,7 @@
     if (setupPage === 'inputs') renderInputsPage(body);
     else if (setupPage === 'snapshots') renderSnapshotsPage(body);
     else if (setupPage === 'library') renderLibraryPage(body);
+    else if (setupPage === 'showmodes') renderShowModesPage(body);
     else if (setupPage === 'prefs') renderPrefsPage(body);
     else if (setupPage === 'routing') renderRoutingPage(body);
     else renderInfoPage(body);
@@ -2938,6 +2995,202 @@
     resizeTimer = setTimeout(() => { if (!pointerBusy) loadSession(); }, 250);
   });
 
+  // ---------- Show Mode (MC / BAND) ----------
+  // One hold switches the whole mix between two ordered macro lists kept on the
+  // host. Cuts (mutes, zeros) run first on the server; UNDO stays up after a run.
+  const SHOW_MODE_HOLD_MS = 450;
+  const SHOW_MODE_UNDO_MS = 8000;
+  const SHOW_PARAM_LABELS = {
+    mute: 'MUTE', fader: 'FADER', send_fx1: 'SEND FX 1', send_fx2: 'SEND FX 2',
+    send_mon1: 'SEND MON 1', send_mon2: 'SEND MON 2',
+  };
+  let showModeSig = '';
+  let showModeUndoTimer = null;
+  let showModeBusy = false;
+  // Unsaved editor edits live here, not in the DOM: the page is rebuilt on every
+  // hub event, and a rebuild must not wipe what was typed.
+  const showModeDrafts = {};
+
+  const showModeNotSet = (m) => `${m.name} has ${m.unsetCount} step${m.unsetCount === 1 ? '' : 's'} NOT SET. Open Setup > Show modes.`;
+
+  function renderShowModes() {
+    const box = document.getElementById('show-modes');
+    if (!box || !session) return;
+    const modes = session.showModes || [];
+    // Rebuilding mid-hold would cancel the hold, so rebuild only when something changed.
+    const sig = JSON.stringify(modes.map((m) => [m.id, m.name, m.ready, m.unsetCount]));
+    if (sig === showModeSig) return;
+    showModeSig = sig;
+    box.innerHTML = '';
+    modes.forEach((m) => {
+      const btn = document.createElement('button');
+      btn.className = 'hw-btn show-mode-btn' + (m.ready ? '' : ' unset');
+      btn.dataset.mode = m.id;
+      btn.dataset.focusKey = `showmode:${m.id}`;
+      btn.setAttribute('aria-label', m.ready
+        ? `Switch to ${m.name}. Hold to confirm.`
+        : `${m.name}: ${m.unsetCount} steps not set.`);
+      const label = document.createElement('span');
+      label.textContent = m.name;
+      btn.appendChild(label);
+      if (!m.ready) {
+        const small = document.createElement('small');
+        small.textContent = 'NOT SET';
+        btn.appendChild(small);
+      }
+      attachHold(btn, SHOW_MODE_HOLD_MS, () => runShowMode(m),
+        () => showToast(m.ready ? `Hold ${m.name} for 0.45 s to switch.` : showModeNotSet(m), !m.ready));
+      box.appendChild(btn);
+    });
+  }
+
+  function hideShowModeUndo() {
+    clearTimeout(showModeUndoTimer);
+    const btn = document.getElementById('show-mode-undo');
+    if (btn) btn.hidden = true;
+  }
+
+  function showShowModeUndo(name) {
+    const btn = document.getElementById('show-mode-undo');
+    btn.textContent = `UNDO ${name}`;
+    btn.hidden = false;
+    btn.onclick = async () => {
+      btn.hidden = true;
+      await postAction({ action: 'undo' });
+      scheduleReload();
+    };
+    clearTimeout(showModeUndoTimer);
+    showModeUndoTimer = setTimeout(() => { btn.hidden = true; }, SHOW_MODE_UNDO_MS);
+  }
+
+  async function runShowMode(m) {
+    if (!m.ready) { showToast(showModeNotSet(m), true); return; }
+    if (showModeBusy) return;
+    showModeBusy = true;
+    let res;
+    try { res = await postAction({ action: 'runShowMode', id: m.id }); } finally { showModeBusy = false; }
+    if (!res.ok) return;
+    if (!res.applied) { showToast(`${m.name} already active.`); loadSession(); return; }
+    let msg = `${m.name} ON · ${res.applied} changed` + (res.skipped ? `, ${res.skipped} already set` : '');
+    if (res.unknownBefore) msg += ` · ${res.unknownBefore} earlier value${res.unknownBefore === 1 ? '' : 's'} unknown, undo cannot restore ${res.unknownBefore === 1 ? 'it' : 'them'}`;
+    showToast(msg, !!res.unknownBefore);
+    showShowModeUndo(m.name);
+    scheduleReload();
+  }
+
+  const parseChannels = (text) => text.split(/[,\s]+/).filter(Boolean)
+    .map((t) => (/^\d+$/.test(t) ? Number(t) : t.toLowerCase()));
+
+  // Current commanded/observed fader of an input channel; null when the app does not know it.
+  function currentFader(step) {
+    const n = step.channels[0];
+    const ch = typeof n === 'number' && session ? (session.channels || []).find((c) => c.index === n) : null;
+    return ch && ch.faderProvenance && ch.faderProvenance !== 'UNSYNCED' ? ch.fader : null;
+  }
+
+  function showModeEditor(mode) {
+    const draft = showModeDrafts[mode.id] || (showModeDrafts[mode.id] = JSON.parse(JSON.stringify(mode.steps)));
+    const card = document.createElement('section');
+    card.className = 'show-mode-card';
+    function draw() {
+      card.innerHTML = '';
+      const head = document.createElement('h3');
+      head.className = 'show-mode-title';
+      head.textContent = mode.name;
+      card.appendChild(head);
+      draft.forEach((step, i) => {
+        const row = document.createElement('div');
+        row.className = 'show-step';
+        const param = document.createElement('select');
+        param.setAttribute('aria-label', `Step ${i + 1} parameter`);
+        Object.entries(SHOW_PARAM_LABELS).forEach(([k, label]) => {
+          const o = document.createElement('option');
+          o.value = k; o.textContent = label; o.selected = k === step.parameter;
+          param.appendChild(o);
+        });
+        param.onchange = () => { step.parameter = param.value; step.value = null; draw(); };
+        const chans = document.createElement('input');
+        chans.className = 'text-input';
+        chans.value = step.channels.join(', ');
+        chans.setAttribute('aria-label', `Step ${i + 1} channels (1-7, or fx1 mon1 for fader)`);
+        chans.dataset.focusKey = `showstep:${mode.id}:${i}:ch`;
+        chans.oninput = () => { step.channels = parseChannels(chans.value); };
+        row.append(param, chans);
+        let value;
+        if (step.parameter === 'mute') {
+          value = document.createElement('select');
+          [['', 'NOT SET'], ['mute', 'MUTE'], ['unmute', 'UNMUTE']].forEach(([v, label]) => {
+            const o = document.createElement('option');
+            o.value = v; o.textContent = label;
+            o.selected = (v === '' && step.value === null) || (v === 'mute' && step.value === true) || (v === 'unmute' && step.value === false);
+            value.appendChild(o);
+          });
+          value.onchange = () => { step.value = value.value === '' ? null : value.value === 'mute'; };
+        } else {
+          value = document.createElement('input');
+          value.type = 'number'; value.min = 0; value.max = 127; value.placeholder = 'NOT SET';
+          value.className = 'text-input';
+          value.value = step.value === null ? '' : step.value;
+          value.dataset.focusKey = `showstep:${mode.id}:${i}:val`;
+          value.oninput = () => { step.value = value.value === '' ? null : Number(value.value); };
+        }
+        value.setAttribute('aria-label', `Step ${i + 1} value`);
+        row.appendChild(value);
+        if (step.parameter === 'fader') {
+          const use = document.createElement('button');
+          use.className = 'key-btn';
+          use.textContent = 'USE CURRENT';
+          use.title = 'Take the fader value this app currently knows for the first channel';
+          use.onclick = () => {
+            const v = currentFader(step);
+            if (v === null) { showToast('This fader value is not known yet (UNSYNCED). Set it by hand.', true); return; }
+            step.value = v; draw();
+          };
+          row.appendChild(use);
+        }
+        const del = document.createElement('button');
+        del.className = 'key-btn';
+        del.textContent = 'DELETE';
+        del.setAttribute('aria-label', `Delete step ${i + 1}`);
+        del.onclick = () => { draft.splice(i, 1); draw(); };
+        row.appendChild(del);
+        card.appendChild(row);
+      });
+      const foot = document.createElement('div');
+      foot.className = 'show-mode-foot';
+      const add = document.createElement('button');
+      add.className = 'key-btn';
+      add.textContent = 'ADD STEP';
+      add.onclick = () => { draft.push({ parameter: 'fader', channels: [1], value: null }); draw(); };
+      const save = document.createElement('button');
+      save.className = 'key-btn';
+      save.textContent = 'SAVE';
+      save.onclick = async () => {
+        const res = await postAction({ action: 'saveShowMode', id: mode.id, steps: draft });
+        if (res.ok) { delete showModeDrafts[mode.id]; showToast(`${mode.name} saved.`); loadSession(); }
+      };
+      foot.append(add, save);
+      card.appendChild(foot);
+    }
+    draw();
+    return card;
+  }
+
+  function renderShowModesPage(page) {
+    pageHead(page, 'SHOW MODES');
+    const note = document.createElement('p');
+    note.className = 'sec-note';
+    note.textContent = 'A mode changes only what is listed. Cuts (mutes and zeros) run first, then raises. A mode with a step NOT SET cannot run. +48V and preamp gain are never part of a mode.';
+    page.appendChild(note);
+    if (session.showModesError) {
+      const err = document.createElement('p');
+      err.className = 'sec-note';
+      err.textContent = session.showModesError;
+      page.appendChild(err);
+    }
+    (session.showModes || []).forEach((m) => page.appendChild(showModeEditor(m)));
+  }
+
   async function loadSession() {
     const focusKey = document.activeElement && document.activeElement.dataset ? document.activeElement.dataset.focusKey : null;
     try {
@@ -2958,6 +3211,7 @@
     }
     renderView();
     renderStatusBar();
+    renderShowModes();
     if (focusKey) {
       const el = document.querySelector(`[data-focus-key="${CSS.escape(focusKey)}"]`);
       if (el) el.focus({ preventScroll: true });
@@ -2985,6 +3239,8 @@
     if (ev.type === 'connected') return;
     if (ev.type === 'rx') markLamp(stripIdForParam(ev.paramId), 'rx');
     if (ev.type === 'tx') {
+      // UNDO <mode> undoes the last change, so any other change retires it.
+      if (ev.action !== 'runShowMode') hideShowModeUndo();
       if (ev.action === 'muteAll') for (let i = 1; i <= 7; i++) markLamp(`ch${i}`, 'tx');
       else if (ev.bus) markLamp(ev.bus, 'tx');
       else if (ev.channel != null) markLamp(stripIdForChannel(+ev.channel), 'tx');
