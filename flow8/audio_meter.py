@@ -41,6 +41,11 @@ CAPTURE_MAP_RECORDING: dict[str, tuple[int, ...]] = {
     "ch5": (4, 5),    # Line 5/6
     "ch6": (6, 7),    # Line 7/8
     "main": (8, 9),   # Main L/R
+    # Single jacks, for the input meters on the I/O setup page.
+    "in5": (4,),      # Line 5 (L)
+    "in6": (5,),      # Line 6 (R / Hi-Z)
+    "in7": (6,),      # Line 7 (L)
+    "in8": (7,),      # Line 8 (R / Hi-Z)
 }
 # Streaming Mode exposes only the stereo main mix (2 channels).
 CAPTURE_MAP_STREAMING: dict[str, tuple[int, ...]] = {"main": (0, 1)}

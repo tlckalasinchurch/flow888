@@ -97,7 +97,8 @@ class LevelMathTests(unittest.TestCase):
 
     def test_ch7_and_buses_have_no_meter(self):
         self.assertEqual(set(LevelMeter(CAPTURE_MAP_RECORDING, RATE).strips),
-                         {"ch1", "ch2", "ch3", "ch4", "ch5", "ch6", "main"})
+                         {"ch1", "ch2", "ch3", "ch4", "ch5", "ch6", "main",
+                          "in5", "in6", "in7", "in8"})
 
     def test_short_block_does_not_crash(self):
         m = LevelMeter(CAPTURE_MAP_RECORDING, RATE)

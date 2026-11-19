@@ -209,6 +209,66 @@ To unlock a feature: verify its address on the hardware, add it to `command_boun
 
 Per channel: `lowCutProvenance`, `compressorProvenance`, `gain` (raw or `null`), `gainProvenance`, `phantom` (`true`/`false`/`null`), `phantomProvenance`. Top level: `lanPolicy` (`{"gain": false, "phantom": false}`) and `locked` (feature → reason).
 
+## 4c. Views, setup pages and snapshots
+
+### Views
+
+| Control | Result |
+|---|---|
+| `MIXER` | Fader bank + Inspector (section 4b) |
+| `STAGE` | 7 large level knobs (`MIC 1` … `USB/BT`) for the mix on the faders, a MUTE key under each, and an FX 2 `TAP TEMPO` pad. An outer ring around each knob shows the live pre-fader level (green, amber above −6 dBFS, red on clip). `USB/BT` has no ring (no capture channel) |
+| `SNAPSHOTS` | Setup view, MIXER SNAPSHOTS page |
+| `SETUP` | Setup view: CONFIGURE INPUTS, MIXER SNAPSHOTS, SNAPSHOT LIBRARY, PREFERENCES, ROUTING, INFO. `✕` or Escape returns to the last view |
+
+### Setup pages and what each control can send
+
+| Page | Live | Locked (reason key in `session.locked`) |
+|---|---|---|
+| CONFIGURE INPUTS | Per-jack meters and signal lamps (`ch1`–`ch4`, `in5`–`in8` from the USB capture) | +48V (`phantom`, hold-to-toggle ready), STEREO/MONO (`stereoLink`). Hi-Z on Line 6 and 8 is a label |
+| MIXER SNAPSHOTS | 15 hub snapshot slots: tap recall, hold save. WHAT TO LOAD: CH, FX, MAIN, MON | ROUT (`routing`), RESET (`hwSnapshots`) |
+| SNAPSHOT LIBRARY | NEW, LOAD (asks first), UPDATE, RENAME, DELETE (asks first), search, sort by date or A–Z, IMPORT and EXPORT JSON | — |
+| PREFERENCES | DISPLAY DECIBEL, FINER SLIDERS (this device only, `localStorage`) | FULL PARAMETRIC (`eqParametric`), −10 dBV pads (`outputPad`), foot switch mode (`footswitch`) |
+| ROUTING | USB audio mode, read from the USB device | All routing options (`routing`) |
+| INFO | MIDI, meter and library state; LAN addresses | — |
+
+FINER SLIDERS (or Shift on a desktop): a fader moves from its cap at one quarter of the finger travel instead of jumping to the finger; knobs turn at one quarter speed.
+
+### Snapshot model
+
+| Tier | Where it lives | Slots | Content |
+|---|---|---|---|
+| Mixer snapshots | Hub memory (`Flow8Service.scenes`, `SCENE_CAPACITY = 15`) | `SCENE 1` … `SCENE 15`, shown 01–15 | Known values only: inputs 1–7 (fader, pan, mute, EQ, low cut, comp, sends), Main fader and balance, MON/FX bus faders |
+| Snapshot library | `~/.flow8/snapshot_library.json` on the host (`--library PATH` to change) | Up to 500 named entries | Same values, plus name and dates |
+
+These are not the FLOW 8's own snapshot memories. Those recall by Program Change on MIDI channel 16, where Program Change 16 resets the mixer; the hub sends nothing on channel 16.
+
+Recall scope (`recall_scope_of`): `CH` = input values except sends; `MON` = sends to MON 1/2 and the MON bus faders; `FX` = sends to FX 1/2 and the FX bus faders; `MAIN` = Main fader and balance. A recall or library load is one undo step. A partial recall shows the scene as EDITED. Gain and +48V are never stored, and the library import refuses them.
+
+Library file format `flow8-snapshot-library-v1`:
+
+```json
+{"format": "flow8-snapshot-library-v1",
+ "snapshots": [{"id": "…", "name": "Pastor", "createdAt": "…", "updatedAt": "…",
+                "parameters": {"1": {"fader": 90, "mute": false}, "8": {"fader": 101}, "mon1": {"fader": 80}}}]}
+```
+
+Import checks every value (channel 1–8 or bus id, allowed parameter, integer 0–127, mute true/false). Invalid entries are skipped and counted. The hub refuses request bodies over 1 MB. The file is written atomically.
+
+### Hub API added
+
+| Call | Purpose |
+|---|---|
+| `recallScene {name, scope?}` | Scope: list of `CH`, `FX`, `MAIN`, `MON`; omitted = all |
+| `librarySave {name, id?}` | New entry from the known mix, or overwrite `id` |
+| `libraryLoad {id, scope?}` | Send an entry (needs the mixer) |
+| `libraryRename`, `libraryDelete`, `libraryImport {data}` | Library edits; allowed while the mixer is disconnected |
+| `GET /api/library/export` | Download the library as JSON |
+| Session: `sceneSlots`, `sceneInfo`, `recallScopes`, `library`, `libraryError` | Data for the pages |
+
+### FX preset names
+
+FX 1 and FX 2 tiles show the preset names of the FLOW 8 app v1.14 (screens supplied by the owner): FX 1 = AMBIENCE … STADIUM (12 reverbs) + FLANGER, SOFT/WARM/DEEP CHOR; FX 2 = DELAY, ECHO, WIDE ECHO, PING PONG (12 delays) + the same 4 modulation presets. This settles the names part of conflict C-09. The CC meanings stay unconfirmed, so the engine controls stay locked. Tap tempo shows on FX 2 only, as in the app.
+
 ## 5. Visual system
 
 Matte dark slate. Colour carries meaning only: mix colour, LEDs, channel tags.
@@ -244,7 +304,8 @@ Principle: the backlit scribble strips and the LED lenses carry the identity. Th
 
 1. **Hardware check of the meter module:** confirm the PortAudio device name and channel order on the real FLOW 8, and compare the meter readings with the mixer's own LEDs. The module has only been tested with a simulated audio backend.
 2. **Hardware verification of GEQ, limiter, solo and FX:** each needs a controlled test before it leaves `LAN_LOCKED_FEATURES` (see section 4b).
-3. **EQ band frequencies:** confirm 100 Hz / 500 Hz / 2 kHz / 12 kHz against an official source (conflict C-04 lists other values).
-4. **Incremental rendering:** update only the strips that changed, when more clients or more frequent RX events make full re-renders expensive.
-5. **Hub-wide lock:** one lock for all clients, if the venue uses several tablets.
-6. **Scene names:** user-defined scene names in the scene display.
+3. **FLOW 8 snapshot memories (Program Change 1–15 on channel 16):** a controlled hardware test with the owner present, before any recall of mixer memories from the remote.
+4. **EQ band frequencies:** confirm 100 Hz / 500 Hz / 2 kHz / 12 kHz against an official source (conflict C-04 lists other values).
+5. **Incremental rendering:** update only the strips that changed, when more clients or more frequent RX events make full re-renders expensive.
+6. **Hub-wide lock:** one lock for all clients, if the venue uses several tablets.
+7. **Scene names:** user-defined scene names in the scene display.

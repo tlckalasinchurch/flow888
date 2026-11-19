@@ -13,7 +13,7 @@ import logging
 import threading
 from contextlib import contextmanager
 from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, Iterator, Optional
+from typing import Any, Callable, Dict, Iterable, Iterator, Mapping, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -31,7 +31,7 @@ from flow8.state_model import EventSource, Flow8StateStore, ParameterProvenance,
 
 
 LEDGER_CAPACITY = 50
-SCENE_CAPACITY = 8
+SCENE_CAPACITY = 15
 MAIN_CHANNEL = 8
 # Pseudo parameter id sent to state listeners when a connect/disconnect has reset all state.
 RECONCILE_EVENT = "__reconcile__"
@@ -46,6 +46,25 @@ REVERSIBLE_PARAMETERS = (
     "low_cut", "compressor",
     "send_mon1", "send_mon2", "send_fx1", "send_fx2",
 )
+
+
+#: Bus faders stored in scenes besides inputs 1-7 and Main L/R.
+SCENE_BUSES = ("mon1", "mon2", "fx1", "fx2")
+
+#: Recall filters, as "WHAT TO LOAD" in the FLOW 8 app. Routing (ROUT) has no
+#: verified MIDI address, so scenes hold no routing values.
+RECALL_SCOPES = ("CH", "FX", "MAIN", "MON")
+
+
+def recall_scope_of(channel: Any, parameter: str) -> str:
+    """Recall scope of one stored value: CH, FX, MAIN or MON."""
+    if channel in ("mon1", "mon2") or parameter in ("send_mon1", "send_mon2"):
+        return "MON"
+    if channel in ("fx1", "fx2") or parameter in ("send_fx1", "send_fx2"):
+        return "FX"
+    if channel == MAIN_CHANNEL or channel == "main":
+        return "MAIN"
+    return "CH"
 
 
 @dataclass
@@ -638,16 +657,21 @@ class Flow8Service:
 
     # -- Scenes ---------------------------------------------------------------
 
-    def capture_scene(self, name: str) -> SceneSnapshot:
-        """Store the known fader, pan and mute values of inputs 1-7 and Main L/R.
+    def known_mix_state(self) -> dict[Any, dict[str, Any]]:
+        """Known values of inputs 1-7, Main L/R and the MON/FX bus faders.
 
         Values come from software commands or hardware observations only; a
         parameter nothing has set or reported is left out rather than guessed.
-        +48V is never captured.
+        +48V and preamp gain are never included.
         """
-        state: dict[int, dict[str, Any]] = {}
-        for channel in range(1, MAIN_CHANNEL + 1):
-            parameters = REVERSIBLE_PARAMETERS if channel != MAIN_CHANNEL else ("fader", "pan")
+        state: dict[Any, dict[str, Any]] = {}
+        for channel in list(range(1, MAIN_CHANNEL + 1)) + list(SCENE_BUSES):
+            if isinstance(channel, str):
+                parameters = ("fader",)
+            elif channel == MAIN_CHANNEL:
+                parameters = ("fader", "pan")
+            else:
+                parameters = REVERSIBLE_PARAMETERS
             values = {
                 parameter: value
                 for parameter in parameters
@@ -655,6 +679,11 @@ class Flow8Service:
             }
             if values:
                 state[channel] = values
+        return state
+
+    def capture_scene(self, name: str) -> SceneSnapshot:
+        """Store the known mix values (see known_mix_state) as a named scene."""
+        state = self.known_mix_state()
         if not state:
             raise ValueError(
                 "No commanded or observed fader, pan or mute values to capture; "
@@ -662,27 +691,37 @@ class Flow8Service:
             )
         return self.scenes.save_snapshot(name, state)
 
-    def recall_scene(self, name: str) -> SceneRecallResult:
+    def recall_scene(self, name: str, scope: Optional[Iterable[str]] = None) -> SceneRecallResult:
         """Dispatch a stored scene through the boundary as one undoable step.
 
-        Raises KeyError for an unknown scene. Commands the boundary rejects are
+        scope limits the recall to some RECALL_SCOPES (None = all). Raises
+        KeyError for an unknown scene. Commands the boundary rejects are
         reported in the result, not hidden; the rest are still applied.
         """
         snapshot = self.scenes.get(name)
-        result = SceneRecallResult(name=snapshot.name)
+        return self.apply_mix_state(snapshot.name, snapshot.parameters, scope)
+
+    def apply_mix_state(self, label: str, parameters: Mapping[Any, Mapping[str, Any]],
+                        scope: Optional[Iterable[str]] = None) -> SceneRecallResult:
+        """Send stored mix values as one undoable step, filtered by recall scope."""
+        scopes = set(RECALL_SCOPES) if scope is None else {str(s).upper() for s in scope}
+        unknown = scopes - set(RECALL_SCOPES)
+        if unknown:
+            raise ValueError(f"unknown recall scope: {sorted(unknown)}")
+        result = SceneRecallResult(name=label)
         with self._ledger_lock:
             self.begin_batch()
             try:
-                for channel, values in snapshot.parameters.items():
+                for channel, values in parameters.items():
                     for parameter in REVERSIBLE_PARAMETERS:
-                        if parameter not in values:
+                        if parameter not in values or recall_scope_of(channel, parameter) not in scopes:
                             continue
                         try:
                             self._replay(parameter, channel, values[parameter])
                             result.applied += 1
                         except Exception as error:
                             logger.exception(
-                                "Scene %r: %s on channel %s was not sent", name, parameter, channel
+                                "Scene %r: %s on channel %s was not sent", label, parameter, channel
                             )
                             result.failed.append((channel, parameter, str(error)))
             finally:

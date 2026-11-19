@@ -23,7 +23,8 @@ from typing import Any, Optional
 from flow8.domain_model import LOGICAL_CHANNELS
 from flow8.presets import list_channel_presets
 from flow8.safety import BLOCKED_PARAMETER_TYPES
-from flow8.service import MAIN_CHANNEL, Flow8Service
+from flow8.service import MAIN_CHANNEL, RECALL_SCOPES, SCENE_CAPACITY, Flow8Service
+from flow8.snapshot_library import SnapshotLibrary, default_library_path
 from flow8.state_model import ParameterProvenance
 
 logger = logging.getLogger(__name__)
@@ -31,6 +32,8 @@ logger = logging.getLogger(__name__)
 DEFAULT_LAN_PORT = 8844
 WEB_UI_DIR = Path(__file__).resolve().parent / "web_ui"
 FONT_PATH = re.compile(r"^/fonts/([a-z0-9-]+\.woff2)$")
+# Largest accepted POST body (a library import is the biggest request).
+MAX_BODY_BYTES = 1_000_000
 
 # Meter frames: at most one SSE frame per interval; the feed counts as live
 # while frames arrive within METER_STALE_S.
@@ -42,7 +45,7 @@ METER_STALE_S = 2.0
 _MIX_ACTIONS = frozenset({
     "setFader", "setPan", "setMute", "muteAll", "setBusFader", "setEqBand",
     "setLowCut", "setCompressor", "setSend", "undo", "redo", "applyPreset",
-    "resetEqFlat",
+    "resetEqFlat", "libraryLoad",
 })
 
 
@@ -62,8 +65,20 @@ LAN_LOCKED_FEATURES = {
     "solo": "Solo (CC 6) is not on the verified MIDI allowlist.",
     "limiter": "Bus limiter (CC 8) is documented but not hardware-verified.",
     "geq": "The 9-band GEQ (CC 11-19) is documented but not hardware-verified.",
-    "fx": "FX engine controls stay disabled until the preset list and CC meanings are confirmed (conflict C-09).",
+    "fx": "FX engine controls stay disabled until the CC meanings are confirmed (conflict C-09).",
+    "tap": "Tap tempo uses MIDI channel 16, which also carries the forbidden mixer reset. Use the mixer or a foot switch.",
+    "eqParametric": "EQ frequency and Q have no verified MIDI address. Gain only.",
+    "stereoLink": "Stereo/mono link has no verified MIDI address. Set it on the mixer.",
+    "routing": "Routing has no verified MIDI address. Set it in the FLOW 8 app or on the mixer.",
+    "outputPad": "The -10 dBV output pads have no verified MIDI address.",
+    "footswitch": "Foot switch mode has no verified MIDI address.",
+    "hwSnapshots": "Mixer memory snapshots use Program Change on MIDI channel 16 (16 = reset, forbidden). The slots here are hub snapshots.",
 }
+
+# Actions that change no mixer value: allowed while MIDI is closed.
+_OFFLINE_ACTIONS = frozenset({
+    "setScribble", "librarySave", "libraryRename", "libraryDelete", "libraryImport",
+})
 
 
 def get_lan_ips() -> list[str]:
@@ -100,8 +115,11 @@ class Flow8LanHub:
         service: Flow8Service,
         host: str = "0.0.0.0",
         port: int = DEFAULT_LAN_PORT,
+        library_path: Optional[Path] = None,
     ) -> None:
         self.service = service
+        # library_path None: the library lives in memory only (tests, embedded use).
+        self.library = SnapshotLibrary(library_path)
         self.host = host
         self._requested_port = port
         self._server: Optional[_ThreadedHTTPServer] = None
@@ -200,6 +218,16 @@ class Flow8LanHub:
                     })
                     return
 
+                if self.path.startswith("/api/library/export"):
+                    body = json.dumps(hub.library.export(), indent=2, ensure_ascii=False).encode("utf-8")
+                    self.send_response(200)
+                    self.send_header("Content-Type", "application/json; charset=utf-8")
+                    self.send_header("Content-Disposition", 'attachment; filename="flow8-snapshot-library.json"')
+                    self.send_header("Content-Length", str(len(body)))
+                    self.end_headers()
+                    self.wfile.write(body)
+                    return
+
                 if self.path.startswith("/api/session"):
                     self._send_json(200, hub.session_snapshot())
                     return
@@ -248,7 +276,14 @@ class Flow8LanHub:
                 if self.path != "/api/action":
                     self._send_json(404, {"error": "not found"})
                     return
-                length = int(self.headers.get("Content-Length", "0") or 0)
+                try:
+                    length = int(self.headers.get("Content-Length", "0") or 0)
+                except ValueError:
+                    length = -1
+                if not 0 <= length <= MAX_BODY_BYTES:
+                    self.close_connection = True
+                    self._send_json(413, {"ok": False, "error": "Request too large (limit 1 MB)."})
+                    return
                 raw = self.rfile.read(length)
                 try:
                     payload = json.loads(raw.decode("utf-8"))
@@ -460,9 +495,22 @@ class Flow8LanHub:
             "channels": channels,
             "buses": buses,
             "scenes": list(self.service.scenes.names()),
+            "sceneSlots": SCENE_CAPACITY,
+            "sceneInfo": self._scene_info(),
+            "recallScopes": list(RECALL_SCOPES),
+            "library": self.library.summaries(),
+            "libraryError": self.library.load_error,
             "lanPolicy": dict(LAN_POLICY),
             "locked": dict(LAN_LOCKED_FEATURES),
         }
+
+    def _scene_info(self) -> list[dict[str, Any]]:
+        from flow8.snapshot_library import scope_counts
+        return [
+            {"name": snap.name, "capturedAt": snap.captured_at.isoformat(timespec="seconds"),
+             "scopes": scope_counts(snap.parameters)}
+            for snap in self.service.scenes.list_snapshots()
+        ]
 
     def dispatch_action(self, msg: dict[str, Any]) -> tuple[int, dict[str, Any]]:
         """Execute a LAN action strictly through Flow8Service and safety rules."""
@@ -477,13 +525,14 @@ class Flow8LanHub:
         # A command sent while MIDI is closed would be recorded as "commanded" but
         # never reach the mixer. Reject it so the remote cannot show a false success.
         # Scribble labels stay local to the hub, so they stay allowed.
-        if action != "setScribble" and not self.service.is_connected:
+        if action not in _OFFLINE_ACTIONS and not self.service.is_connected:
             return 503, {
                 "ok": False,
                 "code": "not_connected",
                 "error": "Mixer is not connected. The command was not sent.",
             }
 
+        extra: dict[str, Any] = {}
         try:
             if action == "setFader":
                 self.service.set_fader(int(msg["channel"]), int(msg["value"]))
@@ -529,7 +578,23 @@ class Flow8LanHub:
             elif action == "captureScene":
                 self.service.capture_scene(str(msg["name"]))
             elif action == "recallScene":
-                self.service.recall_scene(str(msg["name"]))
+                result = self.service.recall_scene(str(msg["name"]), msg.get("scope"))
+                extra = {"applied": result.applied, "failed": len(result.failed)}
+            elif action == "libraryLoad":
+                entry = self.library.get(str(msg["id"]))
+                result = self.service.apply_mix_state(
+                    entry["name"], self.library.parameters(entry["id"]), msg.get("scope"))
+                extra = {"applied": result.applied, "failed": len(result.failed), "name": entry["name"]}
+            elif action == "librarySave":
+                extra = self.library.save(
+                    str(msg.get("name", "")), self.service.known_mix_state(),
+                    entry_id=(str(msg["id"]) if msg.get("id") else None))
+            elif action == "libraryRename":
+                self.library.rename(str(msg["id"]), str(msg.get("name", "")))
+            elif action == "libraryDelete":
+                self.library.delete(str(msg["id"]))
+            elif action == "libraryImport":
+                extra = self.library.import_data(msg.get("data"))
             elif action == "applyPreset":
                 ok = self.service.apply_channel_preset(
                     int(msg["channel"]), str(msg["presetId"]), preserve_levels=True
@@ -559,8 +624,11 @@ class Flow8LanHub:
 
         with self._scene_lock:
             if action in ("captureScene", "recallScene"):
+                # A partial recall (WHAT TO LOAD) leaves the rest of the mix as it was.
+                scope = msg.get("scope") if action == "recallScene" else None
+                partial = bool(scope) and not set(RECALL_SCOPES) <= {str(x).upper() for x in scope}
                 self._current_scene = str(msg["name"])
-                self._scene_edited = False
+                self._scene_edited = partial
             elif action in _MIX_ACTIONS and self._current_scene is not None:
                 self._scene_edited = True
         # "tx" tells every client which strip a command went to, for the TX lamp.
@@ -572,7 +640,7 @@ class Flow8LanHub:
             "target": msg.get("target"),
             "clientId": msg.get("clientId"),
         })
-        return 200, {"ok": True, "action": action}
+        return 200, {"ok": True, "action": action, **extra}
 
 
 def main(argv: Optional[list[str]] = None) -> int:
@@ -586,7 +654,10 @@ def main(argv: Optional[list[str]] = None) -> int:
 
     args = sys.argv[1:] if argv is None else argv
     service = Flow8Service(auto_connect=True)
-    hub = Flow8LanHub(service, port=DEFAULT_LAN_PORT)
+    library = default_library_path()
+    if "--library" in args and args.index("--library") + 1 < len(args):
+        library = Path(args[args.index("--library") + 1])
+    hub = Flow8LanHub(service, port=DEFAULT_LAN_PORT, library_path=library)
     hub.start()
     meter = None if "--no-meters" in args else Flow8AudioMeter(hub.publish_meters, hub.set_meter_status)
     print(f"FLOW 8 LAN Remote Hub active (MIDI connected={service.is_connected})")

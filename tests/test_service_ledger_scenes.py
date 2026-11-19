@@ -38,7 +38,7 @@ class LedgerWiringTests(unittest.TestCase):
         self.assertEqual(self.service.ledger.capacity, LEDGER_CAPACITY)
         self.assertEqual(LEDGER_CAPACITY, 50)
         self.assertEqual(self.service.scenes.max_snapshots, SCENE_CAPACITY)
-        self.assertEqual(SCENE_CAPACITY, 8)
+        self.assertEqual(SCENE_CAPACITY, 15)
 
     def test_change_from_unknown_start_value_is_not_recorded(self):
         # Nothing commanded or observed yet: the state store holds only an app

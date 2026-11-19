@@ -5,6 +5,15 @@
   let activeLayer = 'main'; // 'main' | 'mon1' | 'mon2' | 'fx1' | 'fx2'
   // Inspector target: null (closed), { kind: 'ch', index: 1..7 } or { kind: 'bus', id: 'main'|'mon1'|... }
   let insp = null;
+  let view = 'mixer'; // 'mixer' | 'stage' | 'setup'
+  let lastLiveView = 'mixer';
+  let setupPage = 'inputs';
+
+  // Settings of this device only. Storage can fail (private mode): defaults then apply.
+  const PREF_DEFAULTS = { displayDb: true, finerSliders: false, recallScope: ['CH', 'FX', 'MAIN', 'MON'], librarySort: 'date' };
+  const prefs = { ...PREF_DEFAULTS };
+  try { Object.assign(prefs, JSON.parse(localStorage.getItem('flow8.prefs') || '{}')); } catch (_) { /* defaults */ }
+  const savePrefs = () => { try { localStorage.setItem('flow8.prefs', JSON.stringify(prefs)); } catch (_) { /* not stored */ } };
 
   // Strip legends as printed on the FLOW 8 panel.
   const STRIP_TAG = { 1: 'MIC 1', 2: 'MIC 2', 3: 'COMBO 3', 4: 'COMBO 4', 5: 'LINE 5/6', 6: 'LINE 7/8', 7: 'USB/BT' };
@@ -26,9 +35,18 @@
     { key: 'hi', label: 'HIGH', freq: 12000, hz: '12 kHz', color: '#BC71FF' },
   ];
   const GEQ_BANDS = ['63', '125', '250', '500', '1k', '2k', '4k', '8k', '16k'];
+  // Preset names as the FLOW 8 app (v1.14) shows them. Tap tempo exists on FX 2 only.
   const FX_ENGINE = {
-    fx1: { param: 'DECAY', modes: ['INSTRUMENT', 'VOCAL'] },
-    fx2: { param: 'FEEDBACK', modes: ['DULL', 'BRIGHT'] },
+    fx1: {
+      param: 'DECAY', modes: ['INSTRUMENT', 'VOCAL'], tap: false,
+      presets: ['AMBIENCE', 'PERC-REV1', 'PERC-REV2', 'GUIT-REV1', 'GUIT-REV2', 'CHAMBER', 'ROOM', 'CONCERT',
+        'CHURCH', 'CATHEDRAL', 'TEMPLE', 'STADIUM', 'FLANGER', 'SOFT CHOR', 'WARM CHOR', 'DEEP CHOR'],
+    },
+    fx2: {
+      param: 'FEEDBACK', modes: ['DULL', 'BRIGHT'], tap: true,
+      presets: ['DELAY 1/1', 'DELAY 1/2', 'DELAY 1/3', 'DELAY 2/1', 'ECHO 1/1', 'ECHO 1/2', 'ECHO 1/3', 'ECHO 2/1',
+        'WIDE ECHO', 'PING PONG', 'PING P 1/3', 'PING P R>L', 'FLANGER', 'SOFT CHOR', 'WARM CHOR', 'DEEP CHOR'],
+    },
   };
   const SCRIBBLE_PALETTE = ['#2EF2E2', '#52E59A', '#FFB45B', '#BC71FF', '#FF6BAA', '#C5FF4A', '#4FA8FF', '#D5DAE1'];
   const SCRIBBLE_NAMES = { '#2EF2E2': 'cyan', '#52E59A': 'green', '#FFB45B': 'amber', '#BC71FF': 'purple', '#FF6BAA': 'pink', '#C5FF4A': 'lime', '#4FA8FF': 'blue', '#D5DAE1': 'silver' };
@@ -110,7 +128,9 @@
   }
 
   // ---------- Value text ----------
+  // DISPLAY DECIBEL off: show fader travel in percent, as the FLOW 8 app does.
   function midiToDbStr(raw) {
+    if (!prefs.displayDb) return `${Math.round((raw / 127) * 100)}%`;
     if (raw <= 0) return '-∞ dB';
     const db = raw >= 101 ? ((raw - 101) / 26) * 10 : ((raw - 101) / 101) * 70;
     return `${db >= 0 ? '+' : ''}${db.toFixed(1)} dB`;
@@ -223,6 +243,19 @@
         el.classList.toggle('sig', m.peak > -50);
         el.classList.toggle('clip', now - m.clipAt < 1500);
       });
+      document.querySelectorAll('[data-sig]').forEach((el) => {
+        const m = meters[el.dataset.sig];
+        el.classList.toggle('on', !!m && m.peak > -50);
+      });
+      document.querySelectorAll('[data-meter-ring]').forEach((el) => {
+        const m = meters[el.dataset.meterRing];
+        if (!m) return;
+        const f = meterFrac(m.rms) * 100;
+        el.setAttribute('stroke-dasharray', `${f.toFixed(1)} 100`);
+        el.setAttribute('stroke', now - m.clipAt < 1500 ? 'var(--led-red)' : (m.peak > -6 ? 'var(--led-amber)' : 'var(--led-green)'));
+      });
+    } else {
+      document.querySelectorAll('[data-meter-ring]').forEach((el) => el.setAttribute('stroke-dasharray', '0 100'));
     }
     requestAnimationFrame(frame);
   }
@@ -338,9 +371,10 @@
 
   // ---------- Rotary knob ----------
   // locked: show the value, refuse input, and give the reason in the title.
-  function createRotaryKnob({ label, valueText, raw, min, max, color, bipolar = false, locked = null, focusKey, onMove, onCommit }) {
+  // meterSid: draw the live pre-fader level as an outer ring (stage view).
+  function createRotaryKnob({ label, valueText, raw, min, max, color, bipolar = false, locked = null, focusKey, meterSid, big = false, onMove, onCommit }) {
     const cell = document.createElement('div');
-    cell.className = 'knob-cell' + (locked ? ' locked' : '');
+    cell.className = 'knob-cell' + (locked ? ' locked' : '') + (big ? ' big' : '');
     const startDeg = -135;
     const endDeg = 135;
     const known = raw != null;
@@ -362,6 +396,8 @@
     cell.innerHTML = `
       <span class="knob-lbl">${label}${locked ? ' <span class="lock-glyph" aria-hidden="true">●</span>' : ''}</span>
       <svg class="knob-svg" viewBox="0 0 52 52">
+        ${meterSid ? `<path d="${arcPath(startDeg, endDeg, 24.6)}" fill="none" stroke="#14171C" stroke-width="2" />
+        <path class="k-meter" data-meter-ring="${meterSid}" d="${arcPath(startDeg, endDeg, 24.6)}" pathLength="100" fill="none" stroke-width="2" stroke-dasharray="0 100" />` : ''}
         <path d="${arcPath(startDeg, endDeg, 21)}" fill="none" stroke="#232831" stroke-width="3.5" stroke-linecap="round" />
         <path class="k-arc" d="${known ? arcPath(arcFrom, curDeg, 21) : ''}" fill="none" stroke="${locked ? '#5D646E' : color}" stroke-width="3.5" stroke-linecap="round" />
         <circle cx="26" cy="26" r="15.5" fill="#181B21" stroke="#30353E" stroke-width="1.2" />
@@ -397,7 +433,8 @@
     };
     svg.onpointermove = (e) => {
       if (!svg.hasPointerCapture(e.pointerId)) return;
-      const delta = Math.round(((startY - e.clientY) / 140) * (max - min));
+      const span = fineDrag(e) ? 560 : 140; // FINER SLIDERS or Shift: a quarter of the speed
+      const delta = Math.round(((startY - e.clientY) / span) * (max - min));
       current = Math.max(min, Math.min(max, startVal + delta));
       updateVisual(current);
     };
@@ -421,6 +458,8 @@
     };
     return cell;
   }
+
+  const fineDrag = (e) => prefs.finerSliders || (e && e.shiftKey);
 
   // Hold a key for `ms` to run onDone. A short tap runs onTap instead.
   function attachHold(btn, ms, onDone, onTap) {
@@ -506,16 +545,23 @@
       const yBottom = rect.bottom - e.clientY - 14;
       return Math.max(0, Math.min(127, Math.round((yBottom / usable) * 127)));
     };
+    // Normal: the cap jumps to the finger. FINER SLIDERS or Shift: the cap moves
+    // from where it is, at a quarter of the finger travel.
+    let fine = null;
     well.onpointerdown = (e) => {
       well.setPointerCapture(e.pointerId);
       well.classList.add('grab');
-      val = valFromEvent(e);
+      fine = fineDrag(e) ? { y: e.clientY, v: val } : null;
+      if (!fine) val = valFromEvent(e);
       updatePos(val);
       onMove(val);
     };
     well.onpointermove = (e) => {
       if (!well.hasPointerCapture(e.pointerId)) return;
-      val = valFromEvent(e);
+      if (fine) {
+        const usable = Math.max(40, well.getBoundingClientRect().height - 28);
+        val = Math.max(0, Math.min(127, Math.round(fine.v + ((fine.y - e.clientY) / usable) * 127 / 4)));
+      } else val = valFromEvent(e);
       updatePos(val);
       onMove(val);
     };
@@ -655,16 +701,14 @@
     insp = target;
     // A bus Inspector shows that mix on the faders, so the two views agree.
     if (target.kind === 'bus' && target.id !== activeLayer) setLayer(target.id, false);
-    renderConsole();
-    renderInspector();
+    renderView();
     if (focusTitle) document.getElementById('insp-title').focus({ preventScroll: true });
   }
   function closeInspector() {
     if (!insp) return;
     const was = insp;
     insp = null;
-    renderConsole();
-    renderInspector();
+    renderView();
     const back = document.querySelector(was.kind === 'ch' ? `[data-focus-key="scribble:ch${was.index}"]` : '[data-focus-key="scribble:master"]');
     if (back) back.focus({ preventScroll: true });
   }
@@ -709,8 +753,9 @@
 
   function renderInspector() {
     const aside = document.getElementById('inspector');
-    document.body.classList.toggle('insp-open', !!insp);
-    if (!insp || !session) { aside.hidden = true; return; }
+    const show = !!insp && !!session && view !== 'setup';
+    document.body.classList.toggle('insp-open', show);
+    if (!show) { aside.hidden = true; return; }
     aside.hidden = false;
     const body = document.getElementById('insp-body');
     const scroll = body.scrollTop;
@@ -927,8 +972,9 @@
       <div class="seg" role="group" aria-label="${fx.param} mode (locked)">
         ${fx.modes.map((md) => `<button class="seg-btn" aria-disabled="true" title="${esc(lockReason('fx'))}">${md}</button>`).join('')}
       </div>
-      <button class="tap-pad" aria-disabled="true" title="${esc(lockReason('fx'))}">TAP TEMPO</button>`;
-    side.querySelectorAll('button').forEach((b) => { b.onclick = () => showToast(lockReason('fx')); });
+      ${fx.tap ? `<button class="tap-pad" aria-disabled="true" title="${esc(lockReason('tap'))}">TAP TEMPO · — BPM</button>` : ''}
+      <button class="key-btn locked fx-mute" aria-disabled="true" title="${esc(lockReason('fx'))}">FX MUTE</button>`;
+    side.querySelectorAll('button').forEach((b) => { b.onclick = () => showToast(lockReason(b.classList.contains('tap-pad') ? 'tap' : 'fx')); });
     row.appendChild(side);
     eng.body.appendChild(row);
     const grid = document.createElement('div');
@@ -938,7 +984,7 @@
     for (let i = 1; i <= 16; i++) {
       const b = document.createElement('button');
       b.className = 'fx-preset';
-      b.textContent = `No. ${i}`;
+      b.innerHTML = `<span class="fx-name">${esc(fx.presets[i - 1])}</span><span class="fx-no">No. ${i}</span>`;
       b.setAttribute('aria-disabled', 'true');
       b.title = lockReason('fx');
       b.onclick = () => showToast(lockReason('fx'));
@@ -948,42 +994,451 @@
     body.appendChild(eng.el);
   }
 
-  // ---------- Scenes ----------
-  function renderScenes() {
-    const grid = document.getElementById('scene-grid');
-    grid.innerHTML = '';
-    for (let i = 1; i <= 8; i++) {
+  // ---------- Stage view ----------
+  // Large level knobs for the mix on the faders, with the live input level as a ring.
+  function renderStage() {
+    const host = document.getElementById('stage-view');
+    host.innerHTML = '';
+    const sendLayer = activeLayer !== 'main';
+    const layer = LAYERS[activeLayer];
+    session.channels.filter((c) => c.index <= 7).forEach((ch) => {
+      const sid = stripIdForChannel(ch.index);
+      const name = chName(ch);
+      const val = sendLayer ? (ch.sends ? ch.sends[activeLayer] : 0) : ch.fader;
+      const card = document.createElement('div');
+      card.className = 'stage-card' + (ch.index === 7 ? ' usb' : '');
+      card.dataset.strip = sid;
+      card.innerHTML = `
+        <div class="mix-bar" aria-hidden="true"></div>
+        <div class="scribble" role="button" tabindex="0" data-focus-key="stage-scribble:${sid}" aria-label="${esc(name)}: open settings" style="--lcd:${lcdColor(ch)}">
+          <div class="scribble-top"><span class="scribble-num">${STRIP_TAG[ch.index]}</span><span class="scribble-prov">${sendLayer ? `→${layer.label.replace(' ', '')}` : ''}</span></div>
+          <div class="scribble-name">${esc(name)}</div>
+        </div>`;
+      const knob = createRotaryKnob({
+        label: sendLayer ? `SEND ${layer.label}` : 'LEVEL',
+        valueText: midiToDbStr(val), raw: val, min: 0, max: 127, color: layer.color, big: true,
+        meterSid: ch.index <= 6 ? sid : null,
+        focusKey: `stage:${sid}:${activeLayer}`,
+        onMove: midiToDbStr,
+        onCommit: (v) => (sendLayer
+          ? postAction({ action: 'setSend', channel: ch.index, target: activeLayer, value: v })
+          : postAction({ action: 'setFader', channel: ch.index, value: v })),
+      });
+      card.appendChild(knob);
+      const mute = document.createElement('button');
+      mute.className = `mute-switch ${ch.mute ? 'muted' : ''}`;
+      mute.dataset.focusKey = `stage-mute:${sid}`;
+      mute.setAttribute('aria-pressed', ch.mute);
+      mute.setAttribute('aria-label', `Mute ${name}`);
+      mute.textContent = ch.mute ? 'MUTED' : 'MUTE';
+      mute.onclick = () => postAction({ action: 'setMute', channel: ch.index, value: !ch.mute }).then(scheduleReload);
+      card.appendChild(mute);
+      wireScribble(card.querySelector('.scribble'), { kind: 'ch', index: ch.index });
+      host.appendChild(card);
+    });
+    const tap = document.createElement('div');
+    tap.className = 'stage-card tap-card';
+    tap.innerHTML = `
+      <div class="mix-bar" aria-hidden="true"></div>
+      <span class="sec-title">FX 2 · TAP TEMPO</span>
+      <button class="tap-pad big" aria-disabled="true" title="${esc(lockReason('tap'))}"><span class="bpm">— BPM</span><span>TAP</span></button>
+      <p class="lock-note"><span class="lock-chip">LOCKED</span>${esc(lockReason('tap'))}</p>`;
+    tap.querySelector('button').onclick = () => showToast(lockReason('tap'));
+    host.appendChild(tap);
+  }
+
+  // ---------- Setup view ----------
+  const SETUP_PAGES = {
+    inputs: renderInputsPage, snapshots: renderSnapshotsPage, library: renderLibraryPage,
+    prefs: renderPrefsPage, routing: renderRoutingPage, info: renderInfoPage,
+  };
+  function renderSetup() {
+    document.querySelectorAll('.setup-tab').forEach((t) => {
+      const on = t.dataset.page === setupPage;
+      t.classList.toggle('active', on);
+      t.setAttribute('aria-current', on ? 'page' : 'false');
+    });
+    const page = document.getElementById('setup-page');
+    const scroll = page.scrollTop;
+    page.innerHTML = '';
+    SETUP_PAGES[setupPage](page);
+    page.scrollTop = scroll;
+  }
+  function pageHead(page, title, actions = '') {
+    const head = document.createElement('div');
+    head.className = 'page-head';
+    head.innerHTML = `<h2 class="page-title">${title}</h2><div class="page-actions">${actions}</div>`;
+    page.appendChild(head);
+    return head;
+  }
+  function lockedNote(key) {
+    const p = document.createElement('p');
+    p.className = 'lock-note';
+    p.innerHTML = `<span class="lock-chip">LOCKED</span>${esc(lockReason(key))}`;
+    return p;
+  }
+  // A checkbox row. locked: shown, not changeable.
+  function checkRow(label, checked, { locked = null, radio = false, onChange } = {}) {
+    const row = document.createElement('label');
+    row.className = 'check-row' + (locked ? ' locked' : '');
+    row.innerHTML = `<input type="${radio ? 'radio' : 'checkbox'}" ${checked ? 'checked' : ''} ${locked ? 'disabled' : ''} /><span class="check-box ${radio ? 'radio' : ''}" aria-hidden="true"></span><span>${label}</span>`;
+    if (locked) row.title = locked;
+    else row.querySelector('input').onchange = (e) => onChange(e.target.checked);
+    return row;
+  }
+
+  // Jack drawings: XLR, combo (XLR + 1/4"), 1/4" TRS.
+  const JACK_SVG = {
+    xlr: '<svg viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="32" r="27" class="j-ring"/><circle cx="32" cy="32" r="21" class="j-face"/><circle cx="22" cy="27" r="3.4" class="j-pin"/><circle cx="42" cy="27" r="3.4" class="j-pin"/><circle cx="32" cy="42" r="3.4" class="j-pin"/><rect x="29" y="8" width="6" height="5" rx="1" class="j-pin"/></svg>',
+    combo: '<svg viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="32" r="27" class="j-ring"/><circle cx="32" cy="32" r="21" class="j-face"/><circle cx="20" cy="24" r="3" class="j-pin"/><circle cx="44" cy="24" r="3" class="j-pin"/><circle cx="32" cy="46" r="3" class="j-pin"/><circle cx="32" cy="31" r="7.5" class="j-hole"/></svg>',
+    trs: '<svg viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="32" r="22" class="j-ring"/><circle cx="32" cy="32" r="15" class="j-face"/><circle cx="32" cy="32" r="7.5" class="j-hole"/></svg>',
+  };
+  const JACKS = [
+    { label: 'MIC', num: 1, jack: 'xlr', meter: 'ch1', ch: 1 },
+    { label: 'MIC', num: 2, jack: 'xlr', meter: 'ch2', ch: 2 },
+    { label: 'COMBO', num: 3, jack: 'combo', meter: 'ch3', ch: 3 },
+    { label: 'COMBO', num: 4, jack: 'combo', meter: 'ch4', ch: 4 },
+    { label: 'LINE', num: 5, jack: 'trs', meter: 'in5', ch: 5 },
+    { label: 'LINE', num: 6, jack: 'trs', meter: 'in6', ch: 5, hiz: true },
+    { label: 'LINE', num: 7, jack: 'trs', meter: 'in7', ch: 6 },
+    { label: 'LINE', num: 8, jack: 'trs', meter: 'in8', ch: 6, hiz: true },
+  ];
+  function renderInputsPage(page) {
+    pageHead(page, 'CONFIGURE INPUTS');
+    const grid = document.createElement('div');
+    grid.className = 'jack-grid';
+    JACKS.forEach((j) => {
+      const ch = session.channels.find((c) => c.index === j.ch);
+      const card = document.createElement('div');
+      card.className = 'jack-card';
+      card.innerHTML = `
+        <div class="jack-tag"><span>${j.label}</span><b>${j.num}</b></div>
+        <div class="jack-art">${JACK_SVG[j.jack]}${j.hiz ? '<span class="hiz" title="Hi-Z input: plug a guitar or bass in here directly.">🎸 HI-Z</span>' : ''}</div>
+        <div class="meter h" data-meter="${j.meter}" title="Input level from the USB capture"><div class="meter-rms"></div><div class="meter-hold"></div><span class="meter-clip"></span></div>
+        <div class="jack-foot"><span class="jack-ch">→ ${esc(chName(ch))}</span><span class="lamp lamp-link" data-sig="${j.meter}" title="Lit while the input has signal"></span></div>`;
+      if (j.ch <= 2) card.appendChild(phantomKey(ch));
+      grid.appendChild(card);
+    });
+    // Stereo / mono link between the jacks of each line pair, below the jacks.
+    JACKS.forEach((j) => {
+      if (j.num === 6 || j.num === 8) {
+        const link = document.createElement('div');
+        link.className = 'pair-link';
+        link.innerHTML = `<span class="sec-meta">LINE ${j.num - 1}/${j.num}</span>
+          <div class="seg"><button class="seg-btn" aria-disabled="true">STEREO</button><button class="seg-btn" aria-disabled="true">MONO</button></div>`;
+        link.querySelectorAll('button').forEach((b) => { b.title = lockReason('stereoLink'); b.onclick = () => showToast(lockReason('stereoLink')); });
+        grid.appendChild(link);
+      }
+    });
+    page.appendChild(grid);
+    page.appendChild(lockedNote('stereoLink'));
+    const note = document.createElement('p');
+    note.className = 'sec-note';
+    note.textContent = 'Meters show the level before the fader (FLOW 8 in Recording Mode). Gain stays on the mixer.';
+    page.appendChild(note);
+  }
+
+  function scopeSummary(sc) {
+    return Object.entries(sc || {}).filter(([, n]) => n).map(([k]) => k).join(' · ') || 'empty';
+  }
+  function whatToLoad() {
+    const box = document.createElement('div');
+    box.className = 'what-to-load';
+    box.innerHTML = '<span class="sec-title">WHAT TO LOAD</span>';
+    (session.recallScopes || ['CH', 'FX', 'MAIN', 'MON']).forEach((sc) => {
+      box.appendChild(checkRow(sc, prefs.recallScope.includes(sc), {
+        onChange: (on) => {
+          prefs.recallScope = on ? [...new Set([...prefs.recallScope, sc])] : prefs.recallScope.filter((x) => x !== sc);
+          savePrefs();
+        },
+      }));
+    });
+    box.appendChild(checkRow('ROUT', false, { locked: lockReason('routing') }));
+    return box;
+  }
+  const recallScope = () => (session.recallScopes || []).filter((s) => prefs.recallScope.includes(s));
+  const fullScope = () => recallScope().length === (session.recallScopes || []).length;
+
+  function renderSnapshotsPage(page) {
+    pageHead(page, 'MIXER SNAPSHOTS');
+    const wrap = document.createElement('div');
+    wrap.className = 'snap-wrap';
+    const grid = document.createElement('div');
+    grid.className = 'snap-grid';
+    const info = Object.fromEntries((session.sceneInfo || []).map((i) => [i.name, i]));
+    for (let i = 1; i <= (session.sceneSlots || 15); i++) {
       const name = `SCENE ${i}`;
-      const saved = session.scenes.includes(name);
+      const slot = info[name];
+      const num = String(i).padStart(2, '0');
       const pad = document.createElement('button');
-      pad.className = 'scene-pad' + (saved ? ' saved' : '') + (session.currentScene === name ? ' current' : '');
-      pad.textContent = `S${i}`;
-      pad.dataset.focusKey = `scene:${i}`;
-      pad.setAttribute('aria-label', saved
-        ? `Scene ${i}: tap or Enter to recall, hold or Shift+Enter to overwrite`
-        : `Scene ${i}: empty, hold or Shift+Enter to save`);
-      const saveScene = async () => {
-        if (saved && !(await confirmAction(`OVERWRITE S${i}?`, `Scene S${i} already holds a saved mix. Save the current mix over it?`, 'OVERWRITE'))) return;
+      pad.className = 'snap-slot' + (slot ? ' saved' : '') + (session.currentScene === name ? ' current' : '');
+      pad.dataset.focusKey = `snap:${i}`;
+      const time = slot ? new Date(slot.capturedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }) : '';
+      pad.innerHTML = `<span class="snap-num">${num}</span><span class="snap-body">${slot ? `<b>${time}</b><small>${scopeSummary(slot.scopes)}</small>` : '<small>EMPTY · HOLD TO SAVE</small>'}</span>`;
+      pad.setAttribute('aria-label', slot
+        ? `Snapshot ${num}, saved ${time}: tap or Enter to recall, hold or Shift+Enter to overwrite`
+        : `Snapshot ${num}: empty, hold or Shift+Enter to save`);
+      const save = async () => {
+        if (slot && !(await confirmAction(`OVERWRITE ${num}?`, `Snapshot ${num} already holds a mix. Save the current mix over it?`, 'OVERWRITE'))) return;
         const res = await postAction({ action: 'captureScene', name });
-        if (res.ok) showToast(`Saved current mix to S${i}.`);
+        if (res.ok) showToast(`Saved the current mix to ${num}.`);
         loadSession();
       };
-      const recallScene = async () => {
-        if (!saved) { showToast(`S${i} is empty. Hold the pad (or press Shift+Enter) to save the current mix.`); return; }
-        const res = await postAction({ action: 'recallScene', name });
-        if (res.ok) showToast(`Recalled S${i}.`);
+      const recall = async () => {
+        if (!slot) { showToast(`${num} is empty. Hold the slot (or press Shift+Enter) to save the current mix.`); return; }
+        const scope = recallScope();
+        if (!scope.length) { showToast('Select at least one item under WHAT TO LOAD.', true); return; }
+        const res = await postAction({ action: 'recallScene', name, scope: fullScope() ? undefined : scope });
+        if (res.ok) showToast(`Recalled ${num}${fullScope() ? '' : ` (${scope.join(', ')} only)`}.`);
         loadSession();
       };
-      attachHold(pad, 550, saveScene, recallScene);
-      // Keyboard: Enter recalls, Shift+Enter saves (replaces the hold handler).
+      attachHold(pad, 550, save, recall);
       pad.onkeydown = (e) => {
         if (e.key !== 'Enter' && e.key !== ' ') return;
         e.preventDefault();
-        if (e.shiftKey) saveScene(); else recallScene();
+        if (e.shiftKey) save(); else recall();
       };
       grid.appendChild(pad);
     }
+    const reset = document.createElement('button');
+    reset.className = 'snap-slot reset';
+    reset.setAttribute('aria-disabled', 'true');
+    reset.title = lockReason('hwSnapshots');
+    reset.innerHTML = '<span class="snap-num">RESET</span><span class="snap-body"><small>LOCKED</small></span>';
+    reset.onclick = () => showToast(lockReason('hwSnapshots'));
+    grid.appendChild(reset);
+    wrap.appendChild(grid);
+    const side = whatToLoad();
+    side.appendChild(Object.assign(document.createElement('p'), {
+      className: 'sec-note',
+      textContent: 'Tap a slot to recall, hold to save. Recall is one undo step. Gain and +48V are never stored.',
+    }));
+    wrap.appendChild(side);
+    page.appendChild(wrap);
+    page.appendChild(lockedNote('hwSnapshots'));
   }
+
+  let libraryQuery = '';
+  function renderLibraryPage(page) {
+    pageHead(page, 'SNAPSHOT LIBRARY', `
+      <button class="key-btn icon-btn ${prefs.librarySort === 'date' ? 'on' : ''}" data-sort="date" aria-pressed="${prefs.librarySort === 'date'}" title="Sort by date">DATE</button>
+      <button class="key-btn icon-btn ${prefs.librarySort === 'name' ? 'on' : ''}" data-sort="name" aria-pressed="${prefs.librarySort === 'name'}" title="Sort by name">A–Z</button>
+      <button class="key-btn" id="lib-import">IMPORT</button>
+      <a class="key-btn" id="lib-export" href="/api/library/export" download="flow8-snapshot-library.json">EXPORT</a>
+      <button class="key-btn accent" id="lib-new">NEW</button>`);
+    page.querySelectorAll('[data-sort]').forEach((b) => {
+      b.onclick = () => { prefs.librarySort = b.dataset.sort; savePrefs(); renderSetup(); };
+    });
+    page.querySelector('#lib-new').onclick = async () => {
+      const name = await promptName('NEW SNAPSHOT', '', 'SAVE');
+      if (!name) return;
+      const res = await postAction({ action: 'librarySave', name });
+      if (res.ok) showToast(`Saved the current mix as "${res.name}".`);
+      loadSession();
+    };
+    page.querySelector('#lib-import').onclick = () => document.getElementById('library-file').click();
+
+    const search = document.createElement('input');
+    search.className = 'text-input search';
+    search.type = 'search';
+    search.placeholder = 'Search snapshots';
+    search.value = libraryQuery;
+    search.dataset.focusKey = 'lib-search';
+    search.setAttribute('aria-label', 'Search snapshots');
+    page.appendChild(search);
+    const wrap = document.createElement('div');
+    wrap.className = 'snap-wrap';
+    const list = document.createElement('div');
+    list.className = 'lib-list';
+    list.setAttribute('role', 'list');
+    wrap.appendChild(list);
+    wrap.appendChild(whatToLoad());
+    page.appendChild(wrap);
+    if (session.libraryError) page.insertBefore(Object.assign(document.createElement('p'), { className: 'lock-note error', textContent: session.libraryError }), wrap);
+
+    const draw = () => {
+      const q = libraryQuery.trim().toLowerCase();
+      const items = (session.library || [])
+        .filter((e) => !q || e.name.toLowerCase().includes(q))
+        .sort((a, b) => (prefs.librarySort === 'name'
+          ? a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })
+          : b.updatedAt.localeCompare(a.updatedAt)));
+      list.innerHTML = items.length ? '' : `<p class="sec-note">${(session.library || []).length ? 'No snapshot matches the search.' : 'No snapshots yet. Press NEW to save the current mix.'}</p>`;
+      items.forEach((e) => {
+        const row = document.createElement('div');
+        row.className = 'lib-row';
+        row.setAttribute('role', 'listitem');
+        row.innerHTML = `
+          <div class="lib-main"><span class="lib-name">${esc(e.name)}</span><span class="lib-meta">${esc(e.updatedAt.slice(0, 10))} · ${scopeSummary(e.scopes)}</span></div>
+          <button class="key-btn accent" data-act="load" data-focus-key="lib-load:${e.id}">LOAD</button>
+          <button class="key-btn" data-act="update" title="Save the current mix into this snapshot">UPDATE</button>
+          <button class="key-btn" data-act="rename">RENAME</button>
+          <button class="key-btn danger" data-act="delete" aria-label="Delete ${esc(e.name)}">✕</button>`;
+        row.querySelector('[data-act="load"]').onclick = async () => {
+          const scope = recallScope();
+          if (!scope.length) { showToast('Select at least one item under WHAT TO LOAD.', true); return; }
+          if (!(await confirmAction(`LOAD "${e.name}"?`, `This sends ${scope.join(', ')} values to the mixer now. Press UNDO to go back.`, 'LOAD', 'accent'))) return;
+          const res = await postAction({ action: 'libraryLoad', id: e.id, scope: fullScope() ? undefined : scope });
+          if (res.ok) showToast(`Loaded "${e.name}" (${res.applied} values${res.failed ? `, ${res.failed} failed` : ''}).`, !!res.failed);
+          loadSession();
+        };
+        row.querySelector('[data-act="update"]').onclick = async () => {
+          if (!(await confirmAction(`UPDATE "${e.name}"?`, 'Replace the stored values with the current mix?', 'UPDATE'))) return;
+          const res = await postAction({ action: 'librarySave', id: e.id, name: e.name });
+          if (res.ok) showToast(`Updated "${e.name}".`);
+          loadSession();
+        };
+        row.querySelector('[data-act="rename"]').onclick = async () => {
+          const name = await promptName('RENAME SNAPSHOT', e.name, 'RENAME');
+          if (!name || name === e.name) return;
+          await postAction({ action: 'libraryRename', id: e.id, name });
+          loadSession();
+        };
+        row.querySelector('[data-act="delete"]').onclick = async () => {
+          if (!(await confirmAction(`DELETE "${e.name}"?`, 'The snapshot is removed from the library on the host computer. This cannot be undone.', 'DELETE'))) return;
+          await postAction({ action: 'libraryDelete', id: e.id });
+          loadSession();
+        };
+        list.appendChild(row);
+      });
+    };
+    search.oninput = () => { libraryQuery = search.value; draw(); };
+    draw();
+  }
+
+  function renderPrefsPage(page) {
+    pageHead(page, 'PREFERENCES');
+    const cols = document.createElement('div');
+    cols.className = 'pref-cols';
+    const group = (title, rows, note) => {
+      const g = document.createElement('section');
+      g.className = 'insp-sec';
+      g.innerHTML = `<div class="sec-hdr"><span class="sec-title">${title}</span></div>`;
+      if (note) g.appendChild(note);
+      rows.forEach((r) => g.appendChild(r));
+      cols.appendChild(g);
+    };
+    const local = (key, label) => checkRow(label, prefs[key], {
+      onChange: (on) => { prefs[key] = on; savePrefs(); renderView(); },
+    });
+    group('VOLUME · THIS DEVICE', [local('displayDb', 'DISPLAY DECIBEL'), local('finerSliders', 'FINER SLIDERS')],
+      Object.assign(document.createElement('p'), { className: 'sec-note', textContent: 'Finer sliders: faders and knobs move at a quarter of the finger travel. On a desktop, hold Shift for the same effect.' }));
+    group('EQ', [checkRow('FULL PARAMETRIC', false, { locked: lockReason('eqParametric') })], lockedNote('eqParametric'));
+    group('OUTPUT PAD', [checkRow('-10 dBV MAIN OUT', false, { locked: lockReason('outputPad') }), checkRow('-10 dBV MONITOR OUT', false, { locked: lockReason('outputPad') })], lockedNote('outputPad'));
+    group('FOOT SWITCH MODE', [checkRow('FX – MUTE / TAP', false, { locked: lockReason('footswitch'), radio: true }), checkRow('SNAPSHOT UP / DOWN', false, { locked: lockReason('footswitch'), radio: true })], lockedNote('footswitch'));
+    page.appendChild(cols);
+  }
+
+  function renderRoutingPage(page) {
+    pageHead(page, 'ROUTING');
+    const ms = session.meterStatus || {};
+    const mode = ms.mode === 'recording' ? 'RECORDING' : ms.mode === 'streaming' ? 'STREAMING' : 'UNKNOWN';
+    const usb = document.createElement('section');
+    usb.className = 'insp-sec';
+    usb.innerHTML = `<div class="sec-hdr"><span class="sec-title">USB AUDIO MODE</span><span class="sec-meta">READ FROM THE USB DEVICE</span></div>
+      <div class="seg wide"><span class="seg-btn ${mode === 'RECORDING' ? 'on' : ''}">RECORDING</span><span class="seg-btn ${mode === 'STREAMING' ? 'on' : ''}">STREAMING</span></div>
+      <p class="sec-note">${mode === 'UNKNOWN' ? 'No USB audio device found, so the mode is unknown.' : `The hub sees the FLOW 8 in ${mode.toLowerCase()} mode.`} Change the mode on the mixer.</p>`;
+    page.appendChild(usb);
+    const rt = document.createElement('section');
+    rt.className = 'insp-sec locked';
+    rt.innerHTML = '<div class="sec-hdr"><span class="sec-title">SIGNAL ROUTING</span></div>';
+    rt.appendChild(lockedNote('routing'));
+    const body = document.createElement('div');
+    body.className = 'sec-body route-grid';
+    [['PHONES', ['MAIN', 'MON 1/2'], ['PRE', 'POST']], ['MONITOR 1/2', ['PRE', 'POST'], ['STEREO LINK 1/2']],
+      ['BT/USB PLAY', ['TO MAIN MIX', 'PHONES ONLY']], ['FX 1 / FX 2', ['TO MAIN', 'TO MON 1', 'TO MON 2']], ['FROM PC (USB 1/2, 3/4)', ['TO CHANNEL', 'MON OUT 1/2']]]
+      .forEach(([t, ...sets]) => {
+        const g = document.createElement('div');
+        g.innerHTML = `<span class="sec-meta">${t}</span>`;
+        sets.forEach((opts) => opts.forEach((o) => g.appendChild(checkRow(o, false, { locked: lockReason('routing') }))));
+        body.appendChild(g);
+      });
+    rt.appendChild(body);
+    page.appendChild(rt);
+  }
+
+  async function renderInfoPage(page) {
+    pageHead(page, 'INFO');
+    const ms = session.meterStatus || {};
+    const sec = document.createElement('section');
+    sec.className = 'insp-sec';
+    sec.innerHTML = `<dl class="info-list">
+      <dt>MIDI OUT</dt><dd>${session.midiOutOpen ? 'Open' : 'Closed'}</dd>
+      <dt>MIDI IN</dt><dd>${session.midiInOpen ? 'Open' : 'Closed'}</dd>
+      <dt>METERS</dt><dd>${esc(ms.detail || 'Off')}${ms.device ? ` (${esc(ms.device)})` : ''}</dd>
+      <dt>SNAPSHOT LIBRARY</dt><dd>${(session.library || []).length} snapshots on the host computer</dd>
+      <dt>OPEN ON A TABLET</dt><dd id="info-urls">…</dd></dl>`;
+    page.appendChild(sec);
+    try {
+      const st = await (await fetch('/api/status')).json();
+      const el = document.getElementById('info-urls');
+      if (el) el.innerHTML = (st.lanUrls || []).map((u) => `<code>${esc(u)}</code>`).join('<br>') || 'No LAN address found.';
+    } catch (_) { /* the hub banner reports the failure */ }
+  }
+
+  // ---------- Views ----------
+  function renderView() {
+    if (!session) return;
+    document.body.dataset.view = view;
+    document.querySelectorAll('.view-btn').forEach((b) => {
+      const on = b.dataset.view === view;
+      b.classList.toggle('active', on);
+      b.setAttribute('aria-pressed', on ? 'true' : 'false');
+    });
+    document.getElementById('console-bank').hidden = view !== 'mixer';
+    document.getElementById('stage-view').hidden = view !== 'stage';
+    document.getElementById('workspace').hidden = view === 'setup';
+    document.getElementById('setup-view').hidden = view !== 'setup';
+    document.getElementById('btn-snapshots').classList.toggle('on', view === 'setup' && (setupPage === 'snapshots' || setupPage === 'library'));
+    document.getElementById('btn-setup').classList.toggle('on', view === 'setup' && setupPage !== 'snapshots' && setupPage !== 'library');
+    renderConsole(); // also updates the connection banner and MUTE ALL
+    if (view === 'stage') renderStage();
+    if (view === 'setup') renderSetup();
+    renderInspector();
+  }
+  function setView(v, page) {
+    if (v !== 'setup') lastLiveView = v;
+    view = v;
+    if (page) setupPage = page;
+    renderView();
+  }
+
+  function promptName(title, value, okLabel) {
+    return new Promise((resolve) => {
+      const modal = document.getElementById('prompt-modal');
+      const inp = document.getElementById('prompt-input');
+      const count = document.getElementById('prompt-count');
+      document.getElementById('prompt-title').textContent = title;
+      document.getElementById('btn-prompt-ok').textContent = okLabel;
+      inp.value = value;
+      const upd = () => { count.textContent = `${inp.value.length}/40`; };
+      inp.oninput = upd;
+      upd();
+      const done = (v) => {
+        modal.onModalClose = null;
+        closeModal('prompt-modal');
+        resolve(v);
+      };
+      document.getElementById('btn-prompt-ok').onclick = () => { if (inp.value.trim()) done(inp.value.trim()); };
+      document.getElementById('btn-prompt-cancel').onclick = () => done(null);
+      inp.onkeydown = (e) => { if (e.key === 'Enter' && inp.value.trim()) { e.preventDefault(); done(inp.value.trim()); } };
+      modal.onModalClose = () => done(null);
+      openModal('prompt-modal', inp);
+      inp.select();
+    });
+  }
+
+  document.getElementById('library-file').onchange = async (e) => {
+    const file = e.target.files[0];
+    e.target.value = '';
+    if (!file) return;
+    if (file.size > 900000) { showToast('The file is too large (limit 900 KB).', true); return; }
+    let data;
+    try { data = JSON.parse(await file.text()); } catch (_) { showToast('The file is not valid JSON.', true); return; }
+    const res = await postAction({ action: 'libraryImport', data });
+    if (res.ok) showToast(`Imported ${res.added} snapshot(s)${res.skipped ? `, skipped ${res.skipped} invalid` : ''}.`, !!res.skipped);
+    loadSession();
+  };
 
   function renderStatusBar() {
     if (!session) return;
@@ -998,7 +1453,7 @@
     set('lamp-midi-in', session.midiInOpen);
     const scene = document.getElementById('scene-display');
     const cur = session.currentScene;
-    scene.querySelector('.scene-name').textContent = cur ? cur.replace('SCENE ', 'S') : 'No scene';
+    scene.querySelector('.scene-name').textContent = cur ? cur.replace('SCENE ', '').padStart(2, '0') : 'No scene';
     scene.classList.toggle('edited', !!(cur && session.sceneEdited));
     scene.classList.toggle('empty', !cur);
     scene.title = !cur
@@ -1148,7 +1603,8 @@
     if (e.key !== 'Escape') return;
     const open = [...document.querySelectorAll('.modal-backdrop.open')];
     if (open.length) { e.preventDefault(); dismissModal(open[open.length - 1]); return; }
-    if (insp) { e.preventDefault(); closeInspector(); }
+    if (insp && view !== 'setup') { e.preventDefault(); closeInspector(); return; }
+    if (view === 'setup') { e.preventDefault(); setView(lastLiveView); }
   });
 
   // ---------- Bus selector ----------
@@ -1163,7 +1619,7 @@
     });
     // A bus Inspector follows the selected mix.
     if (insp && insp.kind === 'bus') insp = { kind: 'bus', id: layer };
-    if (render) { renderConsole(); renderInspector(); }
+    if (render) renderView();
   }
   document.querySelectorAll('.bus-tab').forEach((btn) => {
     btn.title = `Put the ${LAYERS[btn.dataset.layer].label} mix on the faders. Tap again for its settings.`;
@@ -1176,6 +1632,11 @@
   });
 
   document.getElementById('insp-close').onclick = closeInspector;
+  document.querySelectorAll('.view-btn').forEach((b) => { b.onclick = () => setView(b.dataset.view); });
+  document.getElementById('btn-snapshots').onclick = () => (view === 'setup' && setupPage === 'snapshots' ? setView(lastLiveView) : setView('setup', 'snapshots'));
+  document.getElementById('btn-setup').onclick = () => (view === 'setup' && setupPage !== 'snapshots' && setupPage !== 'library' ? setView(lastLiveView) : setView('setup', setupPage === 'snapshots' || setupPage === 'library' ? 'inputs' : setupPage));
+  document.getElementById('setup-close').onclick = () => setView(lastLiveView);
+  document.querySelectorAll('.setup-tab').forEach((t) => { t.onclick = () => setView('setup', t.dataset.page); });
   document.getElementById('insp-prev').onclick = () => stepInspector(-1);
   document.getElementById('insp-next').onclick = () => stepInspector(1);
 
@@ -1209,7 +1670,7 @@
     }, 120);
   }
   document.addEventListener('pointerdown', (e) => {
-    if (e.target.closest('.fader-well, .knob-svg, #eq-canvas, .studio-range, .phantom-key, .scene-pad')) pointerBusy = true;
+    if (e.target.closest('.fader-well, .knob-svg, #eq-canvas, .studio-range, .phantom-key, .snap-slot')) pointerBusy = true;
   }, true);
   const releasePointer = () => {
     if (!pointerBusy) return;
@@ -1230,9 +1691,7 @@
       applyConnectionState(false, 'HUB UNREACHABLE — check the host computer and the Wi-Fi link.');
       return;
     }
-    renderConsole();
-    renderInspector();
-    renderScenes();
+    renderView();
     renderStatusBar();
     if (focusKey) {
       const el = document.querySelector(`[data-focus-key="${CSS.escape(focusKey)}"]`);

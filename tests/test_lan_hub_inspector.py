@@ -50,7 +50,10 @@ class InspectorSessionTests(unittest.TestCase):
     def test_policy_and_locked_map_are_in_the_session(self):
         snap = self.get("/api/session")
         self.assertEqual(snap["lanPolicy"], {"gain": False, "phantom": False})
-        self.assertEqual(set(snap["locked"]), {"gain", "phantom", "solo", "limiter", "geq", "fx"})
+        self.assertEqual(set(snap["locked"]), {
+            "gain", "phantom", "solo", "limiter", "geq", "fx", "tap", "eqParametric",
+            "stereoLink", "routing", "outputPad", "footswitch", "hwSnapshots",
+        })
 
     def test_locked_features_have_no_allowlist_entry_except_host_only_ones(self):
         # A feature in the locked map must not be sendable. Gain and +48V are on the

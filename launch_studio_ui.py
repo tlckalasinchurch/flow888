@@ -12,6 +12,7 @@ import webbrowser
 from flow8.audio_meter import Flow8AudioMeter
 from flow8.lan_hub import DEFAULT_LAN_PORT, Flow8LanHub
 from flow8.service import Flow8Service
+from flow8.snapshot_library import default_library_path
 
 
 def _find_app_browser() -> str | None:
@@ -31,7 +32,7 @@ def _find_app_browser() -> str | None:
 
 def main() -> int:
     service = Flow8Service(auto_connect=True)
-    hub = Flow8LanHub(service, port=DEFAULT_LAN_PORT)
+    hub = Flow8LanHub(service, port=DEFAULT_LAN_PORT, library_path=default_library_path())
     port = hub.start()
     # Input meters from the FLOW 8 USB audio stream. --no-meters turns them off.
     meter = None if "--no-meters" in sys.argv[1:] else Flow8AudioMeter(hub.publish_meters, hub.set_meter_status)

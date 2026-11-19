@@ -34,6 +34,10 @@
 
   <!-- Control row: bus selector, scenes, actions -->
   <header class="topbar">
+    <div class="view-switch" role="group" aria-label="View">
+      <button class="view-btn active" data-view="mixer" aria-pressed="true">MIXER</button>
+      <button class="view-btn" data-view="stage" aria-pressed="false">STAGE</button>
+    </div>
     <div class="bus-tabs" id="bus-tabs" role="group" aria-label="Mix on the faders. Tap the active mix again to open its settings.">
       <button class="bus-tab active" data-layer="main" aria-pressed="true">MAIN</button>
       <button class="bus-tab" data-layer="mon1" aria-pressed="false">MON 1</button>
@@ -42,12 +46,9 @@
       <button class="bus-tab" data-layer="fx2" aria-pressed="false">FX 2</button>
     </div>
 
-    <div class="scene-bar" role="group" aria-label="Scenes: tap to recall, hold to save">
-      <span class="group-label">SCENES</span>
-      <div class="scene-grid" id="scene-grid"></div>
-    </div>
-
     <div class="toolbar-actions">
+      <button class="hw-btn" id="btn-snapshots" title="Snapshots: recall, save and library">SNAPSHOTS</button>
+      <button class="hw-btn" id="btn-setup" title="Inputs, preferences, routing and info">SETUP</button>
       <button class="hw-btn lock-btn" id="btn-lock" aria-pressed="false" title="Lock all controls against stray touches."><span class="lock-text">LOCK</span></button>
       <button class="hw-btn danger" id="btn-mute-all">MUTE ALL</button>
       <button class="hw-btn icon" id="btn-undo" aria-label="Undo" title="Undo">↶</button>
@@ -60,6 +61,7 @@
   <!-- Fader bank and Inspector side by side. The Inspector never covers the whole bank. -->
   <div class="workspace" id="workspace">
     <main class="console-bank" id="console-bank" aria-label="Fader bank"></main>
+    <main class="stage-view" id="stage-view" aria-label="Stage view" hidden></main>
     <aside class="inspector" id="inspector" aria-labelledby="insp-title" hidden>
       <div class="insp-head">
         <button class="insp-step" id="insp-prev" aria-label="Previous channel">‹</button>
@@ -74,7 +76,37 @@
       <div class="insp-body" id="insp-body"></div>
     </aside>
   </div>
+
+  <!-- Setup: the FLOW 8 app setup pages, with the faders one tap away. -->
+  <section class="setup-view" id="setup-view" aria-label="Setup" hidden>
+    <nav class="setup-nav" aria-label="Setup pages">
+      <div class="setup-nav-head"><span>SETUP</span><button class="insp-close" id="setup-close" aria-label="Close setup">✕</button></div>
+      <button class="setup-tab" data-page="inputs">CONFIGURE INPUTS</button>
+      <button class="setup-tab" data-page="snapshots">MIXER SNAPSHOTS</button>
+      <button class="setup-tab" data-page="library">SNAPSHOT LIBRARY</button>
+      <button class="setup-tab" data-page="prefs">PREFERENCES</button>
+      <button class="setup-tab" data-page="routing">ROUTING</button>
+      <button class="setup-tab" data-page="info">INFO</button>
+    </nav>
+    <div class="setup-page" id="setup-page"></div>
+  </section>
 </div>
+
+<!-- Name prompt -->
+<div class="modal-backdrop" id="prompt-modal">
+  <div class="modal narrow" role="dialog" aria-modal="true" aria-labelledby="prompt-title">
+    <div class="modal-hdr"><span class="rack-title" id="prompt-title">NAME</span></div>
+    <div class="modal-body">
+      <label for="prompt-input" class="field-label">Name <span id="prompt-count">0/40</span></label>
+      <input id="prompt-input" class="text-input" type="text" maxlength="40" autocomplete="off" />
+      <div class="confirm-row">
+        <button class="hw-btn" id="btn-prompt-cancel">CANCEL</button>
+        <button class="hw-btn accent" id="btn-prompt-ok">SAVE</button>
+      </div>
+    </div>
+  </div>
+</div>
+<input type="file" id="library-file" accept="application/json,.json" hidden />
 
 <!-- Preset Modal -->
 <div class="modal-backdrop" id="preset-modal">
