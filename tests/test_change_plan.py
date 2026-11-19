@@ -165,6 +165,49 @@ class CommitTests(unittest.TestCase):
         self.assertFalse(self.service.ledger.can_undo)
         self.assertEqual(len(self.service.command_boundary.command_log), len(before))
 
+    def test_preview_guard_blocks_a_commit_after_the_value_moved(self):
+        self._known_baseline()   # ch1 eq_low = raw 51
+        plan = plan_for({"channel": 1, "parameter": "eq_low", "value": 70})
+        rows, guard = self.service.stage_change_plan(plan)
+        self.assertEqual(rows[0].from_value, 51)
+
+        # Any later change counts, whichever surface made it.
+        self.service.set_eq_band(1, "low", 60, unit="raw")
+        self.service.ledger.clear()   # isolate the commit's effect from the baseline edit
+        result = self.service.commit_change_plan(plan, guard=guard, require_guard=True)
+
+        self.assertTrue(result.stale)
+        self.assertEqual(result.applied, 0)
+        self.assertEqual(result.stale_rows[0]["parameterId"], "ch1.eq_low")
+        self.assertEqual(result.stale_rows[0]["currentFrom"], 60)
+        self.assertEqual(self.service.state_store.get_parameter("ch1.eq_low").commanded_raw_midi, 60)
+        self.assertFalse(self.service.ledger.can_undo, "a stale plan must send nothing")
+
+    def test_a_fresh_guard_still_commits(self):
+        self._known_baseline()
+        plan = plan_for({"channel": 1, "parameter": "eq_low", "value": 70})
+        _rows, guard = self.service.stage_change_plan(plan)
+        result = self.service.commit_change_plan(plan, guard=guard, require_guard=True)
+        self.assertFalse(result.stale)
+        self.assertEqual(result.applied, 1)
+        self.assertEqual(self.service.state_store.get_parameter("ch1.eq_low").commanded_raw_midi, 70)
+
+    def test_a_guard_without_a_preview_is_refused(self):
+        from flow8.change_plan import PreviewRequiredError
+
+        plan = plan_for({"channel": 1, "parameter": "eq_low", "value": 70})
+        with self.assertRaises(PreviewRequiredError):
+            self.service.commit_change_plan(plan, require_guard=True)
+
+    def test_a_guard_does_not_authorise_a_different_plan(self):
+        self._known_baseline()
+        plan = plan_for({"channel": 1, "parameter": "eq_low", "value": 70})
+        _rows, guard = self.service.stage_change_plan(plan)
+        other = plan_for({"channel": 1, "parameter": "eq_low", "value": 71})
+        result = self.service.commit_change_plan(other, guard=guard)
+        self.assertTrue(result.stale)
+        self.assertEqual(result.applied, 0)
+
     def test_failed_dispatch_rolls_back_and_leaves_no_undo_step(self):
         self._known_baseline()
         real_set_send = self.service.set_send
@@ -256,10 +299,12 @@ class HubChangePlanTests(_HubCase):
         # Give the parameter a known value first: undo never invents a previous value.
         code, _ = self.post({"action": "setEqBand", "channel": 1, "band": "low", "value": 51})
         self.assertEqual(code, 200)
+        changes = [{"channel": 1, "parameter": "eq_low", "value": 70}]
+        code, preview = self.post({"action": "previewChangePlan", "title": "Presence", "changes": changes})
+        self.assertEqual(code, 200, preview)
         code, res = self.post({
-            "action": "commitChangePlan",
-            "title": "Presence",
-            "changes": [{"channel": 1, "parameter": "eq_low", "value": 70}],
+            "action": "commitChangePlan", "title": "Presence",
+            "changes": changes, "guard": preview["guard"],
         })
         self.assertEqual(code, 200, res)
         self.assertEqual(res["applied"], 1)
@@ -270,6 +315,49 @@ class HubChangePlanTests(_HubCase):
         code, res = self.post({"action": "previewChangePlan", "changes": []})
         self.assertEqual(code, 400)
         self.assertFalse(res["ok"])
+
+    def test_commit_without_a_preview_is_refused(self):
+        code, res = self.post({
+            "action": "commitChangePlan",
+            "changes": [{"channel": 1, "parameter": "eq_low", "value": 70}],
+        })
+        self.assertEqual(code, 409, res)
+        self.assertEqual(res["code"], "preview_required")
+        self.assertNotEqual(self.service.state_store.get_parameter("ch1.eq_low").commanded_raw_midi, 70)
+
+    def test_telemetry_after_preview_makes_the_plan_stale(self):
+        self.post({"action": "setEqBand", "channel": 1, "band": "low", "value": 51})
+        self.service.ledger.clear()
+        changes = [{"channel": 1, "parameter": "eq_low", "value": 70}]
+        code, preview = self.post({"action": "previewChangePlan", "changes": changes})
+        self.assertEqual(code, 200, preview)
+
+        # The engineer moves that EQ band on the mixer: inbound telemetry changes
+        # the value the preview was based on.
+        self.service._on_midi_in_event(
+            {"status": 0xB0, "channel": 1, "command": 0xB0, "data1": 1, "data2": 60}
+        )
+        code, res = self.post({
+            "action": "commitChangePlan",
+            "changes": changes, "guard": preview["guard"],
+        })
+        self.assertEqual(code, 409, res)
+        self.assertEqual(res["code"], "stale_plan")
+        self.assertEqual(res["staleParameters"][0]["parameterId"], "ch1.eq_low")
+        self.assertEqual(res["staleParameters"][0]["currentFrom"], 60)
+        self.assertEqual(self.service.state_store.get_parameter("ch1.eq_low").observed_raw_midi, 60)
+        self.assertFalse(self.service.ledger.can_undo, "a stale plan must send nothing")
+
+    def test_expired_guard_requires_a_new_preview(self):
+        changes = [{"channel": 1, "parameter": "eq_low", "value": 70}]
+        code, preview = self.post({"action": "previewChangePlan", "changes": changes})
+        self.assertEqual(code, 200, preview)
+        self.service._previews[preview["guard"]]["at"] -= 10_000
+        code, res = self.post({
+            "action": "commitChangePlan", "changes": changes, "guard": preview["guard"],
+        })
+        self.assertEqual(code, 409, res)
+        self.assertEqual(res["code"], "preview_required")
 
 
 class OfflineHubChangePlanTests(_HubCase):

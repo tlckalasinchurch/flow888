@@ -100,6 +100,19 @@ class Flow8MidiIn:
             if callback in self._callbacks:
                 self._callbacks.remove(callback)
 
+    @staticmethod
+    def list_devices() -> List[dict]:
+        """Read-only enumeration of MIDI IN devices. Opens no port."""
+        if sys.platform != "win32":
+            return []
+        winmm = ctypes.windll.winmm
+        devices: List[dict] = []
+        for i in range(winmm.midiInGetNumDevs()):
+            caps = MIDIINCAPSW()
+            if winmm.midiInGetDevCapsW(i, ctypes.byref(caps), ctypes.sizeof(caps)) == WinMmError.MMSYSERR_NOERROR:
+                devices.append({"index": i, "name": caps.szPname})
+        return devices
+
     def find_device_id(self) -> Optional[int]:
         """Locate FLOW 8 MIDI IN device ID from system enumeration."""
         self._require_winmm()

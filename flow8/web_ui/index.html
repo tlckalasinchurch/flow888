@@ -5,6 +5,9 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
   <title>FLOW 8 Live Console — CueAir Pro</title>
   <meta name="theme-color" content="#0E1013" />
+  <!-- Belt and braces with the hub's no-store headers, for Safari/iPad. -->
+  <meta http-equiv="Cache-Control" content="no-store" />
+  <meta http-equiv="Pragma" content="no-cache" />
   <link rel="stylesheet" href="/styles.css" />
 </head>
 <body data-layer="main">
@@ -78,6 +81,7 @@
   </header>
 
   <div class="conn-banner" id="conn-banner" role="alert" hidden></div>
+  <div class="conn-banner meter-lost" id="meter-banner" role="status" hidden></div>
 
   <!-- Split-Screen Workspace: Dynamic Top Half + Persistent Bottom Fader Bank -->
   <div class="split-workspace" id="workspace">

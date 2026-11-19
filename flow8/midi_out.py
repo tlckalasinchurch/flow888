@@ -105,6 +105,19 @@ class Flow8MidiOut:
     Thread-safe outbound MIDI controller dedicated to Behringer FLOW 8.
     """
 
+    @staticmethod
+    def list_devices() -> list:
+        """Read-only enumeration of MIDI OUT devices. Opens no port and sends nothing."""
+        if sys.platform != "win32":
+            return []
+        winmm = ctypes.windll.winmm
+        devices = []
+        for i in range(winmm.midiOutGetNumDevs()):
+            caps = MIDIOUTCAPSW()
+            if winmm.midiOutGetDevCapsW(i, ctypes.byref(caps), ctypes.sizeof(caps)) == WinMmError.MMSYSERR_NOERROR:
+                devices.append({"index": i, "name": caps.szPname})
+        return devices
+
     def __init__(self, target_device_name: str = FLOW8_MIDI_OUT_NAME):
         self._target_name = target_device_name
         self._winmm = ctypes.windll.winmm if sys.platform == "win32" else None

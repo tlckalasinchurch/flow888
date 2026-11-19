@@ -53,6 +53,10 @@ class ChangePlanError(ValueError):
     """A plan a caller asked for is malformed or would change a blocked parameter."""
 
 
+class PreviewRequiredError(ValueError):
+    """A commit arrived without a live preview, so nothing may be sent."""
+
+
 @dataclass(frozen=True)
 class PlannedChange:
     """One proposed parameter value, in raw MIDI units (0-127, or bool for mute)."""
@@ -133,6 +137,10 @@ class ChangePlanResult:
     undo_ready: bool = False
     error: Optional[str] = None
     failed: list[dict[str, Any]] = field(default_factory=list)
+    #: True when the mix changed after the preview, so nothing was sent.
+    stale: bool = False
+    stale_rows: list[dict[str, Any]] = field(default_factory=list)
+    fresh_rows: list[dict[str, Any]] = field(default_factory=list)
 
 
 def _now() -> str:

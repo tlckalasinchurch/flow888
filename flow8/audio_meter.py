@@ -57,6 +57,7 @@ RMS_WINDOW_S = 0.3          # FLOW8_AUDIO_ENGINE_SPEC.md 2.3: 300 ms RMS
 BLOCK_FRAMES = 512          # ~10.7 ms at 48 kHz
 PUBLISH_HZ = 25.0           # below the hub's 30 frames/s limit
 RETRY_INTERVAL_S = 5.0
+FRAME_TIMEOUT_S = 2.0     # active stream with no frames for this long = lost device
 
 MeterLevels = dict[str, dict[str, float]]
 
@@ -196,17 +197,21 @@ class Flow8AudioMeter:
 
     def __init__(self, publish: Callable[[MeterLevels], Any],
                  on_status: Optional[Callable[[dict[str, Any]], Any]] = None,
-                 backend: Any = None, publish_hz: float = PUBLISH_HZ) -> None:
+                 backend: Any = None, publish_hz: float = PUBLISH_HZ,
+                 frame_timeout_s: float = FRAME_TIMEOUT_S) -> None:
         self._publish = publish
         self._on_status = on_status
         self._backend = backend
         self._interval = 1.0 / publish_hz
+        self._frame_timeout = float(frame_timeout_s)
         self._lock = threading.Lock()
         self._stream: Any = None
         self._meter: Optional[LevelMeter] = None
         self._thread: Optional[threading.Thread] = None
         self._running = threading.Event()
         self._last_attempt = -math.inf
+        self._frames = 0                 # incremented from the audio thread
+        self._last_frame_at = 0.0
         self.overflows = 0
         self.status: dict[str, Any] = {"state": "stopped", "detail": "Meters are off.", "device": None, "mode": None}
 
@@ -264,6 +269,8 @@ class Flow8AudioMeter:
             def callback(indata, frames, time_info, status):  # audio thread
                 if status:
                     self.overflows += 1
+                self._frames += 1
+                self._last_frame_at = time.monotonic()
                 meter.process(indata)
 
             try:
@@ -281,6 +288,7 @@ class Flow8AudioMeter:
                 return False
 
             self._stream, self._meter = stream, meter
+            self._last_frame_at = time.monotonic()
             self._running.set()
             self._thread = threading.Thread(target=self._publish_loop, name="flow8-meter-publish", daemon=True)
             self._thread.start()
@@ -301,6 +309,7 @@ class Flow8AudioMeter:
         return self.start()
 
     def _publish_loop(self) -> None:
+        last_frames = -1
         while self._running.is_set():
             time.sleep(self._interval)
             stream, meter = self._stream, self._meter
@@ -310,6 +319,15 @@ class Flow8AudioMeter:
                 # Device unplugged or the driver stopped the stream.
                 self._close(state="error", detail="The FLOW 8 audio stream stopped. Retrying.")
                 break
+            if self._frames == last_frames and time.monotonic() - self._last_frame_at > self._frame_timeout:
+                # The endpoint stays "active" after some unplugs but delivers no
+                # frames, so silence is treated as a lost device, not as -120 dBFS.
+                self._close(
+                    state="error",
+                    detail="The FLOW 8 USB audio stream sends no frames. Retrying.",
+                )
+                break
+            last_frames = self._frames
             try:
                 self._publish(meter.read())
             except Exception:

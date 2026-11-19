@@ -176,7 +176,7 @@ class Flow8LanHub:
                 self.send_response(code)
                 self.send_header("Content-Type", "application/json")
                 self.send_header("Access-Control-Allow-Origin", "*")
-                self.send_header("Cache-Control", "no-cache, no-store")
+                self.send_header("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0")
                 self.send_header("Content-Length", str(len(data)))
                 self.end_headers()
                 self.wfile.write(data)
@@ -189,22 +189,29 @@ class Flow8LanHub:
                 body = asset_path.read_bytes()
                 self.send_response(200)
                 self.send_header("Content-Type", content_type)
-                self.send_header("Cache-Control", "no-cache")
+                # The console is served from disk on every request: never let a
+                # browser (desktop or iPad Safari) reuse a cached copy after an update.
+                self.send_header("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0")
+                self.send_header("Pragma", "no-cache")
+                self.send_header("Expires", "0")
+                self.send_header("X-Content-Type-Options", "nosniff")
                 self.send_header("Content-Length", str(len(body)))
                 self.end_headers()
                 self.wfile.write(body)
 
             def do_GET(self) -> None:
-                if self.path == "/" or self.path.startswith("/index.html"):
+                # A cache-busting query (?v=...) must not change which asset is served.
+                route = self.path.split("?", 1)[0]
+                if route == "/" or route.startswith("/index.html"):
                     self._send_asset("index.html", "text/html; charset=utf-8")
                     return
-                if self.path == "/styles.css":
+                if route == "/styles.css":
                     self._send_asset("styles.css", "text/css; charset=utf-8")
                     return
-                if self.path == "/app.js":
+                if route == "/app.js":
                     self._send_asset("app.js", "application/javascript; charset=utf-8")
                     return
-                font = FONT_PATH.match(self.path)
+                font = FONT_PATH.match(route)
                 if font:
                     self._send_asset(f"fonts/{font.group(1)}", "font/woff2")
                     return
@@ -257,7 +264,7 @@ class Flow8LanHub:
                         client_id = self.path.split("clientId=")[1].split("&")[0]
                     self.send_response(200)
                     self.send_header("Content-Type", "text/event-stream")
-                    self.send_header("Cache-Control", "no-cache")
+                    self.send_header("Cache-Control", "no-store, no-cache")
                     self.send_header("Connection", "keep-alive")
                     self.send_header("Access-Control-Allow-Origin", "*")
                     self.end_headers()
@@ -449,6 +456,7 @@ class Flow8LanHub:
             "midiInOpen": self.service.midi_in_open,
             "meterFeed": self.meter_feed_live,
             "meterStatus": self.meter_status,
+            "telemetry": self.service.telemetry_status(),
             "lanUrls": self.lan_urls(),
             "port": self.port,
         }
@@ -457,7 +465,10 @@ class Flow8LanHub:
         st = self.service.state_store.get_parameter(param_id)
         if st is None:
             return default, ParameterProvenance.UNSYNCED.value
-        raw = st.commanded_raw_midi if st.commanded_raw_midi is not None else st.observed_raw_midi
+        if st.provenance == ParameterProvenance.OBSERVED and st.observed_raw_midi is not None:
+            raw = st.observed_raw_midi
+        else:
+            raw = st.commanded_raw_midi if st.commanded_raw_midi is not None else st.observed_raw_midi
         if raw is None:
             raw = default
         return raw, st.provenance.value
@@ -535,6 +546,7 @@ class Flow8LanHub:
             "midiInOpen": self.service.midi_in_open,
             "meterFeed": self.meter_feed_live,
             "meterStatus": self.meter_status,
+            "telemetry": self.service.telemetry_status(),
             "currentScene": current_scene,
             "sceneEdited": scene_edited,
             "activeBus": self.service.active_bus,
@@ -713,18 +725,37 @@ class Flow8LanHub:
                 from flow8.change_plan import make_plan
 
                 plan = make_plan(msg.get("title"), msg.get("changes") or [])
-                rows = self.service.preview_change_plan(plan)
+                rows, guard = self.service.stage_change_plan(plan)
                 extra = {
                     "planId": plan.plan_id,
                     "title": plan.title,
+                    "guard": guard,
                     "rows": [row.as_dict() for row in rows],
                     "willSend": sum(1 for row in rows if row.status == "change"),
                 }
             elif action == "commitChangePlan":
-                from flow8.change_plan import make_plan
+                from flow8.change_plan import PreviewRequiredError, make_plan
 
                 plan = make_plan(msg.get("title"), msg.get("changes") or [])
-                result = self.service.commit_change_plan(plan)
+                try:
+                    result = self.service.commit_change_plan(
+                        plan, guard=msg.get("guard"), require_guard=True
+                    )
+                except PreviewRequiredError as error:
+                    return 409, {
+                        "ok": False,
+                        "code": "preview_required",
+                        "error": str(error),
+                    }
+                if result.stale:
+                    return 409, {
+                        "ok": False,
+                        "code": "stale_plan",
+                        "error": result.error,
+                        "staleParameters": result.stale_rows,
+                        "rows": result.fresh_rows,
+                        "planId": result.plan_id,
+                    }
                 extra = {
                     "planId": result.plan_id,
                     "title": result.title,
@@ -734,7 +765,7 @@ class Flow8LanHub:
                     "snapshot": result.snapshot_label,
                     "undoReady": result.undo_ready,
                 }
-                if result.error:
+                if result.error and not result.stale:
                     extra["failed"] = result.failed
                     return 409, {
                         "ok": False,

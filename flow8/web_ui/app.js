@@ -117,7 +117,8 @@
       try { body = await res.json(); } catch (_) { /* non-JSON error body */ }
       if (!res.ok || body.ok === false) {
         if (body.error) showToast(body.error, true);
-        return { ok: false, error: body.error, code: body.code };
+        // Keep the rest of the body: a 409 carries staleParameters and fresh rows.
+        return { ...body, ok: false };
       }
       return body;
     } catch (_) {
@@ -160,6 +161,20 @@
     if (send) await send(value);
     await quietAction({ action: 'endGesture' });
     scheduleReload();
+  }
+
+  // USB audio is independent of MIDI: losing the capture stream stops the meters
+  // but must not pretend the mixer is offline.
+  function applyMeterState() {
+    const el = document.getElementById('meter-banner');
+    if (!el) return;
+    const ms = (session && session.meterStatus) || {};
+    const lost = ms.state === 'error';
+    el.hidden = !lost;
+    if (lost) {
+      el.textContent = `USB AUDIO LOST — ${ms.detail || 'the capture stream stopped.'} `
+        + 'Mixer control continues if MIDI is online; meters retry automatically.';
+    }
   }
 
   // Show the connection state: banner, status pill, and locked controls.
@@ -1692,11 +1707,17 @@
   async function renderInfoPage(page) {
     pageHead(page, 'INFO');
     const ms = session.meterStatus || {};
+    const tel = session.telemetry || {};
+    const lastSeen = tel.lastAt
+      ? `${esc(tel.lastParamId || 'unknown')} at ${esc(tel.lastAt)}`
+      : 'nothing received yet';
     const sec = document.createElement('section');
     sec.className = 'insp-sec';
     sec.innerHTML = `<dl class="info-list">
       <dt>MIDI OUT</dt><dd>${session.midiOutOpen ? 'Open' : 'Closed'}</dd>
-      <dt>MIDI IN</dt><dd>${session.midiInOpen ? 'Open' : 'Closed'}</dd>
+      <dt>MIDI IN</dt><dd>${session.midiInOpen ? 'Open' : 'Closed'}${tel.device ? ` (${esc(tel.device)})` : ''}</dd>
+      <dt>INBOUND TELEMETRY</dt><dd>${Number(tel.mapped || 0)} mapped / ${Number(tel.ccReceived || 0)} CC · last ${lastSeen}</dd>
+      <dt>LINK WATCHDOG</dt><dd>${tel.watchdog ? 'Running' : 'Off'} · auto-reconnect ${tel.autoReconnect ? 'on' : 'off'}</dd>
       <dt>METERS</dt><dd>${esc(ms.detail || 'Off')}${ms.device ? ` (${esc(ms.device)})` : ''}</dd>
       <dt>SNAPSHOT LIBRARY</dt><dd>${(session.library || []).length} snapshots on the host computer</dd>
       <dt>OPEN ON A TABLET</dt><dd id="info-urls">…</dd></dl>`;
@@ -2277,20 +2298,39 @@
     panel.hidden = false;
     const rows = planPreview.rows || [];
     const willSend = Number(planPreview.willSend || 0);
+    const staleRows = planPreview.staleRows || [];
+    const staleById = new Map(staleRows.map((item) => [item.parameterId, item]));
     document.getElementById('plan-title').textContent = pendingPlan.title || 'Change plan';
-    document.getElementById('plan-sub').textContent = willSend
-      ? `Preview only — ${willSend} of ${rows.length} change${rows.length === 1 ? '' : 's'} will be sent on COMMIT`
-      : 'Nothing would change — every value is already set';
+    document.getElementById('plan-sub').textContent = staleRows.length
+      ? 'STALE — the mix moved after this preview'
+      : willSend
+        ? `Preview only — ${willSend} of ${rows.length} change${rows.length === 1 ? '' : 's'} will be sent on COMMIT`
+        : 'Nothing would change — every value is already set';
     const body = document.getElementById('plan-body');
     body.innerHTML = '';
+    if (planPreview.notice) {
+      const notice = document.createElement('p');
+      notice.className = 'plan-stale-note';
+      notice.textContent = planPreview.notice;
+      body.appendChild(notice);
+    }
     rows.forEach((row) => {
       const unknown = row.from === null || row.from === undefined;
+      const moved = staleById.get(row.parameterId);
       const el = document.createElement('div');
-      el.className = `plan-row ${row.status === 'no_change' ? 'no-change' : ''}`;
+      el.className = `plan-row ${row.status === 'no_change' ? 'no-change' : ''} ${moved ? 'stale' : ''}`;
+      const movedNote = moved
+        ? `<p class="plan-stale-diff">was ${moved.previewFrom === null || moved.previewFrom === undefined
+            ? 'unknown' : esc(planValueText(row.parameter, moved.previewFrom))}
+            · now ${moved.currentFrom === null || moved.currentFrom === undefined
+            ? 'unknown' : esc(planValueText(row.parameter, moved.currentFrom))}</p>`
+        : '';
       el.innerHTML = `
         <div class="plan-row-head">
           <span class="plan-where">${esc(planChannelText(row.channel))} · ${esc(row.parameterLabel || row.parameter)}</span>
-          <span class="plan-risk ${esc(row.risk || 'low')}">${esc(String(row.risk || 'low').toUpperCase())}</span>
+          ${moved
+            ? '<span class="plan-stale-badge">STALE</span>'
+            : `<span class="plan-risk ${esc(row.risk || 'low')}">${esc(String(row.risk || 'low').toUpperCase())}</span>`}
         </div>
         <div class="plan-diff">
           <span class="plan-from ${unknown ? 'unknown' : ''}">${unknown ? 'unknown' : esc(planValueText(row.parameter, row.from))}</span>
@@ -2298,6 +2338,7 @@
           <span class="plan-to">${esc(planValueText(row.parameter, row.to))}</span>
         </div>
         <span class="plan-prov" title="${esc(provTitle(row.fromProvenance))}">FROM ${esc(provCode(row.fromProvenance))}</span>
+        ${movedNote}
         ${row.reason ? `<p class="plan-reason">${esc(row.reason)}</p>` : ''}
         ${row.note ? `<p class="plan-note">${esc(row.note)}</p>` : ''}
       `;
@@ -2305,17 +2346,22 @@
     });
     const commit = document.getElementById('plan-commit');
     commit.disabled = willSend === 0;
-    commit.textContent = willSend ? `COMMIT ${willSend} CHANGE${willSend === 1 ? '' : 'S'}` : 'NOTHING TO SEND';
+    commit.textContent = staleRows.length
+      ? `REVIEWED — COMMIT ${willSend} AGAIN`
+      : willSend ? `COMMIT ${willSend} CHANGE${willSend === 1 ? '' : 'S'}` : 'NOTHING TO SEND';
   }
 
+  // A commit carries the guard from the preview. If anything moved since then,
+  // the service refuses it, and the panel shows the fresh diff as STALE.
   async function commitPlan() {
     if (!pendingPlan || !planPreview) return;
     const button = document.getElementById('plan-commit');
     button.disabled = true;
-    const res = await postAction({
+    const res = await quietAction({
       action: 'commitChangePlan',
       title: pendingPlan.title,
       changes: pendingPlan.changes,
+      guard: planPreview.guard,
     });
     button.disabled = false;
     if (res && res.ok !== false) {
@@ -2325,17 +2371,31 @@
         ? 'UNDO restores the mix in one step'
         : 'previous value unknown, so UNDO cannot restore it');
       showToast(`Plan committed · ${parts.join(' · ')}`);
+      closePlanPanel();
+      loadSession();
+      return;
     }
+    if (res && (res.code === 'stale_plan' || res.code === 'preview_required')) {
+      const staleRows = res.staleParameters || [];
+      const refreshed = await quietAction({
+        action: 'previewChangePlan',
+        title: pendingPlan.title,
+        changes: pendingPlan.changes,
+      });
+      if (refreshed && refreshed.ok !== false) {
+        planPreview = refreshed;
+        planPreview.staleRows = staleRows;
+        planPreview.notice = res.code === 'stale_plan'
+          ? 'ค่าเป้าหมายถูกเปลี่ยนหลังตรวจแผน (จากฮาร์ดแวร์หรืออีกหน้าจอ) — ตรวจ diff ใหม่แล้วกด COMMIT อีกครั้ง'
+          : 'แผนนี้ยังไม่ถูกตรวจหรือหมดอายุ — ตรวจใหม่แล้วกด COMMIT อีกครั้ง';
+        renderPlanPanel();
+        showToast('ค่ามิกซ์เปลี่ยนหลังตรวจแผน — ตรวจ diff ที่เป็น STALE แล้วยืนยันอีกครั้ง', true);
+        return;
+      }
+    }
+    showToast((res && res.error) || 'Commit failed; nothing was sent.', true);
     closePlanPanel();
     loadSession();
-  }
-
-  function mergePlanChanges(cards) {
-    const byKey = new Map();
-    cards.forEach((card) => (card.changes || []).forEach((change) => {
-      byKey.set(`${change.channel}:${change.parameter}`, change);
-    }));
-    return [...byKey.values()];
   }
 
   function renderFlowAiDrawer() {
@@ -2522,6 +2582,7 @@
 
   function renderStatusBar() {
     if (!session) return;
+    applyMeterState();
     const set = (id, on) => document.getElementById(id).classList.toggle('on', !!on);
     set('lamp-usb', session.midiOutOpen);
     const ms = session.meterStatus || {};

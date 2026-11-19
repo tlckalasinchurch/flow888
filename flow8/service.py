@@ -12,6 +12,7 @@ from __future__ import annotations
 import logging
 import threading
 import time
+import uuid
 from contextlib import contextmanager
 from copy import deepcopy
 from dataclasses import dataclass, field
@@ -22,19 +23,24 @@ logger = logging.getLogger(__name__)
 
 from flow8.command_boundary import Flow8CommandBoundary, Flow8CommandRejectedError
 from flow8.safety import BLOCKED_PARAMETER_TYPES
-from flow8.domain_model import LOGICAL_CHANNELS
 from flow8.ledger import CommandLedger, CommandRecord
-from flow8.midi_constants import CC_VOLUME_FADER, CC_MUTE, CC_PAN, CC_PHANTOM, CC_GAIN
 from flow8.midi_in import Flow8MidiIn
 from flow8.midi_out import Flow8MidiOut
 from flow8.parameter_engine import Flow8ParameterEngine
 from flow8.parameter_mapping import fader_midi_to_db, pan_midi_to_percent
 from flow8.scenes import SceneManager, SceneSnapshot
 from flow8.state_model import EventSource, Flow8StateStore, ParameterProvenance, ParameterState
+from flow8.telemetry import TelemetryStats, decode, inbound_parameter_map, observed_value
 
 
 LEDGER_CAPACITY = 50
 SCENE_CAPACITY = 15
+#: How often the link watchdog checks the endpoints and retries a lost mixer.
+WATCHDOG_INTERVAL_S = 1.0
+RECONNECT_INTERVAL_S = 2.0
+#: A staged plan is trusted for this long, and at most this many are remembered.
+PREVIEW_TTL_S = 300.0
+MAX_PENDING_PREVIEWS = 32
 MAIN_CHANNEL = 8
 # Pseudo parameter id sent to state listeners when a connect/disconnect has reset all state.
 RECONCILE_EVENT = "__reconcile__"
@@ -82,7 +88,12 @@ class SceneRecallResult:
 class Flow8Service:
     """Thread-safe application service managing FLOW 8 hardware and parameter engine."""
 
-    def __init__(self, auto_connect: bool = True) -> None:
+    def __init__(
+        self,
+        auto_connect: bool = True,
+        watchdog_interval: float = WATCHDOG_INTERVAL_S,
+        reconnect_interval: float = RECONNECT_INTERVAL_S,
+    ) -> None:
         self.state_store = Flow8StateStore()
         self.midi_out = Flow8MidiOut()
         self.midi_in = Flow8MidiIn()
@@ -116,8 +127,26 @@ class Flow8Service:
         # Kept apart from the 15 user scene slots so an auto snapshot never evicts one.
         self._pre_change: Optional[SceneSnapshot] = None
 
+        # Inbound telemetry: observation only, mapped by the verified allowlist.
+        self.telemetry = TelemetryStats()
+        self._inbound_map = inbound_parameter_map()
+
+        # Link watchdog: notices an unplugged mixer and reconnects without a restart.
+        self._watchdog_interval = max(0.05, float(watchdog_interval))
+        self._reconnect_interval = max(0.05, float(reconnect_interval))
+        self._watchdog_thread: Optional[threading.Thread] = None
+        self._watchdog_stop = threading.Event()
+        self._auto_reconnect = bool(auto_connect)
+        self._last_reconnect_attempt = 0.0
+
+        # Staged change plans: guard -> preview snapshot, so commit can refuse a plan
+        # whose targeted values changed after the engineer reviewed them.
+        self._preview_lock = threading.Lock()
+        self._previews: dict[str, dict[str, Any]] = {}
+
         if auto_connect:
             self.connect()
+            self.start_watchdog()
 
     @property
     def active_bus(self) -> str:
@@ -276,8 +305,12 @@ class Flow8Service:
         finally:
             self._notify_command_log_listeners()
 
-    def connect(self) -> bool:
-        """Attempt to locate and open the FLOW 8 hardware endpoints."""
+    def connect(self, quiet: bool = False) -> bool:
+        """Attempt to locate and open the FLOW 8 hardware endpoints.
+
+        `quiet` is for the watchdog's periodic retries: a missing mixer is normal
+        there and must not fill the log with tracebacks.
+        """
         with self._lock:
             try:
                 # Open MIDI Out
@@ -287,7 +320,8 @@ class Flow8Service:
                 # Open MIDI In if needed, then independently ensure it is listening.
                 if not self.midi_in.is_connected:
                     self.midi_in.open()
-                    self.midi_in.register_callback(self._on_midi_in_event)
+                # register_callback is idempotent, so a reconnect never doubles events.
+                self.midi_in.register_callback(self._on_midi_in_event)
                 if not self.midi_in.is_listening:
                     self.midi_in.start()
 
@@ -298,11 +332,19 @@ class Flow8Service:
             except Exception as e:
                 self._connected = False
                 self._connection_error = str(e)
-                logger.exception("FLOW 8 MIDI connection failed")
+                if quiet:
+                    logger.debug("FLOW 8 MIDI connection retry failed: %s", e)
+                else:
+                    logger.exception("FLOW 8 MIDI connection failed")
                 return False
 
     def disconnect(self) -> None:
-        """Cleanly close all endpoints."""
+        """Close the endpoints on purpose: auto-reconnect stays off until asked."""
+        self._auto_reconnect = False
+        self._drop_connection()
+
+    def _drop_connection(self) -> None:
+        """Close endpoints after an unplug. Does not change the auto-reconnect wish."""
         with self._lock:
             try:
                 self.midi_in.close()
@@ -329,10 +371,65 @@ class Flow8Service:
                 in_id = None
             if out_id is None or in_id is None:
                 logger.warning("FLOW 8 USB MIDI endpoint disappeared; disconnecting and reconciling.")
-                self.disconnect()
+                self._drop_connection()
                 self._connection_error = "FLOW 8 USB disconnected"
                 return False
             return True
+
+    # -- Link watchdog: unplug detection and auto-reconnect -------------------
+
+    @property
+    def watchdog_running(self) -> bool:
+        thread = self._watchdog_thread
+        return thread is not None and thread.is_alive()
+
+    @property
+    def auto_reconnect(self) -> bool:
+        return self._auto_reconnect
+
+    def set_auto_reconnect(self, enabled: bool) -> None:
+        """Remember whether a lost mixer should be re-opened automatically."""
+        self._auto_reconnect = bool(enabled)
+        if enabled:
+            self.start_watchdog(auto_reconnect=True)
+        else:
+            self.stop_watchdog()
+
+    def start_watchdog(self, auto_reconnect: bool = True) -> None:
+        """Start one background thread that notices an unplug and retries the ports."""
+        with self._lock:
+            self._auto_reconnect = bool(auto_reconnect)
+            if self.watchdog_running:
+                return
+            self._watchdog_stop.clear()
+            self._watchdog_thread = threading.Thread(
+                target=self._watchdog_loop, name="flow8-link-watchdog", daemon=True,
+            )
+            self._watchdog_thread.start()
+
+    def stop_watchdog(self) -> None:
+        self._watchdog_stop.set()
+        thread = self._watchdog_thread
+        self._watchdog_thread = None
+        if thread is not None and thread is not threading.current_thread():
+            thread.join(timeout=2.0)
+
+    def _watchdog_loop(self) -> None:
+        while not self._watchdog_stop.wait(self._watchdog_interval):
+            try:
+                if self._connected:
+                    self.check_connection_health()
+                    continue
+                if not self._auto_reconnect:
+                    continue
+                now = time.monotonic()
+                if now - self._last_reconnect_attempt < self._reconnect_interval:
+                    continue
+                self._last_reconnect_attempt = now
+                if self.connect(quiet=True):
+                    logger.info("FLOW 8 reconnected; state was reconciled to UNSYNCED")
+            except Exception:
+                logger.exception("FLOW 8 link watchdog iteration failed")
 
     def reconcile_connection(self) -> None:
         """Reconcile ledger history and state store on reconnect or disconnect."""
@@ -342,70 +439,52 @@ class Flow8Service:
         self._notify_listeners(RECONCILE_EVENT, None)
 
     def _on_midi_in_event(self, event: dict) -> None:
-        """Record recognized inbound CC as observed state; never echo it as a command."""
-        if (event.get("status", 0) & 0xF0) != 0xB0:
+        """Record allowlisted inbound CC as OBSERVED; never echo it as a command.
+
+        Runs on the MIDI driver's callback thread. It only writes to the thread-safe
+        state store and notifies listeners, so it can never send MIDI out. Any CC
+        pair the verified allowlist does not know is counted and ignored.
+        """
+        try:
+            decoded = decode(event, self._inbound_map)
+        except Exception:
+            logger.exception("Could not decode inbound MIDI event: %r", event)
+            return
+        self.telemetry.record(decoded)
+        if not decoded.mapped or decoded.kind != "cc":
             return
 
-        channel = event.get("channel", 0)  # MIDI channels are one-based here.
-        cc = event.get("data1", 0)
-        raw_value = event.get("data2", 0)
-
-        param_id = None
-        if channel == 8:
-            if cc == CC_VOLUME_FADER:
-                param_id = "main.fader"
-            elif cc == CC_PAN:
-                param_id = "main.balance"
-        elif channel in (9, 10, 11, 12):
-            bus_by_ch = {9: "mon1", 10: "mon2", 11: "fx1", 12: "fx2"}
-            if cc == CC_VOLUME_FADER:
-                param_id = f"{bus_by_ch[channel]}.fader"
-        else:
-            # Resolve MIDI channel through the shared logical-channel model.
-            # MIDI ch6 is logical strip ch6 (the 7/8 stereo pair), not input 6.
-            channel_spec = next(
-                (
-                    spec for spec in LOGICAL_CHANNELS.values()
-                    if spec.midi_channel == channel
-                ),
-                None,
-            )
-            if channel_spec is not None:
-                prefix = f"ch{channel_spec.channel_index}"
-                if cc == CC_VOLUME_FADER:
-                    param_id = f"{prefix}.fader"
-                elif cc == CC_MUTE:
-                    param_id = f"{prefix}.mute"
-                elif cc == CC_PAN:
-                    param_id = f"{prefix}.pan"
-                elif cc == CC_PHANTOM:
-                    param_id = f"{prefix}.phantom"
-                elif cc == CC_GAIN:
-                    param_id = f"{prefix}.gain"
-
-        if not param_id or param_id not in self.command_boundary.ACTIVE_ALLOWLIST:
-            return
-
-        observed_value = (
-            bool(raw_value) if cc in (CC_MUTE, CC_PHANTOM) else raw_value
-        )
+        value = observed_value(decoded)
         try:
             self.state_store.set_observed_value(
-                param_id=param_id,
-                value=observed_value,
-                raw_midi_value=raw_value,
+                param_id=decoded.param_id,
+                value=value,
+                raw_midi_value=decoded.value,
                 source=EventSource.PHYSICAL_HARDWARE,
             )
+        except KeyError:
+            return
         except Exception:
             logger.exception(
                 "Failed to record inbound FLOW 8 MIDI observation: "
                 "param=%s channel=%s cc=%s value=%s",
-                param_id, channel, cc, raw_value,
+                decoded.param_id, decoded.channel, decoded.controller, decoded.value,
             )
             return
 
-        self._notify_listeners(param_id, observed_value)
+        self._notify_listeners(decoded.param_id, value)
 
+    def telemetry_status(self) -> dict[str, Any]:
+        """Inbound telemetry counters plus the link state, for the hub and the probe."""
+        status = self.telemetry.snapshot()
+        status.update({
+            "midiInOpen": self.midi_in_open,
+            "listening": self.midi_in_listening,
+            "device": self.midi_in.device_info[1],
+            "watchdog": self.watchdog_running,
+            "autoReconnect": self._auto_reconnect,
+        })
+        return status
     # -- High-level UI dispatch methods -------------------------------------
 
     def set_fader(self, channel_index: int, raw_value: int) -> None:
@@ -663,8 +742,13 @@ class Flow8Service:
         state = self.state_store.get_parameter(self._param_id(parameter, channel_index))
         if state is None or state.provenance == ParameterProvenance.UNSYNCED:
             return None
-        raw = state.commanded_raw_midi
-        if raw is None:
+        # OBSERVED means the mixer reported this value: that is the current truth.
+        # COMMANDED means only this app knows the value; nothing else reported one.
+        if state.provenance == ParameterProvenance.OBSERVED and state.observed_raw_midi is not None:
+            raw = state.observed_raw_midi
+        elif state.commanded_raw_midi is not None:
+            raw = state.commanded_raw_midi
+        else:
             raw = state.observed_raw_midi
         if raw is None:
             return None
@@ -835,9 +919,12 @@ class Flow8Service:
         state = self.state_store.get_parameter(param_id)
         if state is None:
             return None, ParameterProvenance.UNSYNCED.value
-        raw = state.commanded_raw_midi
-        if raw is None:
+        if state.provenance == ParameterProvenance.OBSERVED and state.observed_raw_midi is not None:
             raw = state.observed_raw_midi
+        else:
+            raw = state.commanded_raw_midi
+            if raw is None:
+                raw = state.observed_raw_midi
         if raw is None or state.provenance == ParameterProvenance.UNSYNCED:
             return None, state.provenance.value
         return (bool(raw) if param_id.endswith(".mute") else int(raw)), state.provenance.value
@@ -866,17 +953,102 @@ class Flow8Service:
             ))
         return tuple(rows)
 
-    def commit_change_plan(self, plan: Any) -> Any:
+    def stage_change_plan(self, plan: Any) -> tuple:
+        """Preview a plan and remember it, returning (rows, guard).
+
+        The guard is the handle the console sends back on commit. It binds the
+        preview the engineer saw to the values that were current at that moment.
+        """
+        rows = self.preview_change_plan(plan)
+        guard = uuid.uuid4().hex
+        record = {
+            "planId": plan.plan_id,
+            "changes": tuple((c.channel, c.parameter, c.value) for c in plan.changes),
+            "snapshot": tuple((r.parameter_id, r.from_value, r.from_provenance) for r in rows),
+            "at": time.monotonic(),
+        }
+        with self._preview_lock:
+            self._previews[guard] = record
+            self._prune_previews_locked()
+        return rows, guard
+
+    def _prune_previews_locked(self) -> None:
+        if len(self._previews) <= MAX_PENDING_PREVIEWS:
+            return
+        oldest = sorted(self._previews.items(), key=lambda item: item[1]["at"])
+        for guard, _ in oldest[: len(self._previews) - MAX_PENDING_PREVIEWS]:
+            self._previews.pop(guard, None)
+
+    def _stale_rows_for(self, plan: Any, guard: str, fresh_rows: tuple) -> list[dict[str, Any]]:
+        """Consume a guard and list every targeted value that moved since preview."""
+        from .change_plan import PreviewRequiredError
+
+        with self._preview_lock:
+            record = self._previews.pop(guard, None)
+        if record is None:
+            raise PreviewRequiredError(
+                "This preview expired or was already used. Preview the plan again before committing."
+            )
+        if time.monotonic() - record["at"] > PREVIEW_TTL_S:
+            raise PreviewRequiredError(
+                "This preview is older than five minutes. Preview the plan again before committing."
+            )
+        expected = tuple((c.channel, c.parameter, c.value) for c in plan.changes)
+        # The guard is bound to the reviewed changes, not to a request object: the
+        # console rebuilds the plan at commit time and gets a fresh plan id.
+        if record["changes"] != expected:
+            return [{"parameterId": "*", "reason": "plan_changed",
+                     "previewFrom": None, "currentFrom": None,
+                     "previewProvenance": None, "currentProvenance": None}]
+
+        stale: list[dict[str, Any]] = []
+        for row, (param_id, from_value, from_prov) in zip(fresh_rows, record["snapshot"]):
+            if (row.parameter_id != param_id
+                    or row.from_value != from_value
+                    or row.from_provenance != from_prov):
+                stale.append({
+                    "parameterId": row.parameter_id,
+                    "reason": "value_moved",
+                    "previewFrom": from_value,
+                    "previewProvenance": from_prov,
+                    "currentFrom": row.from_value,
+                    "currentProvenance": row.from_provenance,
+                })
+        return stale
+
+    def commit_change_plan(
+        self,
+        plan: Any,
+        guard: Optional[str] = None,
+        require_guard: bool = False,
+    ) -> Any:
         """Send a reviewed plan as one undoable step, capturing the mix first.
 
         Every change is validated against the command allowlist before anything
-        is sent, so a malformed plan dispatches nothing. If a dispatch still
-        fails midway, the batch is discarded and the values already sent are
-        restored, so a failed commit leaves the mix where it was.
+        is sent. With `require_guard` (the console and the LAN API) a live preview
+        must exist and nothing may have changed on any targeted parameter since
+        then; otherwise the plan is refused as stale and nothing is sent.
         """
-        from .change_plan import ChangePlanResult
+        from .change_plan import ChangePlanResult, PreviewRequiredError
+
+        if require_guard and not guard:
+            raise PreviewRequiredError(
+                "Preview this plan before committing: reviewing the diff is part of the safety contract."
+            )
 
         rows = self.preview_change_plan(plan)
+        if guard is not None:
+            stale = self._stale_rows_for(plan, guard, rows)
+            if stale:
+                return ChangePlanResult(
+                    plan_id=plan.plan_id,
+                    title=plan.title,
+                    stale=True,
+                    stale_rows=stale,
+                    fresh_rows=[row.as_dict() for row in rows],
+                    error="The mix changed after this plan was reviewed; nothing was sent.",
+                )
+
         changed = [row for row in rows if row.status == "change"]
         result = ChangePlanResult(
             plan_id=plan.plan_id, title=plan.title, skipped=len(rows) - len(changed)

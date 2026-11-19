@@ -1,3 +1,3 @@
 @echo off
 cd /d "%~dp0"
-python launch_studio_ui.py
+python main.py

@@ -79,3 +79,15 @@ Every step ends with: full test suite result with passed/failed/skipped/expected
   gain/+48V path. Report: `P7_P8_F1_IMPLEMENTATION.md`.
 - Still blocked: **P0 / F0** inbound telemetry and unplug detection; **P9 / F5** needs a
   hardware Program Change test.
+
+## Status update (2026-11-19, F0 stage)
+
+- **P0 / F0 code path delivered** — allowlist-derived inbound telemetry (`OBSERVED`), a link
+  watchdog with auto-reconnect, USB meter frame-loss detection, a change-plan staleness guard,
+  and `python -m tools.hw_probe --safe`. Report:
+  `F0_INBOUND_TELEMETRY_IMPLEMENTATION.md`.
+- **Hardware evidence still pending**: the probe sees FLOW 8 MIDI endpoints, but a 5 s
+  read-only listen received 0 bytes, and `sounddevice` is not installed, so no USB meter
+  frames. Do not upgrade any claim to hardware-verified until the probe shows traffic.
+- Next: run `python -m tools.hw_probe --safe --seconds 20` with USB TX ON on the mixer and a
+  fader moved; then F5 / P9 Program Change (the probe reports PC reception without sending).
