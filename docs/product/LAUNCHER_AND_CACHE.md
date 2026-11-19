@@ -108,3 +108,19 @@ LAN_URLS ['http://192.168.1.187:8130', 'http://169.254.83.107:8130']
 - USB meters require `sounddevice` + PortAudio; without them the banner reports
   "Meters need the 'sounddevice' package" while the console keeps working.
 - This stage changes launching and delivery only; it does not add hardware verification.
+
+## 7. Shortcut and "old UI" troubleshooting
+
+A stale desktop shortcut was found pointing at an **old project copy**
+(`...\Desktop\mixing-station-pc-windows-3-2-2-789`, whose `main.py` still launches the Tk
+window), and that folder had been moved, so the shortcut could only fail or open the legacy
+UI. It is now repointed to
+`...\00 - Projects\Flow888\flow888\start_studio.bat`, so double-clicking it always starts the
+CueAir web console.
+
+If several copies of the project exist on disk, only the one above is updated. Open the
+console from that folder (or the repointed shortcut); do not use `FLOW8-CyberNeon.exe` from an
+old `dist/` folder, which was built before the web console existed.
+
+The launcher also detects an already-running console on the port and simply opens it instead
+of failing to bind, so double-clicking twice is safe.

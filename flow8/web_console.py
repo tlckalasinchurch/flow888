@@ -16,11 +16,13 @@ watchdog. `--no-meters` skips the USB capture stream for a MIDI-only console.
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import shutil
 import subprocess
 import sys
 import time
+import urllib.request
 import webbrowser
 from typing import Any, Callable, Optional
 
@@ -34,6 +36,18 @@ LOOP_INTERVAL_S = 2.5
 
 def console_url(port: int, host: str = "127.0.0.1") -> str:
     return f"http://{host}:{port}"
+
+
+def existing_console(port: int, timeout: float = 1.0) -> bool:
+    """True when this port already serves a FLOW 8 console."""
+    if not port or port <= 0:
+        return False
+    try:
+        with urllib.request.urlopen(f"http://127.0.0.1:{port}/api/status", timeout=timeout) as response:
+            data = json.loads(response.read().decode("utf-8"))
+        return isinstance(data, dict) and "midiConnected" in data
+    except Exception:
+        return False
 
 
 def find_app_browser() -> Optional[str]:
@@ -119,8 +133,24 @@ def run(
     popen: Optional[Callable[..., Any]] = None,
     sleep: Callable[[float], Any] = time.sleep,
     loop_limit: Optional[int] = None,
+    reuse_existing: bool = True,
 ) -> int:
     """Serve the console until interrupted. Every collaborator is injectable for tests."""
+    port = getattr(args, "port", 0)
+    if reuse_existing and existing_console(port):
+        url = console_url(port)
+        print("FLOW 8 web console is already running — opening the existing one")
+        print(f"  This computer : {url}")
+        if not getattr(args, "no_browser", False):
+            open_console(
+                url,
+                app_window=not getattr(args, "no_app_window", False),
+                browser=browser_finder(),
+                opener=opener,
+                popen=popen,
+            )
+        return 0
+
     service = service_factory(auto_connect=True)
     hub = hub_factory(service, host=getattr(args, "host", "0.0.0.0"),
                       port=args.port, library_path=default_library_path())

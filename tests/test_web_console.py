@@ -130,6 +130,7 @@ class RunTests(unittest.TestCase):
             browser_finder=lambda: None,
             loop_limit=1,
             sleep=lambda _seconds: None,
+            reuse_existing=False,
         )
         defaults.update(kwargs)
         with redirect_stdout(self.out):
@@ -149,6 +150,20 @@ class RunTests(unittest.TestCase):
         text = self.out.getvalue()
         self.assertIn("http://127.0.0.1:8123", text)
         self.assertIn("http://192.168.1.50:8123", text)
+
+    def test_existing_console_is_reused_instead_of_failing_to_bind(self):
+        opened = []
+        with mock.patch.object(web_console, "existing_console", return_value=True):
+            with redirect_stdout(self.out):
+                code = web_console.run(
+                    args(), service_factory=FakeService, hub_factory=FakeHub,
+                    meter_factory=FakeMeter, browser_finder=lambda: None,
+                    opener=opened.append,
+                )
+        self.assertEqual(code, 0)
+        self.assertEqual(FakeHub.instances, [], "no second hub may be started")
+        self.assertEqual(opened, ["http://127.0.0.1:8123"])
+        self.assertIn("already running", self.out.getvalue())
 
     def test_no_browser_and_no_meters_are_honoured(self):
         opened = []
