@@ -262,15 +262,24 @@ class BleTransport:
             logger.warning("BLE fader encode refused: %s", exc)
             return False
         val_byte = pkt[4]
+        echo_key = (int(channel), PARAM_FADER, val_byte)
+        echo_ts = time.monotonic()
         with self._lock:
             self._prune_echoes_locked()
-            self._recent_echoes[(int(channel), PARAM_FADER, val_byte)] = time.monotonic()
+            self._recent_echoes[echo_key] = echo_ts
         fut = asyncio.run_coroutine_threadsafe(self._write_packet(pkt), self._loop)
         try:
-            return bool(fut.result(timeout=2.0))
+            accepted = bool(fut.result(timeout=2.0))
         except Exception as exc:
             logger.warning("BLE write failed: %s", exc)
-            return False
+            accepted = False
+        if not accepted:
+            # The mixer never saw this value, so no echo can legitimately
+            # arrive for it — drop the marker so it cannot mask a real one.
+            with self._lock:
+                if self._recent_echoes.get(echo_key) == echo_ts:
+                    del self._recent_echoes[echo_key]
+        return accepted
 
     def request_dump_trigger(self) -> bool:
         """Send Type 0x4B dump trigger so FLOW 8 emits its 3068-byte SysEx state dump."""
@@ -448,8 +457,8 @@ class BleTransport:
                     continue
 
                 async with BleakClient(target.address, timeout=12.0) as client:
-                    self._client = client
                     with self._lock:
+                        self._client = client
                         self._connected = True
                         self._device_name = target.name or "FLOW 8 LE"
                         self._device_address = target.address

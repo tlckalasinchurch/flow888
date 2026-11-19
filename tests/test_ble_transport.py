@@ -164,6 +164,73 @@ class BleEchoAndServiceTests(NoHardwareMixin, unittest.TestCase):
         with self.assertRaises(RuntimeError):
             BleTransport._require_flow8_gatt(client)
 
+    def test_handshake_times_out_without_auth_ack(self):
+        """No 0x36 ACK -> TimeoutError; authenticated must stay False."""
+        from flow8.ble_transport import AUTH_ACK_TIMEOUT_S
+        tr = BleTransport()
+        writes = []
+
+        async def fake_write(payload):
+            writes.append(payload)
+            return True
+
+        tr._write_packet = fake_write
+        with mock.patch("flow8.ble_transport.AUTH_ACK_TIMEOUT_S", 0.2):
+            with self.assertRaises(TimeoutError):
+                asyncio.run(tr._handshake())
+        self.assertEqual(writes, [AUTH_PACKET])  # only auth was attempted
+        self.assertFalse(tr.status_snapshot()["authenticated"])
+
+    def test_handshake_completes_on_auth_ack(self):
+        tr = BleTransport()
+        writes = []
+
+        async def fake_write(payload):
+            writes.append(payload)
+            return True
+
+        tr._write_packet = fake_write
+
+        async def ack_then_run():
+            async def deliver_ack():
+                await asyncio.sleep(0.05)
+                tr._signal_auth_ack()
+            asyncio.ensure_future(deliver_ack())
+            await tr._handshake()
+
+        asyncio.run(ack_then_run())
+        self.assertEqual(
+            writes,
+            [AUTH_PACKET, SESSION_START_PACKET, CONFIG_REQUEST_PACKET, DUMP_TRIGGER_PACKET],
+        )
+        self.assertTrue(tr.status_snapshot()["authenticated"])
+
+    def test_failed_write_drops_echo_marker(self):
+        """A GATT write that fails must not leave an echo marker behind."""
+        tr = BleTransport()
+
+        class DeadClient:
+            is_connected = False
+
+            async def write_gatt_char(self, *a, **k):
+                raise AssertionError("must not be called")
+
+        tr._client = DeadClient()
+        tr._connected = True
+        tr._authenticated = True
+        loop = asyncio.new_event_loop()
+        loop_thread = threading.Thread(target=loop.run_forever, daemon=True)
+        loop_thread.start()
+        tr._loop = loop
+        try:
+            self.assertFalse(tr.send_fader(1, 100))
+        finally:
+            loop.call_soon_threadsafe(loop.stop)
+            loop_thread.join(timeout=2.0)
+            loop.close()
+            tr._loop = None
+        self.assertEqual(tr._recent_echoes, {})
+
     def test_write_packet_serializes_concurrent_writes(self):
         tr = BleTransport()
         order = []

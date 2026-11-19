@@ -33,8 +33,13 @@ the router to the verified write set instead.
 Single-writer rules:
 
 - A command is sent on exactly one transport. It is never duplicated.
-- In `hybrid`, if the BLE write fails the command fails; it is **not** retried
-  over USB (that could double-apply).
+- **BLE mode fails closed**: with no connected+authenticated BLE session,
+  every command is rejected (`REJECTED`) — never silently accepted offline,
+  and USB is never used as a fallback.
+- In `hybrid`, if the BLE session is not ready *before* routing, USB is the
+  single writer for that command; if BLE was chosen and the write then fails
+  (disconnect mid-write, GATT error), the command fails — it is **not**
+  retried over USB (that could double-apply).
 - In `ble` mode, any parameter outside the verified BLE set is rejected
   explicitly (`Flow8CommandRejectedError`) — no silent USB fallback.
 - USB audio meters (WASAPI) are independent of the control transport in all

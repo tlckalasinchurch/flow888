@@ -1,12 +1,14 @@
 """Tests for flow8/transport_router.py — single-writer USB/BLE/Hybrid policy."""
 
 import threading
+import time
 import unittest
 from unittest import mock
 
 from flow8.command_boundary import (
     DispatchStatus,
     Flow8CommandBoundary,
+    Flow8CommandError,
     Flow8CommandRejectedError,
 )
 from flow8.service import Flow8Service
@@ -31,18 +33,25 @@ class FakeMidiOut:
 
 
 class FakeBle:
-    def __init__(self, connected=True, accept=True):
+    """Mirrors BleTransport readiness: is_connected means link up AND the
+    0x36 auth ACK was received. `accept=False` simulates a GATT write that
+    returns failure; `raise_on_write` simulates a write exception."""
+
+    def __init__(self, connected=True, authenticated=True, accept=True, raise_on_write=False):
         self._connected = connected
+        self._authenticated = authenticated
         self._accept = accept
+        self._raise = raise_on_write
         self.sent = []
         self._lock = threading.Lock()
 
     @property
     def is_connected(self):
-        # Mirrors BleTransport: connected AND authenticated.
-        return self._connected
+        return self._connected and self._authenticated
 
     def send_fader(self, channel, raw_midi):
+        if self._raise:
+            raise RuntimeError("GATT write exploded")
         if not self._accept:
             return False
         with self._lock:
@@ -50,7 +59,10 @@ class FakeBle:
         return True
 
     def status_snapshot(self):
-        return {"connected": self._connected, "authenticated": self._connected}
+        return {
+            "connected": self._connected,
+            "authenticated": self._authenticated,
+        }
 
 
 class TransportRouterModeTests(unittest.TestCase):
@@ -83,10 +95,27 @@ class TransportRouterModeTests(unittest.TestCase):
         self.assertEqual(midi.sent, [])
         self.assertEqual(len(ble.sent), 1)
 
-    def test_ble_mode_offline_accepts_without_sending(self):
-        router, midi = self._router(ble=FakeBle(connected=False), usb_connected=False)
+    def test_ble_mode_offline_rejects_fail_closed(self):
+        # BLE session absent entirely.
+        router, midi = self._router(ble=None, usb_connected=True)
         router.set_mode("ble")
-        self.assertIsNone(router.dispatch("ch1.fader", FADER_SPEC, 64))
+        with self.assertRaises(Flow8CommandRejectedError):
+            router.dispatch("ch1.fader", FADER_SPEC, 64)
+        # BLE link down.
+        router, midi = self._router(ble=FakeBle(connected=False), usb_connected=True)
+        router.set_mode("ble")
+        with self.assertRaises(Flow8CommandRejectedError):
+            router.dispatch("ch1.fader", FADER_SPEC, 64)
+        # BLE link up but auth ACK never arrived -> still not ready.
+        router, midi = self._router(
+            ble=FakeBle(connected=True, authenticated=False), usb_connected=True
+        )
+        router.set_mode("ble")
+        with self.assertRaises(Flow8CommandRejectedError):
+            router.dispatch("ch1.fader", FADER_SPEC, 64)
+        # In every case nothing was sent on any transport — USB is not a
+        # fallback in ble mode.
+        self.assertEqual(midi.sent, [])
 
     def test_hybrid_prefers_ble_for_faders_but_never_duplicates(self):
         ble = FakeBle()
@@ -108,14 +137,13 @@ class TransportRouterModeTests(unittest.TestCase):
         self.assertEqual(midi.sent, [(1, 7, 80)])
 
     def test_hybrid_ble_write_failure_never_retries_usb(self):
-        ble = FakeBle(accept=False)
-        ble.send_fader = lambda ch, raw: False
-        router, midi = self._router(ble=ble)
-        router.set_mode("hybrid")
-        from flow8.command_boundary import Flow8CommandError
-        with self.assertRaises(Flow8CommandError):
-            router.dispatch("ch2.fader", FADER_SPEC, 80)
-        self.assertEqual(midi.sent, [])  # no double-send
+        for ble in (FakeBle(accept=False), FakeBle(raise_on_write=True)):
+            router, midi = self._router(ble=ble)
+            router.set_mode("hybrid")
+            with self.assertRaises(Flow8CommandError):
+                router.dispatch("ch2.fader", FADER_SPEC, 80)
+            self.assertEqual(midi.sent, [])  # no double-send
+            self.assertEqual(ble.sent, [])
 
     def test_concurrent_dispatches_are_serialized_per_transport(self):
         ble = FakeBle()
@@ -187,6 +215,104 @@ class BoundaryRouterIntegrationTests(NoHardwareMixin, unittest.TestCase):
         entry = boundary.execute_command("ch4.fader", 55)
         self.assertEqual(entry.transport, "ble")
         self.assertEqual(len(ble.sent) + len(midi.sent), 1)
+
+    def _param_state(self, boundary, param_id):
+        return boundary._state_store.get_parameter(param_id)
+
+    def test_ble_offline_rejects_and_preserves_state(self):
+        """BLE mode + no session -> REJECTED, no commanded value committed."""
+        boundary, _ = self._boundary("ble", FakeBle(connected=False))
+        with self.assertRaises(Flow8CommandRejectedError):
+            boundary.execute_command("ch1.fader", 100)
+        st = self._param_state(boundary, "ch1.fader")
+        self.assertIsNone(st.commanded_raw_midi)
+        self.assertIsNone(st.observed_raw_midi)
+        self.assertNotEqual(st.sync_status.value, "SYNCED")
+        last = boundary.command_log[-1]
+        self.assertEqual(last.dispatch_status, DispatchStatus.REJECTED)
+        self.assertFalse(last.command_accepted)
+        self.assertIsNone(last.hardware_applied)
+
+    def test_ble_unauthenticated_rejects(self):
+        boundary, _ = self._boundary(
+            "ble", FakeBle(connected=True, authenticated=False)
+        )
+        with self.assertRaises(Flow8CommandRejectedError):
+            boundary.execute_command("ch1.fader", 100)
+        self.assertIsNone(self._param_state(boundary, "ch1.fader").commanded_raw_midi)
+
+    def test_ble_write_returns_false_is_dispatch_failed(self):
+        boundary, _ = self._boundary("ble", FakeBle(accept=False))
+        with self.assertRaises(Flow8CommandError):
+            boundary.execute_command("ch1.fader", 100)
+        st = self._param_state(boundary, "ch1.fader")
+        self.assertIsNone(st.commanded_raw_midi)  # failed dispatch commits nothing
+        last = boundary.command_log[-1]
+        self.assertEqual(last.dispatch_status, DispatchStatus.DISPATCH_FAILED)
+        self.assertFalse(last.driver_dispatched)
+        self.assertIsNone(last.hardware_applied)
+
+    def test_ble_write_exception_is_dispatch_failed(self):
+        boundary, _ = self._boundary("ble", FakeBle(raise_on_write=True))
+        with self.assertRaises(Flow8CommandError):
+            boundary.execute_command("ch1.fader", 100)
+        last = boundary.command_log[-1]
+        self.assertEqual(last.dispatch_status, DispatchStatus.DISPATCH_FAILED)
+        self.assertIsNone(self._param_state(boundary, "ch1.fader").commanded_raw_midi)
+
+    def test_successful_ble_dispatch_status_and_state(self):
+        ble = FakeBle()
+        boundary, _ = self._boundary("ble", ble)
+        entry = boundary.execute_command("ch2.fader", 90)
+        self.assertEqual(entry.dispatch_status, DispatchStatus.BLE_WRITE_ACCEPTED)
+        self.assertEqual(entry.transport, "ble")
+        self.assertIsNone(entry.hardware_applied)  # GATT accept != mixer applied
+        st = self._param_state(boundary, "ch2.fader")
+        self.assertEqual(st.commanded_raw_midi, 90)
+        self.assertIsNone(st.observed_raw_midi)  # never fabricated
+
+    def test_mode_switch_under_load_no_duplicate_or_corrupt(self):
+        """Toggling modes while commands fly: every command has exactly one writer."""
+        ble = FakeBle()
+        midi = FakeMidiOut(connected=True)
+        router = TransportRouter(midi, ble_provider=lambda: ble)
+        boundary = Flow8CommandBoundary(
+            midi_out=midi, state_store=Flow8StateStore(), transport_router=router
+        )
+        errors = []
+        stop = threading.Event()
+
+        def switcher():
+            for mode in ("usb_midi", "ble", "hybrid"):
+                if stop.is_set():
+                    return
+                router.set_mode(mode)
+                time.sleep(0.001)
+
+        def worker():
+            try:
+                for _ in range(200):
+                    try:
+                        boundary.execute_command("ch1.fader", 64)
+                    except (Flow8CommandRejectedError, Flow8CommandError):
+                        pass  # ble-mode offline rejections are expected mid-switch
+            except Exception as exc:  # pragma: no cover
+                errors.append(exc)
+
+        threads = [threading.Thread(target=worker) for _ in range(4)]
+        threads.append(threading.Thread(target=switcher))
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+        stop.set()
+        self.assertEqual(errors, [])
+        # Every accepted command went to exactly one transport; totals match.
+        total = len(ble.sent) + len(midi.sent)
+        dispatched = sum(
+            1 for e in boundary.command_log if e.driver_dispatched
+        )
+        self.assertEqual(total, dispatched)
 
 
 class ServiceTransportStatusTests(NoHardwareMixin, unittest.TestCase):

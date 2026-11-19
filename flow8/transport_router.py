@@ -11,6 +11,8 @@ Modes
               evidence (input faders on logical strips 1-6, packet type
               ``0x06`` / param ``0x0F``). Every other allowlisted parameter is
               rejected explicitly — BLE is NOT a full MIDI replacement.
+              BLE mode fails closed: with no connected+authenticated session
+              every command is rejected, never silently accepted offline.
 ``hybrid``    Single-writer per command: BLE-capable parameters go over BLE
               while BLE is connected *and* authenticated, otherwise over USB;
               all other parameters go over USB. If a BLE write fails the
@@ -20,10 +22,12 @@ Modes
 Dispatch contract (used by ``Flow8CommandBoundary``):
     dispatch(param_id, spec, raw_midi) -> Optional[str]
         returns "usb_midi" | "ble" when a transport accepted the command,
-        returns None when no control transport is connected (offline accept —
-        same semantics as the legacy USB-only path),
+        returns None only in usb_midi/hybrid mode when no control transport
+        is connected (offline accept — same semantics as the legacy
+        USB-only path); ble mode never returns None for a capable param,
         raises Flow8CommandError on transport failure,
-        raises Flow8CommandRejectedError when the mode cannot carry the param.
+        raises Flow8CommandRejectedError when the mode cannot carry the param
+        or (ble mode) the BLE session is not ready.
 """
 
 from __future__ import annotations
@@ -131,11 +135,16 @@ class TransportRouter:
                     "input faders on strips 1-6 only (packet 0x06, param 0x0F); "
                     "use USB MIDI or Hybrid mode for this parameter."
                 )
-            return self._dispatch_ble(param_id, raw_midi)
+            # BLE mode fails closed: no connected+authenticated session means
+            # the command is rejected, never silently accepted offline.
+            return self._dispatch_ble(param_id, raw_midi, required=True)
         # hybrid: explicit single-writer policy per command.
         ble = self._ble()
         if self.ble_capable(param_id, spec) and ble is not None and ble.is_connected:
-            return self._dispatch_ble(param_id, raw_midi)
+            # BLE was chosen as this command's single writer. If the write then
+            # fails (disconnect mid-write, GATT error), the command fails — it
+            # is never retried over USB, so it cannot be applied twice.
+            return self._dispatch_ble(param_id, raw_midi, ble=ble)
         return self._dispatch_usb(spec, raw_midi)
 
     def _ble(self) -> Optional[Any]:
@@ -153,9 +162,23 @@ class TransportRouter:
         self._midi_out.send_cc(int(spec["channel"]), int(spec["cc"]), int(raw_midi))
         return "usb_midi"
 
-    def _dispatch_ble(self, param_id: str, raw_midi: int) -> Optional[str]:
-        ble = self._ble()
+    def _dispatch_ble(
+        self,
+        param_id: str,
+        raw_midi: int,
+        required: bool = False,
+        ble: Optional[Any] = None,
+    ) -> Optional[str]:
+        if ble is None:
+            ble = self._ble()
         if ble is None or not ble.is_connected:
+            if required:
+                # Fail closed: BLE mode never accepts a command it cannot send.
+                raise Flow8CommandRejectedError(
+                    f"'{param_id}' rejected: BLE control transport is not "
+                    "connected and authenticated. No command was sent "
+                    "(fail-closed; switch to USB MIDI or Hybrid mode)."
+                )
             return None
         strip = self.ble_fader_strip(param_id)
         if strip is None:
@@ -170,6 +193,7 @@ class TransportRouter:
             ) from exc
         if not accepted:
             raise Flow8CommandError(
-                f"BLE transport did not accept '{param_id}' (not connected or write failed)."
+                f"BLE transport did not accept '{param_id}' "
+                "(disconnected or GATT write failed)."
             )
         return "ble"
