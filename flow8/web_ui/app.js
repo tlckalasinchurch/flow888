@@ -13,6 +13,8 @@
   let selectedEqBand = 'low'; // 'lc' | 'low' | 'low_mid' | 'hi_mid' | 'hi'
   let dspClipboard = null;
   let flowAiOpen = false;
+  let pendingPlan = null;
+  let planPreview = null;
   let presetCategory = 'all';
   let presetQuery = '';
   let selectedPresetId = 'speech-mc-handheld';
@@ -154,6 +156,8 @@
     return pct < 0 ? `L${Math.abs(pct)}` : `R${pct}`;
   }
   const hpfHz = (raw) => (raw <= 0 ? 'OFF' : `${Math.round(20 + (raw / 127) * 580)} Hz`);
+  // Inverse of hpfHz for building a plan in the unit the engineer thinks in.
+  const hzToHpfRaw = (hz) => Math.max(0, Math.min(127, Math.round(((hz - 20) / 580) * 127)));
   // Approximate preamp gain (parameter_mapping.gain_midi_to_db: -20..+60 dB linear).
   const gainText = (raw) => (raw == null ? '—' : `${Math.round(-20 + (raw / 127) * 80)} dB`);
 
@@ -1956,6 +1960,110 @@
     else renderInfoPage(body);
   }
 
+  // ---------- Staged change plan (F7) ----------
+  // A plan is reviewed as a diff before anything is sent. COMMIT sends every
+  // changed value once, as one ledger step, so a single UNDO restores the mix.
+  function planValueText(parameter, raw) {
+    if (raw === null || raw === undefined) return 'unknown';
+    if (parameter === 'mute') return raw ? 'MUTED' : 'OPEN';
+    if (parameter === 'pan') return panText(raw);
+    if (parameter === 'low_cut') return hpfHz(raw);
+    if (parameter === 'compressor') return `${Math.round((raw / 127) * 100)}%`;
+    if (parameter.startsWith('eq_')) return eqText(raw);
+    return midiToDbStr(raw);
+  }
+
+  function planChannelText(channel) {
+    if (typeof channel === 'string') return LAYERS[channel] ? LAYERS[channel].label : channel.toUpperCase();
+    if (Number(channel) === 8) return 'MAIN L/R';
+    const ch = session && session.channels ? session.channels.find((c) => c.index === Number(channel)) : null;
+    const num = String(channel).padStart(2, '0');
+    return ch ? `CH ${num} · ${chName(ch)}` : `CH ${num}`;
+  }
+
+  async function previewPlan(plan) {
+    const res = await postAction({ action: 'previewChangePlan', title: plan.title, changes: plan.changes });
+    if (!res || res.ok === false) return;
+    pendingPlan = plan;
+    planPreview = res;
+    renderPlanPanel();
+  }
+
+  function closePlanPanel() {
+    pendingPlan = null;
+    planPreview = null;
+    const panel = document.getElementById('plan-panel');
+    if (panel) panel.hidden = true;
+  }
+
+  function renderPlanPanel() {
+    const panel = document.getElementById('plan-panel');
+    if (!panel) return;
+    if (!pendingPlan || !planPreview) { panel.hidden = true; return; }
+    panel.hidden = false;
+    const rows = planPreview.rows || [];
+    const willSend = Number(planPreview.willSend || 0);
+    document.getElementById('plan-title').textContent = pendingPlan.title || 'Change plan';
+    document.getElementById('plan-sub').textContent = willSend
+      ? `Preview only — ${willSend} of ${rows.length} change${rows.length === 1 ? '' : 's'} will be sent on COMMIT`
+      : 'Nothing would change — every value is already set';
+    const body = document.getElementById('plan-body');
+    body.innerHTML = '';
+    rows.forEach((row) => {
+      const unknown = row.from === null || row.from === undefined;
+      const el = document.createElement('div');
+      el.className = `plan-row ${row.status === 'no_change' ? 'no-change' : ''}`;
+      el.innerHTML = `
+        <div class="plan-row-head">
+          <span class="plan-where">${esc(planChannelText(row.channel))} · ${esc(row.parameterLabel || row.parameter)}</span>
+          <span class="plan-risk ${esc(row.risk || 'low')}">${esc(String(row.risk || 'low').toUpperCase())}</span>
+        </div>
+        <div class="plan-diff">
+          <span class="plan-from ${unknown ? 'unknown' : ''}">${unknown ? 'unknown' : esc(planValueText(row.parameter, row.from))}</span>
+          <span class="plan-arrow">→</span>
+          <span class="plan-to">${esc(planValueText(row.parameter, row.to))}</span>
+        </div>
+        <span class="plan-prov" title="${esc(provTitle(row.fromProvenance))}">FROM ${esc(provCode(row.fromProvenance))}</span>
+        ${row.reason ? `<p class="plan-reason">${esc(row.reason)}</p>` : ''}
+        ${row.note ? `<p class="plan-note">${esc(row.note)}</p>` : ''}
+      `;
+      body.appendChild(el);
+    });
+    const commit = document.getElementById('plan-commit');
+    commit.disabled = willSend === 0;
+    commit.textContent = willSend ? `COMMIT ${willSend} CHANGE${willSend === 1 ? '' : 'S'}` : 'NOTHING TO SEND';
+  }
+
+  async function commitPlan() {
+    if (!pendingPlan || !planPreview) return;
+    const button = document.getElementById('plan-commit');
+    button.disabled = true;
+    const res = await postAction({
+      action: 'commitChangePlan',
+      title: pendingPlan.title,
+      changes: pendingPlan.changes,
+    });
+    button.disabled = false;
+    if (res && res.ok !== false) {
+      const parts = [`${res.applied} change${res.applied === 1 ? '' : 's'} sent`];
+      if (res.skipped) parts.push(`${res.skipped} already set`);
+      parts.push(res.undoReady
+        ? 'UNDO restores the mix in one step'
+        : 'previous value unknown, so UNDO cannot restore it');
+      showToast(`Plan committed · ${parts.join(' · ')}`);
+    }
+    closePlanPanel();
+    loadSession();
+  }
+
+  function mergePlanChanges(cards) {
+    const byKey = new Map();
+    cards.forEach((card) => (card.changes || []).forEach((change) => {
+      byKey.set(`${change.channel}:${change.parameter}`, change);
+    }));
+    return [...byKey.values()];
+  }
+
   function renderFlowAiDrawer() {
     const drawer = document.getElementById('flowai-drawer');
     const btn = document.getElementById('btn-flowai');
@@ -1976,7 +2084,6 @@
         badge: 'GAIN ADVICE', warn: true,
         title: `สัญญาณ CH ${String(ch.index).padStart(2, '0')} ใกล้พีค (${peakDb.toFixed(1)} dBFS)`,
         desc: 'แนะนำลด Preamp Gain ที่ตัวเครื่อง FLOW 8 เพื่อป้องกันเสียงแตก (ไม่สามารถปรับ Gain ผ่าน LAN เพื่อความปลอดภัย)',
-        apply: null,
       });
     }
     if (ch.index <= 4 && (ch.lowCut || 0) < 10) {
@@ -1984,8 +2091,10 @@
         badge: 'HPF',
         title: 'เปิด Low Cut 100 Hz เพื่อลดเสียงลม/เสียงฮัม',
         desc: `ช่อง ${esc(chName(ch))} ยังไม่ได้เปิด Low Cut แนะนำตัดย่านต่ำกว่า 100 Hz เพื่อความสะอาดของมิกซ์`,
-        applyLabel: 'Apply Low Cut 100 Hz',
-        apply: () => postAction({ action: 'setLowCut', channel: ch.index, value: 100, unit: 'Hz' }),
+        changes: [{
+          channel: ch.index, parameter: 'low_cut', value: hzToHpfRaw(100),
+          reason: 'Cut wind and rumble below 100 Hz', risk: 'low',
+        }],
       });
     }
     const eqFlat = ['low', 'low_mid', 'hi_mid', 'hi'].every((k) => Math.abs(eqRawToDb(ch.eq[k] ?? 64)) < 0.3);
@@ -1994,11 +2103,10 @@
         badge: 'SMART EQ',
         title: 'ปรับ EQ ลดความก้อง & เพิ่มความคมชัดเสียงร้อง/พูด',
         desc: 'Low-Mid -2.0 dB ลดความขุ่น + Hi-Mid +1.5 dB ช่วยให้เสียงพุ่งชัดขึ้น (Undo ได้ใน 1 ขั้น)',
-        applyLabel: 'Apply Smart EQ',
-        apply: () => postAction({
-          action: 'pasteChannelDsp', channel: ch.index, unit: 'dB',
-          eq: { low_mid: -2.0, hi_mid: 1.5 },
-        }),
+        changes: [
+          { channel: ch.index, parameter: 'eq_low_mid', value: dbToEqRaw(-2.0), reason: 'Take out boxiness', risk: 'medium' },
+          { channel: ch.index, parameter: 'eq_hi_mid', value: dbToEqRaw(1.5), reason: 'Add presence', risk: 'medium' },
+        ],
       });
     }
     if (ch.index <= 4 && (ch.sends?.fx1 || 0) === 0) {
@@ -2006,8 +2114,10 @@
         badge: 'SPACE',
         title: 'เพิ่ม Reverb FX 1 เล็กน้อย (-18 dB)',
         desc: 'ช่วยให้เสียงร้องหรือเครื่องดนตรีไม่แห้งจนเกินไปในห้องสด',
-        applyLabel: 'Send FX 1 (-18 dB)',
-        apply: () => postAction({ action: 'setSend', channel: ch.index, target: 'fx1', value: 76, unit: 'raw' }),
+        changes: [{
+          channel: ch.index, parameter: 'send_fx1', value: 76,
+          reason: 'A little reverb space (-18 dB)', risk: 'low',
+        }],
       });
     }
     if (!cards.length) {
@@ -2015,25 +2125,41 @@
         badge: 'OK',
         title: `CH ${String(ch.index).padStart(2, '0')} (${esc(chName(ch))}) อยู่ในสภาพสมดุล`,
         desc: 'ค่า Low Cut, EQ และระดับสัญญาณปัจจุบันอยู่ในเกณฑ์ปลอดภัยพร้อมใช้งาน',
-        apply: null,
       });
     }
 
-    body.innerHTML = `<p class="sec-note" style="margin:0">วิเคราะห์สดจาก <strong>CH ${String(ch.index).padStart(2, '0')} · ${esc(chName(ch))}</strong> (ปรับเฉพาะ DSP ที่ปลอดภัย — Gain และ +48V เป็นคำแนะนำเท่านั้น)</p>`;
+    body.innerHTML = '';
+    const intro = document.createElement('p');
+    intro.className = 'sec-note';
+    intro.style.margin = '0';
+    intro.innerHTML = `วิเคราะห์สดจาก <strong>CH ${String(ch.index).padStart(2, '0')} · ${esc(chName(ch))}</strong> (ทุกข้อเสนอถูกตรวจเป็นแผนก่อนส่ง — Gain และ +48V เป็นคำแนะนำเท่านั้น)`;
+    body.appendChild(intro);
+
+    const actionable = cards.filter((c) => (c.changes || []).length);
+    if (actionable.length) {
+      const all = document.createElement('button');
+      all.className = 'hw-btn accent';
+      all.textContent = `REVIEW ALL ${actionable.length} AS ONE PLAN`;
+      all.onclick = () => previewPlan({
+        title: `FlowAi · CH ${String(ch.index).padStart(2, '0')}`,
+        changes: mergePlanChanges(actionable),
+      });
+      body.appendChild(all);
+    }
+
     cards.forEach((c) => {
       const el = document.createElement('div');
       el.className = 'ai-card';
       el.innerHTML = `
         <div class="ai-card-hdr"><span>${c.title}</span><span class="ai-badge ${c.warn ? 'warn' : ''}">${c.badge}</span></div>
         <p class="ai-card-desc">${c.desc}</p>
-        ${c.apply ? `<button class="hw-btn accent">${c.applyLabel}</button>` : ''}
+        ${(c.changes || []).length ? `<button class="hw-btn accent">REVIEW &amp; APPLY</button>` : ''}
       `;
-      if (c.apply) {
-        el.querySelector('button').onclick = async () => {
-          const res = await c.apply();
-          if (res && res.ok) showToast(`FlowAi applied to CH ${String(ch.index).padStart(2, '0')}`);
-          loadSession();
-        };
+      if ((c.changes || []).length) {
+        el.querySelector('button').onclick = () => previewPlan({
+          title: `FlowAi · CH ${String(ch.index).padStart(2, '0')} · ${c.badge}`,
+          changes: c.changes,
+        });
       }
       body.appendChild(el);
     });
@@ -2282,6 +2408,8 @@
     if (e.key !== 'Escape') return;
     const open = [...document.querySelectorAll('.modal-backdrop.open')];
     if (open.length) { e.preventDefault(); dismissModal(open[open.length - 1]); return; }
+    const planPanel = document.getElementById('plan-panel');
+    if (planPanel && !planPanel.hidden) { e.preventDefault(); closePlanPanel(); return; }
     if (insp && view !== 'setup') { e.preventDefault(); closeInspector(); return; }
     if (view === 'setup') { e.preventDefault(); setView(lastLiveView); }
   });
@@ -2322,6 +2450,9 @@
   document.getElementById('select-badge').onclick = () => selectChannel((selectedCh % 7) + 1);
   document.getElementById('btn-clear-solo').onclick = () => showToast(lockReason('solo'));
   document.getElementById('btn-flowai').onclick = () => { flowAiOpen = !flowAiOpen; renderFlowAiDrawer(); };
+  document.getElementById('plan-close').onclick = closePlanPanel;
+  document.getElementById('plan-discard').onclick = closePlanPanel;
+  document.getElementById('plan-commit').onclick = commitPlan;
   document.getElementById('flowai-close').onclick = () => { flowAiOpen = false; renderFlowAiDrawer(); };
   document.getElementById('btn-copy').onclick = () => {
     const ch = selectedChannelObj();

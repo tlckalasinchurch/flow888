@@ -13,7 +13,9 @@ import logging
 import threading
 import time
 from contextlib import contextmanager
+from copy import deepcopy
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from typing import Any, Callable, Dict, Iterable, Iterator, Mapping, Optional
 
 logger = logging.getLogger(__name__)
@@ -110,6 +112,9 @@ class Flow8Service:
         self._replay_state = threading.local()
         self.ledger = CommandLedger(capacity=LEDGER_CAPACITY, executor=self._replay)
         self.scenes = SceneManager(max_snapshots=SCENE_CAPACITY)
+        # Known mix state captured before the most recent committed change plan.
+        # Kept apart from the 15 user scene slots so an auto snapshot never evicts one.
+        self._pre_change: Optional[SceneSnapshot] = None
 
         if auto_connect:
             self.connect()
@@ -816,3 +821,123 @@ class Flow8Service:
                 self.end_batch()
                 self._notify_listeners(STATE_CHANGED_EVENT, None)
         return result
+
+    # -- Staged change plans (F7) --------------------------------------------
+
+    @property
+    def pre_change_snapshot(self) -> Optional[SceneSnapshot]:
+        """Known mix state captured before the last committed change plan."""
+        with self._ledger_lock:
+            return self._pre_change
+
+    def _raw_and_provenance(self, param_id: str) -> tuple[Optional[Any], str]:
+        """Known raw value and provenance; a start-up assumption counts as unknown."""
+        state = self.state_store.get_parameter(param_id)
+        if state is None:
+            return None, ParameterProvenance.UNSYNCED.value
+        raw = state.commanded_raw_midi
+        if raw is None:
+            raw = state.observed_raw_midi
+        if raw is None or state.provenance == ParameterProvenance.UNSYNCED:
+            return None, state.provenance.value
+        return (bool(raw) if param_id.endswith(".mute") else int(raw)), state.provenance.value
+
+    def preview_change_plan(self, plan: Any) -> tuple:
+        """One preview row per change: current value, provenance, and whether it differs.
+
+        Read-only: no command is dispatched and no state is written.
+        """
+        from .change_plan import PreviewRow
+
+        rows = []
+        for change in plan.changes:
+            current, provenance = self._raw_and_provenance(change.parameter_id)
+            same = current is not None and current == change.value
+            rows.append(PreviewRow(
+                channel=change.channel,
+                parameter=change.parameter,
+                parameter_id=change.parameter_id,
+                to_value=change.value,
+                from_value=current,
+                from_provenance=provenance,
+                status="no_change" if same else "change",
+                reason=change.reason,
+                risk=change.risk,
+            ))
+        return tuple(rows)
+
+    def commit_change_plan(self, plan: Any) -> Any:
+        """Send a reviewed plan as one undoable step, capturing the mix first.
+
+        Every change is validated against the command allowlist before anything
+        is sent, so a malformed plan dispatches nothing. If a dispatch still
+        fails midway, the batch is discarded and the values already sent are
+        restored, so a failed commit leaves the mix where it was.
+        """
+        from .change_plan import ChangePlanResult
+
+        rows = self.preview_change_plan(plan)
+        changed = [row for row in rows if row.status == "change"]
+        result = ChangePlanResult(
+            plan_id=plan.plan_id, title=plan.title, skipped=len(rows) - len(changed)
+        )
+        if not changed:
+            return result
+
+        result.snapshot_label = f"BEFORE {plan.title}"[:60]
+        with self._ledger_lock:
+            known = self.known_mix_state()
+            self._pre_change = (
+                SceneSnapshot(result.snapshot_label, deepcopy(known), datetime.now(timezone.utc))
+                if known else None
+            )
+            if self._pre_change is None:
+                result.snapshot_label = None
+
+            self.begin_batch()
+            applied = []
+            try:
+                for row in changed:
+                    self._replay(row.parameter, row.channel, row.to_value)
+                    applied.append(row)
+            except Exception as error:
+                self.ledger.cancel_batch()
+                result.rolled_back = self._rollback(applied)
+                result.error = str(error)
+                result.failed = [
+                    {"channel": row.channel, "parameter": row.parameter, "error": str(error)}
+                    for row in applied
+                ]
+                self._notify_listeners(STATE_CHANGED_EVENT, None)
+                return result
+
+            self.end_batch()
+            result.applied = len(applied)
+            result.undo_ready = self.ledger.can_undo
+        self._notify_listeners(STATE_CHANGED_EVENT, None)
+        return result
+
+    def _rollback(self, applied: list) -> bool:
+        """Re-send the pre-commit values of the changes already sent (no ledger)."""
+        complete = True
+        with self._replaying():
+            for row in reversed(applied):
+                if row.from_value is None:
+                    complete = False
+                    continue
+                try:
+                    self._replay(row.parameter, row.channel, row.from_value)
+                except Exception:
+                    complete = False
+                    logger.exception(
+                        "Change plan rollback failed for %s on %s", row.parameter, row.channel
+                    )
+        return complete
+
+    def restore_pre_change(self) -> SceneRecallResult:
+        """Recall the pre-change snapshot as one undoable step."""
+        with self._ledger_lock:
+            snapshot = self._pre_change
+        if snapshot is None:
+            raise ValueError("No pre-change snapshot was captured; commit a plan first.")
+        return self.apply_mix_state(snapshot.name, snapshot.parameters)

@@ -878,6 +878,37 @@ body.locked .status-strip { box-shadow: inset 0 -2px 0 var(--led-amber); }
 .ai-badge { font-size: 10px; padding: 2px 6px; border-radius: 4px; background: rgba(167,139,250,0.18); color: #D8B4FE; }
 .ai-badge.warn { background: rgba(255,176,32,0.18); color: var(--accent-amber); }
 
+/* Staged change plan (F7): reviewed before one commit */
+.plan-drawer { width: min(460px, 96vw); }
+.plan-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--accent-cyan); flex-shrink: 0; }
+.plan-row {
+  background: var(--bg-well); border: 1px solid var(--border-light); border-radius: 8px;
+  padding: 9px 10px; display: flex; flex-direction: column; gap: 4px;
+}
+.plan-row.no-change { opacity: 0.55; }
+.plan-row-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.plan-where { font-size: 12px; font-weight: 700; color: var(--text-primary); letter-spacing: 0.04em; }
+.plan-risk {
+  font-size: 9px; font-weight: 800; letter-spacing: 0.08em; padding: 2px 6px; border-radius: 4px;
+  background: rgba(63,210,224,0.14); color: var(--accent-cyan);
+}
+.plan-risk.medium { background: rgba(255,176,32,0.16); color: var(--accent-amber); }
+.plan-risk.high { background: rgba(255,84,96,0.18); color: var(--accent-red, #FF5460); }
+.plan-diff { display: flex; align-items: baseline; gap: 8px; font-variant-numeric: tabular-nums; }
+.plan-from { font-size: 14px; color: var(--text-secondary); text-decoration: line-through; }
+.plan-from.unknown { text-decoration: none; color: var(--text-secondary); font-style: italic; }
+.plan-arrow { color: var(--text-secondary); font-size: 13px; }
+.plan-to { font-size: 15px; font-weight: 700; color: var(--accent-cyan); }
+.plan-prov { font-size: 9px; font-weight: 800; letter-spacing: 0.08em; color: var(--text-secondary); }
+.plan-reason { font-size: 12px; color: var(--text-secondary); margin: 0; line-height: 1.4; }
+.plan-note { font-size: 11px; color: var(--accent-amber); margin: 0; line-height: 1.4; }
+.plan-foot {
+  display: flex; align-items: center; gap: 8px; padding: 10px 12px;
+  border-top: 1px solid var(--border-dark); background: var(--bg-panel, #13161C);
+}
+.plan-foot-note { flex: 1; margin: 0; font-size: 10px; color: var(--text-secondary); line-height: 1.35; }
+.plan-foot button[disabled] { opacity: 0.45; cursor: not-allowed; }
+
 /* Generic Top-Pane Cards for Channel/Input/Comp/Sends/FX */
 .top-grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
 .top-grid-3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }

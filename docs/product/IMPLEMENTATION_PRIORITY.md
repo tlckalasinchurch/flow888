@@ -47,3 +47,18 @@ Every step ends with: full test suite result with passed/failed/skipped/expected
 2. Owner at the mixer: confirm USB TX is ON and re-run the read-only logger, or tell me to stop hardware work for now.
 3. Run research P2 (read-only analysis of the existing extraction).
 4. Then P3 and P4 (offline, test-covered).
+
+## Status update (2026-11-19)
+
+- **P6 / F7 delivered** on `stage2-mixer-workstation`: plan model, read-only preview against known
+  values, one-transaction commit with snapshot-before-change and fail-closed rollback, two LAN
+  actions, and a console review panel. 17 new tests. Report:
+  `F7_CHANGE_PLAN_IMPLEMENTATION.md`.
+- **P3 / F2** needed no further code change: the preset dialog carries no level checkbox, its
+  footer states the guarantee, and the apply path contains no fader/pan/gain/phantom command at
+  all (asserted by `tests/test_preset_service.py`). Only the dead `preserve_levels` argument
+  remains in the service signature for callers.
+- **P4 / F3** was already met: scene capture stores EQ, low cut, compressor and sends, and the
+  snapshot library persists to JSON, so F7 could rely on it.
+- Next ranked step: **P7 / F4** (EQ curve from commanded values). F1 still waits on the owner's
+  preset-data decision; F5 waits on a hardware Program Change test.

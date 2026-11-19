@@ -100,6 +100,24 @@
       <div class="flowai-body" id="flowai-body"></div>
     </aside>
 
+    <!-- Staged change plan (F7): reviewed diff, committed only on request -->
+    <aside class="flowai-drawer plan-drawer" id="plan-panel" aria-label="Change plan review" hidden>
+      <div class="insp-head">
+        <div class="insp-id">
+          <span class="plan-dot"></span>
+          <h2 class="insp-title" id="plan-title">Change plan</h2>
+          <span class="insp-sub" id="plan-sub">Preview only — nothing is sent yet</span>
+        </div>
+        <button class="insp-close" id="plan-close" aria-label="Discard change plan">✕</button>
+      </div>
+      <div class="flowai-body" id="plan-body" aria-live="polite"></div>
+      <div class="plan-foot">
+        <p class="plan-foot-note">+48V and preamp gain can never be in a plan.</p>
+        <button class="hw-btn" id="plan-discard">DISCARD</button>
+        <button class="hw-btn accent" id="plan-commit">COMMIT</button>
+      </div>
+    </aside>
+
     <!-- Legacy Inspector kept hidden/compatible for keyboard navigation if needed -->
     <aside class="inspector" id="inspector" aria-labelledby="insp-title" hidden>
       <div class="insp-head">

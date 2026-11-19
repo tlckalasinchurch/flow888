@@ -45,7 +45,7 @@ METER_STALE_S = 2.0
 _MIX_ACTIONS = frozenset({
     "setFader", "setPan", "setMute", "muteAll", "setBusFader", "setEqBand",
     "setLowCut", "setCompressor", "setSend", "undo", "redo", "applyPreset",
-    "resetEqFlat", "libraryLoad", "pasteChannelDsp",
+    "resetEqFlat", "libraryLoad", "pasteChannelDsp", "commitChangePlan",
 })
 
 
@@ -78,7 +78,7 @@ LAN_LOCKED_FEATURES = {
 # Actions that change no mixer value: allowed while MIDI is closed.
 _OFFLINE_ACTIONS = frozenset({
     "setScribble", "librarySave", "libraryRename", "libraryDelete", "libraryImport",
-    "setActiveBus", "setActiveView",
+    "setActiveBus", "setActiveView", "previewChangePlan",
 })
 
 
@@ -283,8 +283,15 @@ class Flow8LanHub:
                 except ValueError:
                     length = -1
                 if not 0 <= length <= MAX_BODY_BYTES:
-                    self.close_connection = True
+                    # Answer first, then drain what the client is still writing (bounded),
+                    # so it reads the 413 instead of seeing the upload connection aborted.
                     self._send_json(413, {"ok": False, "error": "Request too large (limit 1 MB)."})
+                    try:
+                        if length > 0:
+                            self.rfile.read(min(length, 8 * MAX_BODY_BYTES))
+                    except Exception:
+                        pass
+                    self.close_connection = True
                     return
                 raw = self.rfile.read(length)
                 try:
@@ -545,6 +552,20 @@ class Flow8LanHub:
         if action in ("set48V", "setPhantom", "phantom"):
             return 403, {"ok": False, "error": "+48V phantom power requires explicit host confirmation dialog."}
 
+        # A change plan is reviewed data: no level automation, no +48V, ever.
+        if action in ("previewChangePlan", "commitChangePlan"):
+            changes = msg.get("changes")
+            if not isinstance(changes, list):
+                return 400, {"ok": False, "error": "changes must be a list"}
+            for raw in changes:
+                entry = raw if isinstance(raw, dict) else {}
+                parameter = str(entry.get("parameter", "")).lower()
+                if parameter in ("gain", "phantom", "phantom_power") or entry.get("includePhantom"):
+                    return 403, {
+                        "ok": False,
+                        "error": "Preamp gain and +48V are never part of a change plan (SR-05 / SR-06).",
+                    }
+
         # A command sent while MIDI is closed would be recorded as "commanded" but
         # never reach the mixer. Reject it so the remote cannot show a false success.
         # Scribble labels stay local to the hub, so they stay allowed.
@@ -655,6 +676,43 @@ class Flow8LanHub:
                                     self.service.set_send(ch, str(target), val, unit=unit)
                     finally:
                         self.service.end_batch()
+            elif action == "previewChangePlan":
+                from flow8.change_plan import make_plan
+
+                plan = make_plan(msg.get("title"), msg.get("changes") or [])
+                rows = self.service.preview_change_plan(plan)
+                extra = {
+                    "planId": plan.plan_id,
+                    "title": plan.title,
+                    "rows": [row.as_dict() for row in rows],
+                    "willSend": sum(1 for row in rows if row.status == "change"),
+                }
+            elif action == "commitChangePlan":
+                from flow8.change_plan import make_plan
+
+                plan = make_plan(msg.get("title"), msg.get("changes") or [])
+                result = self.service.commit_change_plan(plan)
+                extra = {
+                    "planId": result.plan_id,
+                    "title": result.title,
+                    "applied": result.applied,
+                    "skipped": result.skipped,
+                    "rolledBack": result.rolled_back,
+                    "snapshot": result.snapshot_label,
+                    "undoReady": result.undo_ready,
+                }
+                if result.error:
+                    extra["failed"] = result.failed
+                    return 409, {
+                        "ok": False,
+                        "error": (
+                            "The change plan failed and the values already sent were restored."
+                            if result.rolled_back else
+                            "The change plan failed; some values could not be restored "
+                            "(their previous value was unknown)."
+                        ),
+                        **extra,
+                    }
             elif action == "resetEqFlat":
                 ch = int(msg["channel"])
                 with self.service._ledger_lock:
