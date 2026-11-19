@@ -158,6 +158,21 @@ class Flow8MidiOut:
                     return i
         return None
 
+    def list_device_names(self) -> list:
+        """Names of every MIDI Out device Windows lists. Read-only; [] on any failure."""
+        if self._winmm is None:
+            return []
+        try:
+            names = []
+            for i in range(self._winmm.midiOutGetNumDevs()):
+                caps = MIDIOUTCAPSW()
+                res = self._winmm.midiOutGetDevCapsW(i, ctypes.byref(caps), ctypes.sizeof(caps))
+                if res == WinMmError.MMSYSERR_NOERROR:
+                    names.append(str(caps.szPname))
+            return names
+        except Exception:
+            return []
+
     def open(self, device_id: Optional[int] = None) -> None:
         """
         Open the FLOW 8 MIDI OUT endpoint.
@@ -309,3 +324,14 @@ class Flow8MidiOut:
         """Set Channel 1 (Mic 1) Panning using percentage (-100.0% to +100.0%)."""
         val = pan_percent_to_midi(percent)
         self.set_channel1_pan(val)
+
+
+def diagnose_usb(connected: bool, names: list, target_name: str, error: Optional[str]) -> str:
+    """Why USB MIDI is or is not usable: connected / no_midi_devices / flow8_not_listed / open_failed."""
+    if connected:
+        return "connected"
+    if not names:
+        return "no_midi_devices"
+    if not any(target_name in name for name in names):
+        return "flow8_not_listed"
+    return "open_failed"

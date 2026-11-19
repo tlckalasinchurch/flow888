@@ -25,7 +25,7 @@ from flow8.command_boundary import Flow8CommandBoundary, Flow8CommandRejectedErr
 from flow8.safety import BLOCKED_PARAMETER_TYPES
 from flow8.ledger import CommandLedger, CommandRecord
 from flow8.midi_in import Flow8MidiIn
-from flow8.midi_out import Flow8MidiOut
+from flow8.midi_out import Flow8MidiOut, diagnose_usb
 from flow8.parameter_engine import Flow8ParameterEngine
 from flow8.parameter_mapping import fader_midi_to_db, pan_midi_to_percent
 from flow8.scenes import SceneManager, SceneSnapshot
@@ -371,6 +371,8 @@ class Flow8Service:
             "error": None,
         }
         last_ble_error = ble_snap.get("error")
+        usb_connected = self.midi_out.is_connected
+        usb_names = [] if usb_connected else self.midi_out.list_device_names()
         return {
             "mode": mode,
             "usb": {
@@ -378,6 +380,10 @@ class Flow8Service:
                 "listening": self.midi_in.is_listening,
                 "metersLive": self.meter_feed_live,
                 "error": self._connection_error,
+                "devicesSeen": usb_names,
+                "diagnosis": diagnose_usb(
+                    usb_connected, usb_names, self.midi_out._target_name, self._connection_error
+                ),
             },
             "ble": {
                 "connected": bool(ble_snap.get("connected")),
