@@ -143,10 +143,79 @@ class Flow8Service:
         # whose targeted values changed after the engineer reviewed them.
         self._preview_lock = threading.Lock()
         self._previews: dict[str, dict[str, Any]] = {}
+        self._transport_mode: str = "usb_midi"
+        self._ble_transport: Any = None
 
         if auto_connect:
             self.connect()
             self.start_watchdog()
+
+    @property
+    def transport_mode(self) -> str:
+        """Active control transport mode: 'usb_midi', 'ble', or 'hybrid'."""
+        with self._lock:
+            return self._transport_mode
+
+    def set_transport_mode(self, mode: str) -> str:
+        """Switch between 'usb_midi', 'ble', and 'hybrid' (BLE 2-way + USB meters)."""
+        m_key = str(mode or "usb_midi").lower()
+        if m_key not in ("usb_midi", "ble", "hybrid"):
+            raise ValueError(f"Unsupported transport mode: {mode!r}")
+        with self._lock:
+            self._transport_mode = m_key
+            ble = self._ble_transport
+        if m_key in ("ble", "hybrid"):
+            if ble is None:
+                from flow8.ble_transport import BleTransport
+                ble = BleTransport(
+                    on_parameter=self._on_ble_parameter,
+                    on_status=lambda _st: self._notify_listeners(STATE_CHANGED_EVENT, None),
+                )
+                with self._lock:
+                    self._ble_transport = ble
+            ble.start()
+        elif ble is not None:
+            ble.stop()
+        self._notify_listeners(STATE_CHANGED_EVENT, None)
+        return m_key
+
+    def ble_status_snapshot(self) -> dict[str, Any]:
+        """Return live BLE transport status (connected, authenticated, device, rx/tx)."""
+        with self._lock:
+            ble = self._ble_transport
+        if ble is None:
+            return {
+                "connected": False,
+                "authenticated": False,
+                "device": None,
+                "address": None,
+                "packetsRx": 0,
+                "packetsTx": 0,
+                "snapshotNames": [],
+                "error": None,
+            }
+        return ble.status_snapshot()
+
+    def request_ble_dump(self) -> bool:
+        """Send Type 0x4B BLE dump trigger if BLE transport is connected."""
+        with self._lock:
+            ble = self._ble_transport
+        if ble is None:
+            return False
+        return bool(ble.request_dump_trigger())
+
+    def _on_ble_parameter(self, param_id: str, raw_midi: int) -> None:
+        """Record decoded BLE hardware notification as OBSERVED without echoing."""
+        try:
+            self.state_store.set_observed_value(
+                param_id=param_id,
+                value=raw_midi,
+                raw_midi_value=raw_midi,
+                source=EventSource.PHYSICAL_HARDWARE,
+            )
+        except Exception:
+            return
+        self._notify_listeners(param_id, raw_midi)
 
     @property
     def active_bus(self) -> str:
@@ -341,6 +410,10 @@ class Flow8Service:
     def disconnect(self) -> None:
         """Close the endpoints on purpose: auto-reconnect stays off until asked."""
         self._auto_reconnect = False
+        with self._lock:
+            ble = self._ble_transport
+        if ble is not None:
+            ble.stop()
         self._drop_connection()
 
     def _drop_connection(self) -> None:
@@ -503,6 +576,9 @@ class Flow8Service:
             )
         else:
             return
+        if self._transport_mode in ("ble", "hybrid") and self._ble_transport is not None and 1 <= channel_index <= 6:
+            if self._ble_transport.is_connected:
+                self._ble_transport.send_fader(channel_index, clamped)
         self._record("fader", channel_index, previous, clamped)
 
     def set_bus_fader(self, bus_id: str, raw_value: int) -> None:

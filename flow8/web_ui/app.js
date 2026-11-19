@@ -1678,6 +1678,39 @@
 
   function renderRoutingPage(page) {
     pageHead(page, 'ROUTING');
+    const tMode = session.transportMode || 'usb_midi';
+    const ble = session.ble || {};
+    const bleStatus = ble.authenticated
+      ? `CONNECTED · ${esc(ble.device || 'FLOW 8 LE')} (RX ${ble.packetsRx || 0} / TX ${ble.packetsTx || 0})`
+      : ble.connected
+        ? 'HANDSHAKING…'
+        : (ble.error ? `DISCONNECTED (${esc(ble.error)})` : 'IDLE');
+    const tr = document.createElement('section');
+    tr.className = 'insp-sec';
+    tr.innerHTML = `
+      <div class="sec-hdr"><span class="sec-title">CONTROL TRANSPORT</span><span class="sec-meta">${tMode === 'usb_midi' ? 'USB MIDI' : bleStatus}</span></div>
+      <div class="seg wide">
+        <button class="seg-btn ${tMode === 'usb_midi' ? 'on' : ''}" data-tmode="usb_midi">USB MIDI</button>
+        <button class="seg-btn ${tMode === 'ble' ? 'on' : ''}" data-tmode="ble">BLUETOOTH BLE</button>
+        <button class="seg-btn ${tMode === 'hybrid' ? 'on' : ''}" data-tmode="hybrid">HYBRID (BLE + USB METERS)</button>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;margin-top:6px;">
+        <button class="key-btn" id="btn-ble-dump" ${ble.authenticated ? '' : 'disabled'}>SYNC DUMP (0x4B)</button>
+        <span class="sec-note" style="margin:0;">Hybrid uses BLE 2-way fader sync + 10-ch USB WASAPI audio meters.</span>
+      </div>`;
+    tr.querySelectorAll('[data-tmode]').forEach((b) => {
+      b.onclick = async () => {
+        const res = await postAction({ action: 'setTransportMode', mode: b.dataset.tmode });
+        if (res.ok) showToast(`Transport switched to ${b.dataset.tmode.toUpperCase()}.`);
+        loadSession();
+      };
+    });
+    tr.querySelector('#btn-ble-dump').onclick = async () => {
+      const res = await postAction({ action: 'bleDumpTrigger' });
+      if (res.ok) showToast(res.triggered ? 'BLE dump trigger (0x4B) sent.' : 'BLE is not authenticated yet.', !res.triggered);
+    };
+    page.appendChild(tr);
+
     const ms = session.meterStatus || {};
     const mode = ms.mode === 'recording' ? 'RECORDING' : ms.mode === 'streaming' ? 'STREAMING' : 'UNKNOWN';
     const usb = document.createElement('section');

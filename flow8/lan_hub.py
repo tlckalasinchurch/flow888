@@ -83,6 +83,7 @@ LAN_LOCKED_FEATURES = {
 _OFFLINE_ACTIONS = frozenset({
     "setScribble", "librarySave", "libraryRename", "libraryDelete", "libraryImport",
     "setActiveBus", "setActiveView", "previewChangePlan", "beginGesture", "endGesture",
+    "setTransportMode", "bleDumpTrigger",
 })
 
 
@@ -477,6 +478,8 @@ class Flow8LanHub:
             "midiInOpen": self.service.midi_in_open,
             "meterFeed": self.meter_feed_live,
             "meterStatus": self.meter_status,
+            "transportMode": self.service.transport_mode,
+            "ble": self.service.ble_status_snapshot(),
             "telemetry": self.service.telemetry_status(),
             "dispatch": self._dispatch_snapshot(),
             "lanUrls": self.lan_urls(),
@@ -568,12 +571,16 @@ class Flow8LanHub:
             "midiInOpen": self.service.midi_in_open,
             "meterFeed": self.meter_feed_live,
             "meterStatus": self.meter_status,
+            "transportMode": self.service.transport_mode,
+            "ble": self.service.ble_status_snapshot(),
             "telemetry": self.service.telemetry_status(),
             "dispatch": self._dispatch_snapshot(),
             "currentScene": current_scene,
             "sceneEdited": scene_edited,
             "activeBus": self.service.active_bus,
             "activeView": self.service.active_view,
+            "transportMode": self.service.transport_mode,
+            "ble": self.service.ble_status_snapshot(),
             "channels": channels,
             "buses": buses,
             "scenes": list(self.service.scenes.names()),
@@ -820,6 +827,10 @@ class Flow8LanHub:
                 extra = {"activeBus": self.service.set_active_bus(str(msg.get("bus", "main")))}
             elif action == "setActiveView":
                 extra = {"activeView": self.service.set_active_view(str(msg.get("view", "mixer")))}
+            elif action == "setTransportMode":
+                extra = {"transportMode": self.service.set_transport_mode(str(msg.get("mode", "usb_midi")))}
+            elif action == "bleDumpTrigger":
+                extra = {"triggered": self.service.request_ble_dump()}
             else:
                 return 400, {"ok": False, "error": f"unsupported or blocked action: {action!r}"}
         except Exception as exc:
