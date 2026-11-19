@@ -1,7 +1,6 @@
 (() => {
   const clientId = Math.random().toString(36).slice(2);
   let session = null;
-  let presets = [];
   let activeLayer = 'main'; // 'main' | 'mon1' | 'mon2' | 'fx1' | 'fx2'
   // Inspector target: null (closed), { kind: 'ch', index: 1..7 } or { kind: 'bus', id: 'main'|'mon1'|... }
   let insp = null;
@@ -11,13 +10,14 @@
   let topTab = 'mixer'; // 'mixer' | 'stage' | 'channel' | 'input' | 'eq' | 'comp' | 'sends' | 'fx' | 'presets' | 'setup'
   let selectedCh = 1; // 1..7
   let selectedEqBand = 'low'; // 'lc' | 'low' | 'low_mid' | 'hi_mid' | 'hi'
+  let inspEqSelected = 'low';  // node highlighted in the Inspector's EQ graph
   let dspClipboard = null;
   let flowAiOpen = false;
   let pendingPlan = null;
   let planPreview = null;
   let presetCategory = 'all';
   let presetQuery = '';
-  let selectedPresetId = 'speech-mc-handheld';
+  let selectedPresetId = 'th-pa-mc';
   let presetScopes = { low_cut: true, eq: true, compressor: true };
   let latestMeterLevels = {};
 
@@ -40,11 +40,13 @@
   const USB_BLUE = '#4FA8FF';
   const HUB_DEFAULT_COLOR = '#38bdf8';
   // Band labels from the FLOW 8 app. The curve is an approximate picture (conflict C-04).
+  // Fixed centres from the FLOW 8 app. Shelf/peak shape and Q are assumptions
+  // documented in docs/product/P7_P8_F1_IMPLEMENTATION.md; the gains are exact.
   const BANDS = [
-    { key: 'low', label: 'LOW', freq: 100, hz: '100 Hz', color: '#2EF2E2' },
-    { key: 'low_mid', label: 'LO MID', freq: 500, hz: '500 Hz', color: '#52E59A' },
-    { key: 'hi_mid', label: 'HI MID', freq: 2000, hz: '2 kHz', color: '#FFB45B' },
-    { key: 'hi', label: 'HIGH', freq: 12000, hz: '12 kHz', color: '#BC71FF' },
+    { key: 'low', label: 'LOW', shortLabel: '1 LOW', freq: 100, hz: '100 Hz', color: '#2EF2E2', type: 'lowshelf', q: 0.7 },
+    { key: 'low_mid', label: 'LO MID', shortLabel: '2 LOW MID', freq: 500, hz: '500 Hz', color: '#52E59A', type: 'peaking', q: 1.0 },
+    { key: 'hi_mid', label: 'HI MID', shortLabel: '3 HIGH MID', freq: 2000, hz: '2 kHz', color: '#FFB45B', type: 'peaking', q: 1.0 },
+    { key: 'hi', label: 'HIGH', shortLabel: '4 HIGH', freq: 12000, hz: '12 kHz', color: '#BC71FF', type: 'highshelf', q: 0.7 },
   ];
   const GEQ_BANDS = ['63', '125', '250', '500', '1k', '2k', '4k', '8k', '16k'];
   // Preset names as the FLOW 8 app (v1.14) shows them. Tap tempo exists on FX 2 only.
@@ -102,6 +104,64 @@
     }
   }
 
+  // Same POST without the error toast: used for the many intermediate values of
+  // one drag, where a toast per frame would be noise.
+  async function quietAction(payload) {
+    try {
+      const res = await fetch('/api/action', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...payload, clientId }),
+      });
+      let body = {};
+      try { body = await res.json(); } catch (_) { /* non-JSON error body */ }
+      if (!res.ok || body.ok === false) {
+        if (body.error) showToast(body.error, true);
+        return { ok: false, error: body.error, code: body.code };
+      }
+      return body;
+    } catch (_) {
+      return { ok: false, error: 'network' };
+    }
+  }
+
+  const sendAction = (payload, quiet) => (quiet ? quietAction(payload) : postAction(payload));
+
+  // One pointer drag is one ledger step: pointer-down opens a batch on the hub,
+  // intermediate values are sent at most every 70 ms, and pointer-up sends the
+  // final value and closes the batch.
+  const dragBatch = { open: false, timer: null, send: null, value: null };
+
+  function beginDragGesture() {
+    if (dragBatch.open || !session || !session.midiConnected) return;
+    dragBatch.open = true;
+    quietAction({ action: 'beginGesture' });
+  }
+
+  function dragSendThrottled(send, value) {
+    if (!dragBatch.open) return;
+    dragBatch.send = send;
+    dragBatch.value = value;
+    if (dragBatch.timer) return;
+    dragBatch.timer = setTimeout(() => {
+      dragBatch.timer = null;
+      if (dragBatch.open && dragBatch.send) dragBatch.send(dragBatch.value);
+    }, 70);
+  }
+
+  async function endDragGesture(send, value) {
+    if (!dragBatch.open) {
+      if (send) await send(value);
+      return;
+    }
+    clearTimeout(dragBatch.timer);
+    dragBatch.timer = null;
+    dragBatch.open = false;
+    if (send) await send(value);
+    await quietAction({ action: 'endGesture' });
+    scheduleReload();
+  }
+
   // Show the connection state: banner, status pill, and locked controls.
   function applyConnectionState(connected, message) {
     document.body.classList.toggle('offline', !connected);
@@ -147,8 +207,16 @@
     const db = raw >= 101 ? ((raw - 101) / 26) * 10 : ((raw - 101) / 101) * 70;
     return `${db >= 0 ? '+' : ''}${db.toFixed(1)} dB`;
   }
-  const eqRawToDb = (raw) => ((raw - 64) / 63.5) * 15.0;
-  const dbToEqRaw = (db) => Math.max(0, Math.min(127, Math.round((Math.max(-15, Math.min(15, db)) / 15.0) * 63.5 + 64)));
+  // Same curve as parameter_mapping.eq_midi_to_db / eq_db_to_midi: 64 = 0 dB.
+  const eqRawToDb = (raw) => (raw === 64 ? 0
+    : raw < 64 ? ((raw - 64) / 64) * 15 : ((raw - 64) / 63) * 15);
+  const dbToEqRaw = (db) => {
+    const c = Math.max(-15, Math.min(15, db));
+    if (c === 0) return 64;
+    return c < 0
+      ? Math.max(0, Math.min(64, Math.round(64 + (c / 15) * 64)))
+      : Math.max(64, Math.min(127, Math.round(64 + (c / 15) * 63)));
+  };
   const eqText = (raw) => { const d = eqRawToDb(raw); return `${d > 0.05 ? '+' : ''}${d.toFixed(1)} dB`; };
   function panText(raw) {
     const pct = Math.round(((raw - 64) / 63.5) * 100);
@@ -275,113 +343,306 @@
     requestAnimationFrame(frame);
   }
 
-  // ---------- EQ response (approximate picture, not a measured curve) ----------
-  function eqResponseAt(freq, gains) {
-    const lf = Math.log10(Math.max(20, freq));
-    let total = 0;
-    BANDS.forEach((b, idx) => {
-      const lc = Math.log10(b.freq);
-      let w = 0;
-      if (idx === 0) w = 1 / (1 + Math.exp(5 * (lf - lc)));
-      else if (idx === 3) w = 1 / (1 + Math.exp(-5 * (lf - lc)));
-      else w = Math.exp(-Math.pow(lf - lc, 2) / (2 * Math.pow(0.28, 2)));
-      total += gains[idx] * w;
-    });
-    return Math.max(-15, Math.min(15, total));
+  // ---------- EQ response model: commanded values, not a measurement ----------
+  // Each band is an RBJ biquad at the FLOW 8's fixed centre frequency. Band Q
+  // and the 12 dB/oct low cut slope are documented assumptions; the gain values
+  // themselves are exact (raw 64 = 0.0 dB). The curve pictures what this app
+  // sent, or what the mixer reported. It is never a measured response.
+  const EQ_SR = 48000;
+  const LOW_CUT_Q = 0.7071;
+
+  const lowCutHz = (raw) => (raw > 0 ? 20 + (raw / 127) * 580 : 0);
+
+  function biquadDb(kind, f0, gainDb, q, f) {
+    const A = Math.pow(10, gainDb / 40);
+    const w0 = (2 * Math.PI * f0) / EQ_SR;
+    const cw0 = Math.cos(w0);
+    const sw0 = Math.sin(w0);
+    let b0; let b1; let b2; let a0; let a1; let a2;
+    if (kind === 'peaking') {
+      const alpha = sw0 / (2 * q);
+      b0 = 1 + alpha * A; b1 = -2 * cw0; b2 = 1 - alpha * A;
+      a0 = 1 + alpha / A; a1 = -2 * cw0; a2 = 1 - alpha / A;
+    } else if (kind === 'lowshelf' || kind === 'highshelf') {
+      const alphaS = (sw0 / 2) * Math.SQRT2;   // shelf slope S = 1
+      const beta = 2 * Math.sqrt(A) * alphaS;
+      if (kind === 'lowshelf') {
+        b0 = A * ((A + 1) - (A - 1) * cw0 + beta);
+        b1 = 2 * A * ((A - 1) - (A + 1) * cw0);
+        b2 = A * ((A + 1) - (A - 1) * cw0 - beta);
+        a0 = (A + 1) + (A - 1) * cw0 + beta;
+        a1 = -2 * ((A - 1) + (A + 1) * cw0);
+        a2 = (A + 1) + (A - 1) * cw0 - beta;
+      } else {
+        b0 = A * ((A + 1) + (A - 1) * cw0 + beta);
+        b1 = -2 * A * ((A - 1) + (A + 1) * cw0);
+        b2 = A * ((A + 1) + (A - 1) * cw0 - beta);
+        a0 = (A + 1) - (A - 1) * cw0 + beta;
+        a1 = 2 * ((A - 1) - (A + 1) * cw0);
+        a2 = (A + 1) - (A - 1) * cw0 - beta;
+      }
+    } else {                                    // 2nd-order high pass (12 dB/oct)
+      const alpha = sw0 / (2 * LOW_CUT_Q);
+      b0 = (1 + cw0) / 2; b1 = -(1 + cw0); b2 = (1 + cw0) / 2;
+      a0 = 1 + alpha; a1 = -2 * cw0; a2 = 1 - alpha;
+    }
+    const w = (2 * Math.PI * f) / EQ_SR;
+    const cw = Math.cos(w);
+    const sw = Math.sin(w);
+    const c2 = Math.cos(2 * w);
+    const s2 = Math.sin(2 * w);
+    const numRe = b0 + b1 * cw + b2 * c2;
+    const numIm = -(b1 * sw + b2 * s2);
+    const denRe = a0 + a1 * cw + a2 * c2;
+    const denIm = -(a1 * sw + a2 * s2);
+    const den = Math.hypot(denRe, denIm) || 1e-9;
+    const mag = Math.hypot(numRe, numIm) / den || 1e-9;
+    return 20 * Math.log10(mag);
   }
+
+  // Whole-channel response in dB: the four band gains, plus the low cut when
+  // that channel has one (CH 1-4). Clamped for drawing only.
+  function channelResponseDb(f, gainsDb, lowCutRaw, hasLowCut) {
+    let db = 0;
+    BANDS.forEach((band, i) => { db += biquadDb(band.type, band.freq, gainsDb[i], band.q, f); });
+    if (hasLowCut && lowCutRaw > 0) {
+      db += biquadDb('hpf', lowCutHz(lowCutRaw), 0, LOW_CUT_Q, f);
+    }
+    return Math.max(-30, Math.min(30, db));
+  }
+
+  function eqResponseAt(freq, gains) {
+    return channelResponseDb(freq, gains, 0, false);
+  }
+
   function eqThumbPath(ch, w = 60, h = 18) {
     const gains = BANDS.map((b) => eqRawToDb(ch.eq ? ch.eq[b.key] : 64));
+    const hasLowCut = ch.index <= 4;
     const pts = [];
-    for (let i = 0; i <= 24; i++) {
-      const f = 20 * Math.pow(1000, i / 24);
-      const db = eqResponseAt(f, gains);
-      pts.push(`${((i / 24) * w).toFixed(1)},${(h / 2 - (db / 15) * (h / 2 - 1)).toFixed(1)}`);
+    for (let i = 0; i <= 32; i++) {
+      const f = 20 * Math.pow(1000, i / 32);
+      const db = channelResponseDb(f, gains, ch.lowCut || 0, hasLowCut);
+      pts.push(`${((i / 32) * w).toFixed(1)},${(h / 2 - (db / 15) * (h / 2 - 1)).toFixed(1)}`);
     }
     return `M${pts.join(' L')}`;
   }
-  const freqToX = (freq, w) => 14 + ((Math.log10(freq) - Math.log10(20)) / (Math.log10(20000) - Math.log10(20))) * (w - 28);
-  const dbToY = (db, h) => h / 2 - (db / 16) * (h * 0.42);
-  const yToDb = (y, h) => Math.max(-15, Math.min(15, ((h / 2 - y) / (h * 0.42)) * 16));
 
-  function drawEqCanvas(canvas, ch) {
-    const ctx = canvas.getContext('2d');
-    const w = canvas.width;
-    const h = canvas.height;
-    ctx.clearRect(0, 0, w, h);
-    ctx.lineWidth = 1;
-    ctx.font = '600 11px "Barlow Condensed", sans-serif';
-    [[100, '100'], [1000, '1k'], [10000, '10k']].forEach(([f, t]) => {
-      const x = freqToX(f, w);
-      ctx.strokeStyle = '#1F242C';
-      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke();
-      ctx.fillStyle = '#4B525C';
-      ctx.fillText(t, x + 3, h - 4);
-    });
-    [-10, 0, 10].forEach((d) => {
-      const y = dbToY(d, h);
-      ctx.strokeStyle = d === 0 ? '#2E343D' : '#1A1E25';
-      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke();
-    });
-    const gains = BANDS.map((b) => eqRawToDb(ch.eq[b.key]));
-    const known = ch.eqProvenance === 'COMMANDED' || ch.eqProvenance === 'OBSERVED';
-    ctx.beginPath();
-    for (let i = 0; i <= 96; i++) {
-      const f = Math.pow(10, Math.log10(20) + (i / 96) * 3);
-      const x = freqToX(f, w);
-      const y = dbToY(eqResponseAt(f, gains), h);
-      if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
-    }
-    ctx.strokeStyle = known ? '#3FD2E0' : '#5D6A80';
-    ctx.lineWidth = 2.2;
-    ctx.stroke();
-    ctx.lineTo(freqToX(20000, w), h / 2);
-    ctx.lineTo(freqToX(20, w), h / 2);
-    ctx.closePath();
-    ctx.fillStyle = known ? 'rgba(63, 210, 224, 0.10)' : 'rgba(93, 106, 128, 0.07)';
-    ctx.fill();
-    BANDS.forEach((b, idx) => {
-      ctx.beginPath();
-      ctx.arc(freqToX(b.freq, w), dbToY(gains[idx], h), 7, 0, Math.PI * 2);
-      ctx.fillStyle = '#0B0D10';
-      ctx.fill();
-      ctx.lineWidth = 2.2;
-      ctx.strokeStyle = b.color;
-      ctx.stroke();
-    });
+  // Log frequency axis 20 Hz .. 20 kHz.
+  const freqToX = (freq, w, pad = 34) => pad + ((Math.log10(Math.max(20, freq)) - Math.log10(20)) / 3) * (w - pad - 8);
+  const xToFreq = (x, w, pad = 34) => 20 * Math.pow(10, ((x - pad) / (w - pad - 8)) * 3);
+  const dbToY = (db, h, span = 18) => h / 2 - (db / span) * (h / 2 - 10);
+  const yToDb = (y, h, span = 18) => Math.max(-15, Math.min(15, ((h / 2 - y) / (h / 2 - 10)) * span));
+
+  // Geometry of the draggable nodes, in one place so drawing and hit-testing agree.
+  function eqNodePoints(canvas, gainsDb, lowCutRaw, hasLowCut) {
+    const nodes = BANDS.map((band, i) => ({
+      key: band.key,
+      label: band.label,
+      color: band.color,
+      freq: band.freq,
+      db: gainsDb[i],
+      x: freqToX(band.freq, canvas.width),
+      y: dbToY(gainsDb[i], canvas.height),
+    }));
+    const lc = hasLowCut && lowCutRaw > 0
+      ? { key: 'lc', label: 'LC', color: '#FFB020', freq: lowCutHz(lowCutRaw), db: 0,
+          x: freqToX(lowCutHz(lowCutRaw), canvas.width), y: dbToY(0, canvas.height) }
+      : null;
+    return { nodes, lc };
   }
 
-  // Drag a band point up or down. The value is sent on release.
-  function attachEqCanvas(canvas, ch, onBandMove) {
-    let drag = null;
-    canvas.onpointerdown = (e) => {
-      const rect = canvas.getBoundingClientRect();
-      const sx = ((e.clientX - rect.left) / rect.width) * canvas.width;
-      const sy = ((e.clientY - rect.top) / rect.height) * canvas.height;
-      let best = null;
-      let bestDist = 34;
-      BANDS.forEach((b) => {
-        const d = Math.hypot(sx - freqToX(b.freq, canvas.width), sy - dbToY(eqRawToDb(ch.eq[b.key]), canvas.height));
-        if (d < bestDist) { bestDist = d; best = b; }
+  // Draw the channel EQ curve. Provenance decides the honesty of the line:
+  // solid when COMMANDED/OBSERVED, dashed and dim when the value is unknown.
+  function drawEqGraph(canvas, opts) {
+    const ctx = canvas.getContext('2d');
+    // Draw at the size the layout gave the canvas, so circles stay circular and
+    // text keeps its scale on every screen instead of being stretched by CSS.
+    const rect = canvas.getBoundingClientRect();
+    if (rect.width > 0 && rect.height > 0) {
+      const cw = Math.round(rect.width);
+      const ch = Math.round(rect.height);
+      if (canvas.width !== cw || canvas.height !== ch) {
+        canvas.width = cw;
+        canvas.height = ch;
+      }
+    }
+    const w = canvas.width;
+    const h = canvas.height;
+    const {
+      gains = [0, 0, 0, 0], lowCutRaw = 0, hasLowCut = false,
+      provenance = 'UNSYNCED', selected = null, geqLocked = false, busOnly = false,
+    } = opts || {};
+    const known = provenance === 'COMMANDED' || provenance === 'OBSERVED';
+    ctx.clearRect(0, 0, w, h);
+    ctx.fillStyle = '#0A0C10';
+    ctx.fillRect(0, 0, w, h);
+
+    ctx.font = '600 10px "Barlow Condensed", sans-serif';
+    [-15, -10, -5, 0, 5, 10, 15].forEach((db) => {
+      const y = dbToY(db, h);
+      ctx.strokeStyle = db === 0 ? '#333B48' : '#191E26';
+      ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(30, y); ctx.lineTo(w - 6, y); ctx.stroke();
+      ctx.fillStyle = '#5A6270';
+      ctx.fillText(`${db > 0 ? '+' : ''}${db}`, 2, y + 3);
+    });
+    [[50, '50'], [100, '100'], [200, '200'], [500, '500'], [1000, '1k'], [2000, '2k'],
+      [5000, '5k'], [10000, '10k'], [20000, '20k']].forEach(([f, label]) => {
+      const x = freqToX(f, w);
+      ctx.strokeStyle = '#161B22';
+      ctx.beginPath(); ctx.moveTo(x, 8); ctx.lineTo(x, h - 16); ctx.stroke();
+      ctx.fillStyle = '#5A6270';
+      ctx.fillText(label, x - (f >= 1000 ? 6 : 8), h - 4);
+    });
+
+    // Low cut: shade what the filter removes and mark its corner frequency.
+    if (hasLowCut && lowCutRaw > 0) {
+      const lcFreq = lowCutHz(lowCutRaw);
+      const lcX = freqToX(lcFreq, w);
+      ctx.fillStyle = 'rgba(255, 176, 32, 0.06)';
+      ctx.fillRect(30, 8, Math.max(0, lcX - 30), h - 24);
+      ctx.setLineDash([4, 4]);
+      ctx.strokeStyle = 'rgba(255, 176, 32, 0.55)';
+      ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(lcX, 8); ctx.lineTo(lcX, h - 16); ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = '#FFB020';
+      ctx.fillText(`LC ${Math.round(lcFreq)} Hz`, Math.min(lcX + 4, w - 66), 18);
+    }
+
+    // The bus graphic EQ has no verified MIDI address: show it as unknown.
+    if (geqLocked) {
+      ctx.setLineDash([3, 5]);
+      ctx.strokeStyle = 'rgba(160, 140, 220, 0.45)';
+      ctx.lineWidth = 1.2;
+      const geqY = dbToY(0, h);
+      ctx.beginPath(); ctx.moveTo(30, geqY); ctx.lineTo(w - 6, geqY); ctx.stroke();
+      ctx.setLineDash([]);
+      GEQ_BANDS.forEach((bandLabel) => {
+        const value = parseFloat(bandLabel) * (bandLabel.endsWith('k') ? 1000 : 1);
+        const x = freqToX(value, w);
+        ctx.beginPath(); ctx.arc(x, geqY, 4, 0, Math.PI * 2);
+        ctx.strokeStyle = 'rgba(160, 140, 220, 0.55)'; ctx.lineWidth = 1.2; ctx.stroke();
       });
-      if (!best) return;
-      drag = best;
+      ctx.fillStyle = 'rgba(190, 170, 240, 0.8)';
+      ctx.fillText('GEQ 9-BAND · NO VERIFIED MIDI ADDRESS', 36, h - 26);
+    }
+    if (busOnly) return { nodes: [], lc: null };
+
+    const pts = [];
+    for (let i = 0; i <= 180; i++) {
+      const f = 20 * Math.pow(1000, i / 180);
+      pts.push([freqToX(f, w), dbToY(channelResponseDb(f, gains, lowCutRaw, hasLowCut), h)]);
+    }
+    if (known) {
+      ctx.beginPath();
+      pts.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)));
+      ctx.lineTo(w - 6, dbToY(0, h));
+      ctx.lineTo(30, dbToY(0, h));
+      ctx.closePath();
+      ctx.fillStyle = 'rgba(63, 210, 224, 0.10)';
+      ctx.fill();
+    }
+    ctx.beginPath();
+    pts.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)));
+    ctx.setLineDash(known ? [] : [7, 6]);
+    ctx.strokeStyle = known ? '#3FD2E0' : '#6B7A90';
+    ctx.lineWidth = known ? 2.4 : 1.6;
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    if (!known) {
+      ctx.fillStyle = '#8B97A8';
+      ctx.font = '700 10px "Barlow Condensed", sans-serif';
+      ctx.fillText('UNSYNCED · CURVE IS AN ASSUMPTION', 36, 16);
+    }
+
+    const { nodes, lc } = eqNodePoints(canvas, gains, lowCutRaw, hasLowCut);
+    nodes.forEach((node) => {
+      const active = selected === node.key;
+      ctx.beginPath();
+      ctx.arc(node.x, node.y, active ? 7.5 : 5.5, 0, Math.PI * 2);
+      ctx.fillStyle = node.color;
+      ctx.fill();
+      ctx.lineWidth = active ? 2.2 : 1.4;
+      ctx.strokeStyle = active ? '#FFFFFF' : '#0B0D10';
+      ctx.stroke();
+      if (active) {
+        ctx.fillStyle = '#DDE3EA';
+        ctx.font = '700 10px "Barlow Condensed", sans-serif';
+        ctx.fillText(`${node.db >= 0 ? '+' : ''}${node.db.toFixed(1)} dB`, node.x - 18, node.y - 12);
+      }
+    });
+    if (lc) {
+      const active = selected === 'lc';
+      ctx.beginPath();
+      ctx.arc(lc.x, lc.y, active ? 7.5 : 5.5, 0, Math.PI * 2);
+      ctx.fillStyle = lc.color;
+      ctx.fill();
+      ctx.lineWidth = active ? 2.2 : 1.4;
+      ctx.strokeStyle = active ? '#FFFFFF' : '#0B0D10';
+      ctx.stroke();
+    }
+    return { nodes, lc };
+  }
+
+  // Nearest node within a generous touch target.
+  function eqHitTest(canvas, gainsDb, lowCutRaw, hasLowCut, px, py) {
+    const { nodes, lc } = eqNodePoints(canvas, gainsDb, lowCutRaw, hasLowCut);
+    const candidates = lc ? [...nodes, lc] : nodes;
+    let best = null;
+    let bestDist = 30;
+    candidates.forEach((node) => {
+      const d = Math.hypot(px - node.x, py - node.y);
+      if (d < bestDist) { bestDist = d; best = node; }
+    });
+    return best;
+  }
+
+  // Drag a band node (gain) or the low cut node (frequency). Values go through
+  // the gesture batch, so one drag is one undo step.
+  function attachEqDrag(canvas, ch, opts) {
+    let dragged = null;
+    const point = (e) => {
+      const rect = canvas.getBoundingClientRect();
+      return {
+        x: (e.clientX - rect.left) * (canvas.width / rect.width),
+        y: (e.clientY - rect.top) * (canvas.height / rect.height),
+      };
+    };
+    canvas.onpointerdown = (e) => {
+      const p = point(e);
+      const gainsDb = BANDS.map((b) => eqRawToDb(ch.eq[b.key] ?? 64));
+      const hit = eqHitTest(canvas, gainsDb, ch.lowCut || 0, ch.index <= 4, p.x, p.y);
+      if (!hit) return;
+      dragged = hit.key;
       canvas.setPointerCapture(e.pointerId);
+      beginDragGesture();
+      if (opts.onSelect) opts.onSelect(dragged);
     };
     canvas.onpointermove = (e) => {
-      if (!drag) return;
-      const rect = canvas.getBoundingClientRect();
-      const sy = ((e.clientY - rect.top) / rect.height) * canvas.height;
-      ch.eq[drag.key] = dbToEqRaw(yToDb(sy, canvas.height));
-      drawEqCanvas(canvas, ch);
-      onBandMove(drag.key, ch.eq[drag.key]);
+      if (!dragged) return;
+      const p = point(e);
+      if (dragged === 'lc') {
+        ch.lowCut = hzToHpfRaw(xToFreq(p.x, canvas.width));
+        if (opts.onChange) opts.onChange('lc', ch.lowCut);
+        dragSendThrottled(() => opts.sendLowCut(ch.lowCut), ch.lowCut);
+      } else {
+        ch.eq[dragged] = dbToEqRaw(yToDb(p.y, canvas.height));
+        if (opts.onChange) opts.onChange(dragged, ch.eq[dragged]);
+        dragSendThrottled(() => opts.sendBand(dragged, ch.eq[dragged]), ch.eq[dragged]);
+      }
     };
-    canvas.onpointerup = (e) => {
-      if (!drag) return;
-      const key = drag.key;
-      drag = null;
+    const finish = (e) => {
+      if (!dragged) return;
+      const key = dragged;
+      dragged = null;
       if (canvas.hasPointerCapture(e.pointerId)) canvas.releasePointerCapture(e.pointerId);
-      postAction({ action: 'setEqBand', channel: ch.index, band: key, value: ch.eq[key] });
+      if (key === 'lc') endDragGesture(() => opts.sendLowCut(ch.lowCut), ch.lowCut);
+      else endDragGesture(() => opts.sendBand(key, ch.eq[key]), ch.eq[key]);
     };
+    canvas.onpointerup = finish;
+    canvas.onpointercancel = finish;
   }
 
   // ---------- Rotary knob ----------
@@ -445,6 +706,7 @@
       svg.setPointerCapture(e.pointerId);
       startY = e.clientY;
       startVal = current;
+      beginDragGesture();
     };
     svg.onpointermove = (e) => {
       if (!svg.hasPointerCapture(e.pointerId)) return;
@@ -452,11 +714,12 @@
       const delta = Math.round(((startY - e.clientY) / span) * (max - min));
       current = Math.max(min, Math.min(max, startVal + delta));
       updateVisual(current);
+      dragSendThrottled(() => onCommit(current, true), current);
     };
     svg.onpointerup = (e) => {
       if (!svg.hasPointerCapture(e.pointerId)) return;
       svg.releasePointerCapture(e.pointerId);
-      onCommit(current);
+      endDragGesture(() => onCommit(current, true), current);
     };
     const syncKeys = attachSliderKeys(svg, {
       label, min, max, focusKey,
@@ -570,6 +833,7 @@
       if (!fine) val = valFromEvent(e);
       updatePos(val);
       onMove(val);
+      beginDragGesture();
     };
     well.onpointermove = (e) => {
       if (!well.hasPointerCapture(e.pointerId)) return;
@@ -579,13 +843,14 @@
       } else val = valFromEvent(e);
       updatePos(val);
       onMove(val);
+      dragSendThrottled(() => onCommit(val, true), val);
     };
     well.onpointerup = (e) => {
       if (!well.hasPointerCapture(e.pointerId)) return;
       well.releasePointerCapture(e.pointerId);
       well.classList.remove('grab');
       syncKeys();
-      onCommit(val);
+      endDragGesture(() => onCommit(val, true), val);
     };
   }
 
@@ -795,6 +1060,22 @@
     body.scrollTop = scroll;
   }
 
+  // RESET builds a reviewed plan instead of firing five commands: the curve is
+  // the same, but the engineer sees what will be sent and can refuse it.
+  function openEqResetPlan(ch) {
+    const changes = BANDS.map((b) => ({
+      channel: ch.index, parameter: `eq_${b.key}`, value: 64,
+      reason: `RESET EQ · ${b.label} to 0.0 dB`, risk: 'low',
+    }));
+    if (ch.index <= 4) {
+      changes.push({
+        channel: ch.index, parameter: 'low_cut', value: 0,
+        reason: 'RESET EQ · Low Cut OFF', risk: 'low',
+      });
+    }
+    previewPlan({ title: `RESET EQ · CH ${String(ch.index).padStart(2, '0')}`, changes });
+  }
+
   function renderChannelInspector(body, ch) {
     const name = chName(ch);
     const idx = ch.index;
@@ -818,7 +1099,7 @@
     keys.children[0].onclick = () => postAction({ action: 'setMute', channel: idx, value: !ch.mute }).then(scheduleReload);
     keys.children[1].onclick = () => showToast(lockReason('solo'));
     keys.children[2].onclick = () => openScribbleModal(ch);
-    keys.children[3].onclick = () => openPresetsModal(idx);
+    keys.children[3].onclick = () => { closeInspector(); selectChannel(idx, 'presets'); };
     body.appendChild(keys);
 
     // Input stage.
@@ -835,20 +1116,20 @@
         label: 'LOW CUT', valueText: hpfHz(ch.lowCut), raw: ch.lowCut, min: 0, max: 127, color: '#FFB020',
         focusKey: `insp:${sid}:lowcut`,
         onMove: hpfHz,
-        onCommit: (v) => postAction({ action: 'setLowCut', channel: idx, value: v }),
+        onCommit: (v, quiet) => sendAction({ action: 'setLowCut', channel: idx, value: v }, quiet),
       }));
       knobs.appendChild(createRotaryKnob({
         label: 'COMP', valueText: `${ch.compressor}%`, raw: ch.compressor, min: 0, max: 100, color: '#A78BFA',
         focusKey: `insp:${sid}:comp`,
         onMove: (v) => `${v}%`,
-        onCommit: (v) => postAction({ action: 'setCompressor', channel: idx, value: v }),
+        onCommit: (v, quiet) => sendAction({ action: 'setCompressor', channel: idx, value: v }, quiet),
       }));
     }
     knobs.appendChild(createRotaryKnob({
       label: has14 ? 'PAN' : 'BALANCE', valueText: panText(ch.pan), raw: ch.pan, min: 0, max: 127, color: '#3FD2E0', bipolar: true,
       focusKey: `insp:${sid}:pan`,
       onMove: panText,
-      onCommit: (v) => postAction({ action: 'setPan', channel: idx, value: v }),
+      onCommit: (v, quiet) => sendAction({ action: 'setPan', channel: idx, value: v }, quiet),
     }));
     input.body.appendChild(knobs);
     if (idx <= 2) input.body.appendChild(phantomKey(ch));
@@ -860,30 +1141,39 @@
     }
     body.appendChild(input.el);
 
-    // 4-band EQ.
+    // 4-band EQ + low cut, drawn from the commanded values.
     const eq = section('EQ · 4-BAND', `<span title="${esc(provTitle(ch.eqProvenance))}">${provCode(ch.eqProvenance)}</span>`);
-    const flat = document.createElement('button');
-    flat.className = 'key-btn small';
-    flat.textContent = 'FLAT';
-    flat.dataset.focusKey = 'insp-eq-flat';
-    flat.setAttribute('aria-label', `Reset the EQ of ${name} to flat`);
-    flat.onclick = () => postAction({ action: 'resetEqFlat', channel: idx }).then(loadSession);
-    eq.el.querySelector('.sec-hdr').appendChild(flat);
+    const resetBtn = document.createElement('button');
+    resetBtn.className = 'key-btn small';
+    resetBtn.textContent = 'RESET';
+    resetBtn.dataset.focusKey = 'insp-eq-flat';
+    resetBtn.setAttribute('aria-label', `Review an EQ reset for ${name}`);
+    resetBtn.onclick = () => openEqResetPlan(ch);
+    eq.el.querySelector('.sec-hdr').appendChild(resetBtn);
     const canvas = document.createElement('canvas');
     canvas.id = 'eq-canvas';
+    canvas.className = 'eq-graph';
     canvas.width = 560;
-    canvas.height = 150;
-    canvas.setAttribute('aria-label', 'Approximate EQ curve. Drag a band point, or use the band knobs below.');
+    canvas.height = 180;
+    canvas.setAttribute('role', 'img');
+    canvas.setAttribute('aria-label', 'EQ curve computed from the commanded values. Drag a band point, or use the band knobs below.');
     eq.body.appendChild(canvas);
     const bandRow = document.createElement('div');
     bandRow.className = 'knob-row bands';
     const bandVal = {};
+    const redraw = () => drawEqGraph(canvas, {
+      gains: BANDS.map((b) => eqRawToDb(ch.eq[b.key] ?? 64)),
+      lowCutRaw: ch.lowCut || 0,
+      hasLowCut: idx <= 4,
+      provenance: ch.eqProvenance,
+      selected: inspEqSelected,
+    });
     BANDS.forEach((b) => {
       const cell = createRotaryKnob({
         label: `${b.label}`, valueText: eqText(ch.eq[b.key]), raw: ch.eq[b.key], min: 0, max: 127, color: b.color, bipolar: true,
         focusKey: `insp:${sid}:eq:${b.key}`,
-        onMove: (v) => { ch.eq[b.key] = v; drawEqCanvas(canvas, ch); return eqText(v); },
-        onCommit: (v) => postAction({ action: 'setEqBand', channel: idx, band: b.key, value: v }),
+        onMove: (v) => { ch.eq[b.key] = v; redraw(); return eqText(v); },
+        onCommit: (v, quiet) => sendAction({ action: 'setEqBand', channel: idx, band: b.key, value: v }, quiet),
       });
       const hz = document.createElement('span');
       hz.className = 'knob-hz';
@@ -895,19 +1185,28 @@
     eq.body.appendChild(bandRow);
     const eqNote = document.createElement('p');
     eqNote.className = 'sec-note';
-    eqNote.textContent = 'The curve is an approximate picture. Band gain values are exact.';
+    eqNote.textContent = 'Curve drawn from the values this app sent (fixed centres, shape assumed). Gain values are exact; it is not a measurement.';
     eq.body.appendChild(eqNote);
     body.appendChild(eq.el);
-    drawEqCanvas(canvas, ch);
-    attachEqCanvas(canvas, ch, (key, v) => { bandVal[key].textContent = eqText(v); });
-
+    redraw();
+    attachEqDrag(canvas, ch, {
+      onSelect: (key) => { inspEqSelected = key; redraw(); },
+      onChange: () => {
+        if (inspEqSelected !== 'lc' && bandVal[inspEqSelected]) {
+          bandVal[inspEqSelected].textContent = eqText(ch.eq[inspEqSelected]);
+        }
+        redraw();
+      },
+      sendBand: (key, v) => sendAction({ action: 'setEqBand', channel: idx, band: key, value: v }, true),
+      sendLowCut: (v) => sendAction({ action: 'setLowCut', channel: idx, value: v, unit: 'raw' }, true),
+    });
     // Sends.
     const sends = section('SENDS', 'POST-FADER LEVELS');
     ['mon1', 'mon2', 'fx1', 'fx2'].forEach((t) => {
       sends.body.appendChild(levelRow({
         label: LAYERS[t].label, color: LAYERS[t].color, value: ch.sends ? ch.sends[t] : 0,
         aria: `${name} send to ${LAYERS[t].label}`, focusKey: `insp:${sid}:send:${t}`,
-        onCommit: (v) => postAction({ action: 'setSend', channel: idx, target: t, value: v }),
+        onCommit: (v, quiet) => sendAction({ action: 'setSend', channel: idx, target: t, value: v }, quiet),
       }));
     });
     body.appendChild(sends.el);
@@ -961,7 +1260,7 @@
         label: 'BALANCE', valueText: panText(main.pan), raw: main.pan, min: 0, max: 127, color: '#3FD2E0', bipolar: true,
         focusKey: 'insp:main:balance',
         onMove: panText,
-        onCommit: (v) => postAction({ action: 'setPan', channel: 8, value: v }),
+        onCommit: (v, quiet) => sendAction({ action: 'setPan', channel: 8, value: v }, quiet),
       }));
       lvl.body.appendChild(row);
     }
@@ -975,18 +1274,20 @@
       lim.body.appendChild(row);
       body.appendChild(lim.el);
 
-      const geq = section('GRAPHIC EQ · 9-BAND', '±15 dB', lockReason('geq'));
-      const grid = document.createElement('div');
-      grid.className = 'geq';
-      grid.setAttribute('role', 'img');
-      grid.setAttribute('aria-label', '9-band graphic EQ. Values unknown. Locked.');
-      grid.innerHTML = GEQ_BANDS.map((f) => `
-          <div class="geq-band">
-            <div class="geq-track"><div class="geq-zero"></div><div class="geq-cap"></div></div>
-            <span class="geq-val">—</span>
-            <span class="geq-hz">${f}</span>
-          </div>`).join('');
-      geq.body.appendChild(grid);
+      const geq = section('GRAPHIC EQ · 9-BAND', 'VALUES UNKNOWN', lockReason('geq'));
+      const geqCanvas = document.createElement('canvas');
+      geqCanvas.id = 'bus-geq-canvas';
+      geqCanvas.className = 'eq-graph';
+      geqCanvas.width = 560;
+      geqCanvas.height = 150;
+      geqCanvas.setAttribute('role', 'img');
+      geqCanvas.setAttribute('aria-label', '9-band graphic EQ: no verified MIDI address, so no value is shown and none is sent.');
+      geq.body.appendChild(geqCanvas);
+      drawEqGraph(geqCanvas, { geqLocked: true, busOnly: true });
+      const geqNote = document.createElement('p');
+      geqNote.className = 'sec-note';
+      geqNote.textContent = 'Dashed = unknown. The GEQ has no verified MIDI address, so this console shows no value and sends none.';
+      geq.body.appendChild(geqNote);
       body.appendChild(geq.el);
       return;
     }
@@ -1051,9 +1352,9 @@
         meterSid: ch.index <= 6 ? sid : null,
         focusKey: `stage:${sid}:${activeLayer}`,
         onMove: midiToDbStr,
-        onCommit: (v) => (sendLayer
-          ? postAction({ action: 'setSend', channel: ch.index, target: activeLayer, value: v })
-          : postAction({ action: 'setFader', channel: ch.index, value: v })),
+        onCommit: (v, quiet) => (sendLayer
+          ? sendAction({ action: 'setSend', channel: ch.index, target: activeLayer, value: v }, quiet)
+          : sendAction({ action: 'setFader', channel: ch.index, value: v }, quiet)),
       });
       card.appendChild(knob);
       const mute = document.createElement('button');
@@ -1408,22 +1709,45 @@
   }
 
   // ---------- CueAir Split-Screen Pro Console ----------
-  const THAI_PRESET_META = {
-    'speech-mc-handheld': { thName: 'ไมค์ลอยแบบมือถือสำหรับ MC', thCat: 'พูด/พิธีกร', thSummary: 'ลดเสียงลม/เสียงกระแทกไมค์และเสียงอู้ เพิ่มความชัดเจนเสียงพูดบนเวที' },
-    'podcast-broadcast': { thName: 'ไมค์พูด / พอดแคสต์สตูดิโอ', thCat: 'พูด/พิธีกร', thSummary: 'โทนเสียงพูดนุ่มแน่น ควบคุมระดับความดังให้สม่ำเสมอ' },
-    'vocal-male-lead': { thName: 'เสียงร้องสด (ชาย)', thCat: 'ร้อง', thSummary: 'รักษาความอบอุ่นของเสียงชาย พร้อมดันย่านความคมชัด 3 kHz' },
-    'vocal-female-lead': { thName: 'เสียงร้องสด (หญิง)', thCat: 'ร้อง', thSummary: 'เสียงร้องใสโปร่ง ลดความแข็งกระด้างและเสียงซิบบิแลนซ์' },
-    'vocal-worship-ballad': { thName: 'เสียงร้องเพลงช้า / นมัสการ', thCat: 'ร้อง', thSummary: 'โทนร้องนุ่มนวล มีมิติ เข้ากับ Reverb ได้ดี' },
-    'acoustic-guitar-strum': { thName: 'กีตาร์โปร่ง (ตีคอร์ด)', thCat: 'เครื่องดนตรี', thSummary: 'ลดเสียงแข็งของปิ๊กอัพ Piezo และความก้องในกล่อง' },
-    'acoustic-guitar-fingerstyle': { thName: 'กีตาร์โปร่ง (ฟิงเกอร์สไตล์)', thCat: 'เครื่องดนตรี', thSummary: 'เก็บรายละเอียดสายและเนื้อไม้อย่างเป็นธรรมชาติ' },
-    'bass-guitar-di': { thName: 'เบสไฟฟ้า (DI)', thCat: 'เครื่องดนตรี', thSummary: 'ฐานเสียงต่ำแน่นกระชับ เว้นพื้นที่ย่านกลางให้เสียงร้อง' },
-    'electric-guitar-clean': { thName: 'กีตาร์ไฟฟ้า (คลีน)', thCat: 'เครื่องดนตรี', thSummary: 'โทนคลีนใสคมชัด ไม่กวนย่านเบส' },
-    'drum-kick-punch': { thName: 'กระเดื่องกลอง (Kick Punch)', thCat: 'กลอง', thSummary: 'กระแทกหนักแน่น ตัดย่านก้อง 300–400 Hz และเน้นหัวกระเดื่อง' },
-    'drum-snare-crack': { thName: 'สแนร์ (Snare Crack)', thCat: 'กลอง', thSummary: 'คมชัดมีเนื้อไม้และเสียงแส้สแนร์ที่พุ่งชัด' },
-    'drum-overheads': { thName: 'แฉ / Overhead กลอง', thCat: 'กลอง', thSummary: 'ตัดย่านต่ำ 350 Hz ทิ้ง ให้เสียงแฉใสสะอาด' },
-    'utility-flat-reset': { thName: 'รีเซ็ต EQ เป็น Flat (Bypass)', thCat: 'รีเซ็ต', thSummary: 'คืนค่า EQ ทั้ง 4 แบนด์เป็น 0.0 dB, ปิด Low Cut และ Compressor' },
-  };
-  const PRESET_CATS = ['all', 'พูด/พิธีกร', 'ร้อง', 'เครื่องดนตรี', 'กลอง', 'รีเซ็ต'];
+  // Clean-room Thai catalog (original content, no CueAir data). Loaded additively
+  // from /api/presets/thai; values arrive as exact raw MIDI, so the plan that the
+  // engineer reviews is exactly what will be sent.
+  let thaiCatalog = null;
+
+  function presetPlanChanges(preset, ch, scopes) {
+    const changes = [];
+    if (scopes.eq) {
+      BANDS.forEach((band) => {
+        const db = preset.eqDb[band.key];
+        changes.push({
+          channel: ch.index,
+          parameter: `eq_${band.key}`,
+          value: preset.eqRaw[band.key],
+          reason: `${preset.name} · ${band.label} ${db >= 0 ? '+' : ''}${db.toFixed(1)} dB`,
+          risk: Math.abs(db) >= 4 ? 'medium' : 'low',
+        });
+      });
+    }
+    if (scopes.low_cut && ch.index <= 4 && preset.lowCutRaw != null) {
+      changes.push({
+        channel: ch.index,
+        parameter: 'low_cut',
+        value: preset.lowCutRaw,
+        reason: `${preset.name} · Low Cut ${preset.lowCutHz} Hz`,
+        risk: 'low',
+      });
+    }
+    if (scopes.compressor && ch.index <= 4 && preset.compressorRaw != null) {
+      changes.push({
+        channel: ch.index,
+        parameter: 'compressor',
+        value: preset.compressorRaw,
+        reason: `${preset.name} · Comp ${preset.compressorPercent}%`,
+        risk: 'medium',
+      });
+    }
+    return changes;
+  }
 
   function selectedChannelObj() {
     if (!session || !session.channels) return null;
@@ -1542,12 +1866,10 @@
   function renderCueEqTab(pane) {
     const ch = selectedChannelObj();
     if (!ch) return;
+    const hasLowCut = ch.index <= 4;
     const eqBands = [
-      ...(ch.index <= 4 ? [{ key: 'lc', label: 'LC', color: '#FFB020', xPct: 0.12 }] : []),
-      { key: 'low', label: '1 LOW', color: '#F87171', xPct: 0.28 },
-      { key: 'low_mid', label: '2 LOW MID', color: '#34D399', xPct: 0.48 },
-      { key: 'hi_mid', label: '3 HIGH MID', color: '#3FD2E0', xPct: 0.68 },
-      { key: 'hi', label: '4 HIGH', color: '#A78BFA', xPct: 0.86 },
+      ...(hasLowCut ? [{ key: 'lc', label: 'LC', color: '#FFB020' }] : []),
+      ...BANDS.map((b) => ({ key: b.key, label: b.shortLabel, color: b.color })),
     ];
     if (!eqBands.some((b) => b.key === selectedEqBand)) selectedEqBand = 'low';
 
@@ -1558,244 +1880,196 @@
         <div class="cue-eq-bands">
           ${eqBands.map((b) => `<button class="eq-band-pill ${selectedEqBand === b.key ? 'active' : ''}" data-band="${b.key}" style="--band-color:${b.color}">${b.label}</button>`).join('')}
         </div>
-        <canvas class="cue-eq-canvas" id="cue-eq-canvas" width="640" height="220"></canvas>
+        <canvas class="cue-eq-canvas eq-graph" id="cue-eq-canvas" width="900" height="340" role="img"
+          aria-label="EQ curve computed from the commanded values. Drag a node; the value is sent on release."></canvas>
+        <p class="eq-legend" id="cue-eq-legend"></p>
       </div>
-      <div class="cue-eq-side" id="cue-eq-side"></div>
-    `;
+      <div class="cue-eq-side" id="cue-eq-side"></div>`;
     pane.appendChild(wrap);
 
     const canvas = wrap.querySelector('#cue-eq-canvas');
     const side = wrap.querySelector('#cue-eq-side');
+    const legend = wrap.querySelector('#cue-eq-legend');
 
-    const drawInteractiveEq = () => {
-      const ctx = canvas.getContext('2d');
-      const W = canvas.width;
-      const H = canvas.height;
-      ctx.clearRect(0, 0, W, H);
-      ctx.fillStyle = '#0A0C10';
-      ctx.fillRect(0, 0, W, H);
-      // Grid lines (-15, -7.5, 0, +7.5, +15 dB)
-      ctx.strokeStyle = '#1D222B';
-      ctx.lineWidth = 1;
-      [0.15, 0.325, 0.5, 0.675, 0.85].forEach((r, idx) => {
-        ctx.beginPath();
-        ctx.strokeStyle = idx === 2 ? '#2F3746' : '#191E26';
-        ctx.moveTo(0, H * r);
-        ctx.lineTo(W, H * r);
-        ctx.stroke();
+    const gainsDb = () => BANDS.map((b) => eqRawToDb(ch.eq[b.key] ?? 64));
+    const redraw = () => {
+      drawEqGraph(canvas, {
+        gains: gainsDb(),
+        lowCutRaw: ch.lowCut || 0,
+        hasLowCut,
+        provenance: ch.eqProvenance,
+        selected: selectedEqBand,
       });
-      // Curve across 4 EQ bands
-      const pts = eqBands.filter((b) => b.key !== 'lc').map((b) => {
-        const db = eqRawToDb(ch.eq[b.key] ?? 64);
-        return { ...b, x: b.xPct * W, y: (H * 0.5) - (db / 15) * (H * 0.35), db };
-      });
-      // Low cut visual slope if ch <= 4
-      const lcPct = ch.index <= 4 ? (ch.lowCut || 0) / 127 : 0;
-      const lcX = (0.06 + lcPct * 0.14) * W;
-      ctx.beginPath();
-      ctx.strokeStyle = '#3FD2E0';
-      ctx.lineWidth = 2.6;
-      ctx.moveTo(0, ch.index <= 4 && lcPct > 0.02 ? H * 0.88 : H * 0.5);
-      if (ch.index <= 4) ctx.lineTo(lcX, H * 0.5);
-      pts.forEach((p, idx) => {
-        if (idx === 0) ctx.lineTo(p.x, p.y);
-        else {
-          const prev = pts[idx - 1];
-          const mx = (prev.x + p.x) / 2;
-          ctx.quadraticCurveTo(prev.x, prev.y, mx, (prev.y + p.y) / 2);
-        }
-      });
-      const last = pts[pts.length - 1];
-      ctx.lineTo(last.x, last.y);
-      ctx.lineTo(W, H * 0.5);
-      ctx.stroke();
-
-      // Draggable nodes
-      eqBands.forEach((b) => {
-        const x = b.key === 'lc' ? lcX : b.xPct * W;
-        const y = b.key === 'lc' ? H * 0.5 : (H * 0.5) - (eqRawToDb(ch.eq[b.key] ?? 64) / 15) * (H * 0.35);
-        ctx.beginPath();
-        ctx.arc(x, y, selectedEqBand === b.key ? 10 : 7.5, 0, Math.PI * 2);
-        ctx.fillStyle = b.color;
-        ctx.fill();
-        ctx.lineWidth = 2;
-        ctx.strokeStyle = selectedEqBand === b.key ? '#FFFFFF' : '#0B0D10';
-        ctx.stroke();
-      });
+      legend.textContent = ch.eqProvenance === 'OBSERVED'
+        ? 'เส้นทึบ = ค่าที่มิกเซอร์รายงาน (OBSERVED)'
+        : ch.eqProvenance === 'COMMANDED'
+          ? 'เส้นทึบ = ค่าที่แอปส่งไป (COMMANDED) · มิกเซอร์ไม่รายงานค่ากลับ'
+          : 'เส้นประ = ค่ายังไม่ยืนยัน (UNSYNCED) · เป็นการประมาณ ไม่ใช่ค่าจริง';
     };
 
-    const renderEqSide = () => {
-      const bMeta = eqBands.find((b) => b.key === selectedEqBand) || eqBands[0];
-      const isLc = bMeta.key === 'lc';
-      const rawVal = isLc ? (ch.lowCut || 0) : (ch.eq[bMeta.key] ?? 64);
+    const syncPills = () => {
+      wrap.querySelectorAll('.eq-band-pill').forEach((p) => p.classList.toggle('active', p.dataset.band === selectedEqBand));
+    };
+
+    const renderSide = () => {
+      const meta = eqBands.find((b) => b.key === selectedEqBand) || eqBands[0];
+      const isLc = meta.key === 'lc';
+      const rawVal = isLc ? (ch.lowCut || 0) : (ch.eq[meta.key] ?? 64);
+      const band = BANDS.find((b) => b.key === meta.key);
       side.innerHTML = `
-        <div class="sec-hdr"><span class="sec-title">${esc(chName(ch))} · ${bMeta.label}</span><button class="key-btn" id="btn-eq-reset">RESET</button></div>
-        <div class="num-row"><span class="num-lbl">EQ MODE</span><span class="num-val">4-Band <span class="lock-chip" title="${esc(lockReason('eqParametric'))}">PARAM LOCKED</span></span></div>
-        <div class="num-row"><span class="num-lbl">TYPE</span><span class="num-val">${isLc ? 'High Pass' : 'Fixed Band'} <span class="lock-chip">LOCKED</span></span></div>
-        <div class="num-row"><span class="num-lbl">FREQ</span><span class="num-val">${isLc ? hpfHz(rawVal) : `${BANDS.find((x) => x.key === bMeta.key)?.hz || 'Fixed'} <span class="lock-chip">LOCKED</span>`}</span></div>
+        <div class="sec-hdr"><span class="sec-title">${esc(chName(ch))} · ${meta.label}</span>
+          <button class="key-btn" id="btn-eq-reset">RESET</button></div>
+        <div class="num-row"><span class="num-lbl">SOURCE</span><span class="num-val" title="${esc(provTitle(ch.eqProvenance))}">${provCode(ch.eqProvenance)}</span></div>
+        <div class="num-row"><span class="num-lbl">TYPE</span><span class="num-val">${isLc ? 'High Pass · 12 dB/oct' : (band.type === 'peaking' ? 'Peaking' : 'Shelf')}</span></div>
+        <div class="num-row"><span class="num-lbl">FREQ</span><span class="num-val">${isLc ? hpfHz(rawVal) : `${band.hz} <span class="lock-chip">FIXED</span>`}</span></div>
         <div class="num-row"><span class="num-lbl">${isLc ? 'CUTOFF' : 'GAIN'}</span><span class="num-val" id="eq-side-val">${isLc ? hpfHz(rawVal) : eqText(rawVal)}</span></div>
-        <input class="studio-range" id="eq-side-range" type="range" min="0" max="127" value="${rawVal}" aria-label="${bMeta.label} level" />
-        <div class="num-row"><span class="num-lbl">Q</span><span class="num-val">— <span class="lock-chip" title="${esc(lockReason('eqParametric'))}">LOCKED</span></span></div>
-      `;
+        <input class="studio-range" id="eq-side-range" type="range" min="0" max="127" value="${rawVal}" aria-label="${meta.label} value" />
+        <div class="num-row"><span class="num-lbl">Q</span><span class="num-val">${isLc ? '—' : band.q.toFixed(1)} <span class="lock-chip" title="${esc(lockReason('eqParametric'))}">ASSUMED</span></span></div>
+        <p class="sec-note" style="margin:0">ลากจุดบนกราฟหรือเลื่อนแถบด้านบน ค่าที่ส่งคือค่าตัวเลขนี้ (1 ขั้น Undo ต่อการลาก 1 ครั้ง)</p>`;
       const rng = side.querySelector('#eq-side-range');
       const valEl = side.querySelector('#eq-side-val');
       rng.oninput = () => {
         const v = +rng.value;
         if (isLc) { ch.lowCut = v; valEl.textContent = hpfHz(v); }
-        else { ch.eq[bMeta.key] = v; valEl.textContent = eqText(v); }
-        drawInteractiveEq();
+        else { ch.eq[meta.key] = v; valEl.textContent = eqText(v); }
+        redraw();
       };
       rng.onchange = () => {
         const v = +rng.value;
-        if (isLc) postAction({ action: 'setLowCut', channel: ch.index, value: v, unit: 'raw' });
-        else postAction({ action: 'setEqBand', channel: ch.index, band: bMeta.key, value: v });
+        if (isLc) sendAction({ action: 'setLowCut', channel: ch.index, value: v, unit: 'raw' });
+        else sendAction({ action: 'setEqBand', channel: ch.index, band: meta.key, value: v });
       };
-      side.querySelector('#btn-eq-reset').onclick = () =>
-        postAction({ action: 'resetEqFlat', channel: ch.index }).then(scheduleReload);
+      side.querySelector('#btn-eq-reset').onclick = () => openEqResetPlan(ch);
     };
 
     wrap.querySelectorAll('.eq-band-pill').forEach((btn) => {
       btn.onclick = () => {
         selectedEqBand = btn.dataset.band;
-        wrap.querySelectorAll('.eq-band-pill').forEach((p) => p.classList.toggle('active', p.dataset.band === selectedEqBand));
-        drawInteractiveEq();
-        renderEqSide();
+        syncPills();
+        redraw();
+        renderSide();
       };
     });
 
-    let dragBand = null;
-    canvas.onpointerdown = (e) => {
-      const rect = canvas.getBoundingClientRect();
-      const nx = (e.clientX - rect.left) / rect.width;
-      const ny = (e.clientY - rect.top) / rect.height;
-      let best = eqBands[0];
-      let bestD = Infinity;
-      eqBands.forEach((b) => {
-        const bx = b.key === 'lc' ? (0.06 + ((ch.lowCut || 0) / 127) * 0.14) : b.xPct;
-        const by = b.key === 'lc' ? 0.5 : (0.5 - (eqRawToDb(ch.eq[b.key] ?? 64) / 15) * 0.35);
-        const d = Math.hypot(nx - bx, ny - by);
-        if (d < bestD) { bestD = d; best = b; }
-      });
-      dragBand = best.key;
-      selectedEqBand = best.key;
-      canvas.setPointerCapture(e.pointerId);
-      wrap.querySelectorAll('.eq-band-pill').forEach((p) => p.classList.toggle('active', p.dataset.band === selectedEqBand));
-      renderEqSide();
-    };
-    canvas.onpointermove = (e) => {
-      if (!dragBand || !canvas.hasPointerCapture(e.pointerId)) return;
-      const rect = canvas.getBoundingClientRect();
-      if (dragBand === 'lc') {
-        const nx = (e.clientX - rect.left) / rect.width;
-        ch.lowCut = Math.max(0, Math.min(127, Math.round(((nx - 0.06) / 0.14) * 127)));
-      } else {
-        const ny = (e.clientY - rect.top) / rect.height;
-        const db = Math.max(-15, Math.min(15, ((0.5 - ny) / 0.35) * 15));
-        ch.eq[dragBand] = dbToEqRaw(db);
-      }
-      drawInteractiveEq();
-      const rng = side.querySelector('#eq-side-range');
-      const valEl = side.querySelector('#eq-side-val');
-      if (rng && valEl) {
-        const v = dragBand === 'lc' ? ch.lowCut : ch.eq[dragBand];
-        rng.value = v;
-        valEl.textContent = dragBand === 'lc' ? hpfHz(v) : eqText(v);
-      }
-    };
-    canvas.onpointerup = (e) => {
-      if (!dragBand) return;
-      const key = dragBand;
-      dragBand = null;
-      if (canvas.hasPointerCapture(e.pointerId)) canvas.releasePointerCapture(e.pointerId);
-      if (key === 'lc') postAction({ action: 'setLowCut', channel: ch.index, value: ch.lowCut, unit: 'raw' });
-      else postAction({ action: 'setEqBand', channel: ch.index, band: key, value: ch.eq[key] });
-    };
+    attachEqDrag(canvas, ch, {
+      onSelect: (key) => { selectedEqBand = key; syncPills(); redraw(); renderSide(); },
+      onChange: () => {
+        redraw();
+        const valEl = side.querySelector('#eq-side-val');
+        const rng = side.querySelector('#eq-side-range');
+        if (valEl && rng) {
+          const v = selectedEqBand === 'lc' ? (ch.lowCut || 0) : (ch.eq[selectedEqBand] ?? 64);
+          rng.value = v;
+          valEl.textContent = selectedEqBand === 'lc' ? hpfHz(v) : eqText(v);
+        }
+      },
+      sendBand: (key, v) => sendAction({ action: 'setEqBand', channel: ch.index, band: key, value: v }, true),
+      sendLowCut: (v) => sendAction({ action: 'setLowCut', channel: ch.index, value: v, unit: 'raw' }, true),
+    });
 
-    drawInteractiveEq();
-    renderEqSide();
+    redraw();
+    renderSide();
   }
+
 
   async function renderCuePresetsTab(pane) {
     const ch = selectedChannelObj();
     if (!ch) return;
-    if (!presets.length) {
-      try { presets = (await (await fetch('/api/presets')).json()).presets || []; } catch (_) { presets = []; }
+    if (!thaiCatalog) {
+      try {
+        const res = await fetch('/api/presets/thai');
+        thaiCatalog = await res.json();
+      } catch (_) {
+        pane.innerHTML = '<p class="sec-note">โหลดคลังพรีเซ็ตไม่ได้ — ตรวจสอบการเชื่อมต่อฮับ</p>';
+        return;
+      }
     }
     const wrap = document.createElement('div');
     wrap.className = 'cue-presets-wrap';
-    wrap.innerHTML = `<div class="presets-left" id="presets-left"></div><div class="presets-right" id="presets-right"></div>`;
+    wrap.innerHTML = '<div class="presets-left" id="presets-left"></div><div class="presets-right" id="presets-right"></div>';
     pane.appendChild(wrap);
-
     const left = wrap.querySelector('#presets-left');
     const right = wrap.querySelector('#presets-right');
+    const cats = ['all', ...(thaiCatalog.categories || [])];
+
     const drawPresets = () => {
       const q = presetQuery.trim().toLowerCase();
-      const enriched = presets.map((p) => {
-        const th = THAI_PRESET_META[p.id] || {};
-        return { ...p, thName: th.thName || p.name, thCat: th.thCat || p.category, thSummary: th.thSummary || p.summary };
-      });
-      const filtered = enriched.filter((p) => (presetCategory === 'all' || p.thCat === presetCategory)
-        && (!q || p.thName.toLowerCase().includes(q) || p.name.toLowerCase().includes(q) || p.thSummary.toLowerCase().includes(q)));
+      const list = (thaiCatalog.presets || []).filter((p) => (presetCategory === 'all' || p.category === presetCategory)
+        && (!q || p.name.toLowerCase().includes(q) || p.summary.toLowerCase().includes(q)));
 
       left.innerHTML = `
-        <div class="sec-hdr"><span class="sec-title">เลือกพรีเซ็ต · CH ${String(ch.index).padStart(2, '0')} (${esc(chName(ch))})</span></div>
-        <input type="search" class="text-input search" id="cue-preset-search" placeholder="ค้นหาพรีเซ็ต (เช่น ไมค์ลอย, เสียงร้อง, กีตาร์)..." value="${esc(presetQuery)}" />
+        <div class="sec-hdr"><span class="sec-title">เลือกพรีเซ็ต · CH ${String(ch.index).padStart(2, '0')} (${esc(chName(ch))})</span><span class="sec-meta">CLEAN-ROOM</span></div>
+        <input type="search" class="text-input search" id="cue-preset-search" placeholder="ค้นหาพรีเซ็ต (เช่น ไมค์พูด, ร้อง, กีตาร์, BGM)..." value="${esc(presetQuery)}" />
         <div class="cat-chips">
-          ${PRESET_CATS.map((c) => `<button class="cat-chip ${presetCategory === c ? 'active' : ''}" data-cat="${esc(c)}">${c === 'all' ? 'ทั้งหมด' : esc(c)}</button>`).join('')}
+          ${cats.map((c) => `<button class="cat-chip ${presetCategory === c ? 'active' : ''}" data-cat="${esc(c)}">${c === 'all' ? 'ทั้งหมด' : esc(c)}</button>`).join('')}
         </div>
         <div class="preset-cards">
-          ${filtered.map((p) => `
+          ${list.map((p) => `
             <button class="preset-card ${selectedPresetId === p.id ? 'active' : ''}" data-pid="${esc(p.id)}">
-              <span class="preset-card-title">${esc(p.thName)}</span>
-              <span class="preset-card-sub">${esc(p.thCat)} · ${esc(p.name)}</span>
+              <span class="preset-card-title">${esc(p.name)}</span>
+              <span class="preset-card-sub">${esc(p.category)}</span>
             </button>`).join('') || '<p class="sec-note">ไม่พบพรีเซ็ตที่ตรงกับการค้นหา</p>'}
-        </div>
-      `;
+        </div>`;
       left.querySelector('#cue-preset-search').oninput = (e) => { presetQuery = e.target.value; drawPresets(); };
       left.querySelectorAll('.cat-chip').forEach((b) => { b.onclick = () => { presetCategory = b.dataset.cat; drawPresets(); }; });
       left.querySelectorAll('.preset-card').forEach((b) => { b.onclick = () => { selectedPresetId = b.dataset.pid; drawPresets(); }; });
 
-      const sel = enriched.find((p) => p.id === selectedPresetId) || enriched[0];
+      const sel = list.find((p) => p.id === selectedPresetId) || list[0];
       if (!sel) { right.innerHTML = '<p class="sec-note">ไม่มีพรีเซ็ตให้แสดง</p>'; return; }
-      const previewEq = {
-        low: sel.eq_low_db ?? 0,
-        low_mid: sel.eq_low_mid_db ?? 0,
-        hi_mid: sel.eq_hi_mid_db ?? 0,
-        hi: sel.eq_hi_db ?? 0,
+      const supports = {
+        low_cut: ch.index <= 4 && sel.lowCutRaw != null,
+        eq: true,
+        compressor: ch.index <= 4 && sel.compressorRaw != null,
       };
-      const notesList = Object.entries(sel.notes || {}).map(([k, v]) => `<li><strong>${esc(k)}:</strong> ${esc(v)}</li>`).join('');
+      const previewEq = {
+        low: sel.eqDb.low, low_mid: sel.eqDb.low_mid, hi_mid: sel.eqDb.hi_mid, hi: sel.eqDb.hi,
+      };
       right.innerHTML = `
-        <div class="sec-hdr"><span class="sec-title">${esc(sel.thName)}</span><span class="sec-meta">${esc(sel.thCat)}</span></div>
-        <p class="sec-note" style="margin:0">${esc(sel.thSummary)}</p>
-        <svg class="preset-preview-svg" viewBox="0 0 180 64" preserveAspectRatio="none">
+        <div class="sec-hdr"><span class="sec-title">${esc(sel.name)}</span><span class="sec-meta">${esc(sel.category)}</span></div>
+        <p class="sec-note" style="margin:0">${esc(sel.summary)}</p>
+        <svg class="preset-preview-svg" viewBox="0 0 180 64" preserveAspectRatio="none" role="img" aria-label="พรีวิวเส้น EQ ของพรีเซ็ต (ค่าที่จะส่ง)">
           <line x1="0" y1="32" x2="180" y2="32" stroke="#242A35" stroke-width="1"/>
           <path d="${eqPreviewSvgPath(previewEq)}" fill="none" stroke="#3FD2E0" stroke-width="2.2"/>
         </svg>
         <div class="preset-scope-row">
-          <label><input type="checkbox" id="ps-lc" ${presetScopes.low_cut ? 'checked' : ''} ${ch.index > 4 ? 'disabled' : ''}/> Input / Low Cut</label>
-          <label><input type="checkbox" id="ps-eq" ${presetScopes.eq ? 'checked' : ''}/> EQ (4-Band)</label>
-          <label><input type="checkbox" id="ps-comp" ${presetScopes.compressor ? 'checked' : ''} ${ch.index > 4 ? 'disabled' : ''}/> Comp</label>
+          <label><input type="checkbox" id="ps-lc" ${presetScopes.low_cut ? 'checked' : ''} ${supports.low_cut ? '' : 'disabled'}/> Low Cut ${sel.lowCutHz ? `(${sel.lowCutHz} Hz)` : ''}</label>
+          <label><input type="checkbox" id="ps-eq" ${presetScopes.eq ? 'checked' : ''}/> EQ (4-band)</label>
+          <label><input type="checkbox" id="ps-comp" ${presetScopes.compressor ? 'checked' : ''} ${supports.compressor ? '' : 'disabled'}/> Comp ${sel.compressorPercent != null ? `(${sel.compressorPercent}%)` : ''}</label>
         </div>
-        <div class="phantom-safety-row" title="${esc(lockReason('phantom'))}">
-          <label><input type="checkbox" id="ps-48v" disabled /> ใช้ค่า 48V ด้วย (ปิดไว้เพื่อความปลอดภัย)</label>
-          <span class="lock-chip">LOCKED</span>
+        <div class="phantom-safety-row">
+          <span>พรีเซ็ตไม่แตะ Gain, +48V, Fader, Pan และ Sends</span>
+          <span class="lock-chip">SAFE</span>
         </div>
-        <ul class="preset-notes">${notesList}</ul>
-        <button class="hw-btn accent" id="btn-apply-cue-preset">ใช้พรีเซ็ตนี้กับ CH ${String(ch.index).padStart(2, '0')} (ไม่เปลี่ยนระดับเสียง)</button>
-      `;
+        <ul class="preset-notes">
+          ${sel.why.map((line) => `<li>${esc(line)}</li>`).join('')}
+          <li>ค่าที่จะส่ง: ${BANDS.map((b) => `${b.label} ${sel.eqDb[b.key] >= 0 ? '+' : ''}${sel.eqDb[b.key].toFixed(1)} dB`).join(' · ')}${sel.lowCutHz ? ` · LC ${sel.lowCutHz} Hz` : ''}${sel.compressorPercent != null ? ` · Comp ${sel.compressorPercent}%` : ''}</li>
+        </ul>
+        <button class="hw-btn accent" id="btn-review-preset">ตรวจแผนก่อนใช้กับ CH ${String(ch.index).padStart(2, '0')}</button>
+        <p class="sec-note" style="margin:0">ทุกค่าเข้าสู่แผงตรวจ Change Plan ก่อน — กด COMMIT แล้วจึงจะส่ง และ UNDO คืนได้ในขั้นเดียว</p>`;
       right.querySelector('#ps-lc').onchange = (e) => { presetScopes.low_cut = e.target.checked; };
       right.querySelector('#ps-eq').onchange = (e) => { presetScopes.eq = e.target.checked; };
       right.querySelector('#ps-comp').onchange = (e) => { presetScopes.compressor = e.target.checked; };
-      right.querySelector('#btn-apply-cue-preset').onclick = async () => {
-        const scopes = Object.entries(presetScopes).filter(([, on]) => on).map(([k]) => k);
-        if (!scopes.length) { showToast('เลือกอย่างน้อย 1 ส่วน (EQ / Low Cut / Comp)', true); return; }
-        const res = await postAction({ action: 'applyPreset', channel: ch.index, presetId: sel.id, scopes });
-        if (res.ok) showToast(`ใช้พรีเซ็ต "${sel.thName}" กับ CH ${String(ch.index).padStart(2, '0')} แล้ว`);
-        loadSession();
+      right.querySelector('#btn-review-preset').onclick = () => {
+        const scopes = {
+          eq: right.querySelector('#ps-eq').checked,
+          low_cut: supports.low_cut && right.querySelector('#ps-lc').checked,
+          compressor: supports.compressor && right.querySelector('#ps-comp').checked,
+        };
+        if (!scopes.eq && !scopes.low_cut && !scopes.compressor) {
+          showToast('เลือกอย่างน้อย 1 ส่วน (EQ / Low Cut / Comp)', true);
+          return;
+        }
+        const changes = presetPlanChanges(sel, ch, scopes);
+        if (!changes.length) {
+          showToast('ช่องนี้ไม่รองรับส่วนที่เลือก', true);
+          return;
+        }
+        previewPlan({ title: `พรีเซ็ต · ${sel.name} · CH ${String(ch.index).padStart(2, '0')}`, changes });
       };
     };
     drawPresets();
   }
+
 
   function renderCueChannelTab(pane) {
     const ch = selectedChannelObj();
@@ -1879,7 +2153,7 @@
       label: 'COMP', valueText: `${pct}%`, raw: ch.compressor || 0, min: 0, max: 127,
       color: '#34D399', big: true, focusKey: `cue-comp:${ch.index}`,
       onMove: (v) => `${Math.round((v / 127) * 100)}%`,
-      onCommit: (v) => postAction({ action: 'setCompressor', channel: ch.index, value: v, unit: 'raw' }),
+      onCommit: (v, quiet) => sendAction({ action: 'setCompressor', channel: ch.index, value: v, unit: 'raw' }, quiet),
     }));
     const note = document.createElement('p');
     note.className = 'sec-note';
@@ -1902,7 +2176,7 @@
         value: ch.sends ? ch.sends[target] : 0,
         aria: `${chName(ch)} send to ${LAYERS[target].label}`,
         focusKey: `cue-send:${ch.index}:${target}`,
-        onCommit: (v) => postAction({ action: 'setSend', channel: ch.index, target, value: v }),
+        onCommit: (v, quiet) => sendAction({ action: 'setSend', channel: ch.index, target, value: v }, quiet),
       }));
     });
     pane.appendChild(sec);
@@ -1927,7 +2201,7 @@
         value: bus ? bus.fader : 0,
         aria: `${fxId.toUpperCase()} return level`,
         focusKey: `cue-fx-ret:${fxId}`,
-        onCommit: (v) => postAction({ action: 'setBusFader', bus: fxId, value: v }),
+        onCommit: (v, quiet) => sendAction({ action: 'setBusFader', bus: fxId, value: v }, quiet),
       }));
       grid.appendChild(card);
     });
@@ -2198,6 +2472,7 @@
     renderTopPane();
     renderConsole(); // persistent bottom fader bank + connection banner
     renderFlowAiDrawer();
+    renderInspector(); // the Inspector is state (insp), so every view render redraws it
   }
   function setView(v, page, syncHub = true) {
     if (v === 'setup') {
@@ -2306,45 +2581,6 @@
   })();
 
   // ---------- Modals ----------
-  async function openPresetsModal(targetIdx) {
-    if (!presets.length) {
-      const res = await fetch('/api/presets');
-      presets = (await res.json()).presets || [];
-    }
-    document.getElementById('preset-modal-title').textContent = `PRESETS FOR CH ${targetIdx} (LEVELS ALWAYS PRESERVED)`;
-    const list = document.getElementById('preset-list');
-    list.innerHTML = '';
-    presets.forEach((p) => {
-      const item = document.createElement('div');
-      item.className = 'preset-item';
-      item.innerHTML = `
-        <div>
-          <h4>[${esc(p.category)}] ${esc(p.name)}</h4>
-          <p>${esc(p.summary)}</p>
-        </div>
-        <button class="hw-btn accent" aria-label="Apply ${esc(p.name)} to CH ${targetIdx}">APPLY</button>
-      `;
-      item.querySelector('button').onclick = async () => {
-        const replaces = targetIdx <= 4 ? 'the 4-band EQ, low cut and compressor' : 'the 4-band EQ';
-        const okay = await confirmAction(
-          `APPLY TO CH ${targetIdx}?`,
-          `"${p.name}" replaces ${replaces} on CH ${targetIdx}. Fader, pan, mute and sends do not change. Press UNDO to go back.`,
-          'APPLY',
-          'accent'
-        );
-        if (!okay) return;
-        const res = await postAction({ action: 'applyPreset', channel: targetIdx, presetId: p.id });
-        if (res.ok) {
-          closeModal('preset-modal');
-          showToast(`Applied "${p.name}" to CH ${targetIdx}.`);
-        }
-        loadSession();
-      };
-      list.appendChild(item);
-    });
-    openModal('preset-modal');
-  }
-
   function openScribbleModal(ch) {
     const inp = document.getElementById('scribble-input');
     inp.value = chName(ch).slice(0, 14);
@@ -2499,7 +2735,6 @@
   };
   document.getElementById('btn-undo').onclick = () => postAction({ action: 'undo' }).then(scheduleReload);
   document.getElementById('btn-redo').onclick = () => postAction({ action: 'redo' }).then(scheduleReload);
-  document.getElementById('btn-close-presets').onclick = () => closeModal('preset-modal');
   document.getElementById('btn-close-scribble').onclick = () => closeModal('scribble-modal');
 
   // While a finger or mouse holds a control, a re-render would drop the drag.
@@ -2518,7 +2753,7 @@
     }, 120);
   }
   document.addEventListener('pointerdown', (e) => {
-    if (e.target.closest('.fader-well, .knob-svg, #eq-canvas, #cue-eq-canvas, .studio-range, .phantom-key, .snap-slot')) pointerBusy = true;
+    if (e.target.closest('.fader-well, .knob-svg, .eq-graph, .studio-range, .phantom-key, .snap-slot')) pointerBusy = true;
   }, true);
   const releasePointer = () => {
     if (!pointerBusy) return;
@@ -2527,6 +2762,12 @@
   };
   window.addEventListener('pointerup', releasePointer, true);
   window.addEventListener('pointercancel', releasePointer, true);
+  // Canvas buffers are sized from the layout, so a resize needs one redraw.
+  let resizeTimer = null;
+  window.addEventListener('resize', () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => { if (!pointerBusy) loadSession(); }, 250);
+  });
 
   async function loadSession() {
     const focusKey = document.activeElement && document.activeElement.dataset ? document.activeElement.dataset.focusKey : null;

@@ -62,3 +62,20 @@ Every step ends with: full test suite result with passed/failed/skipped/expected
   snapshot library persists to JSON, so F7 could rely on it.
 - Next ranked step: **P7 / F4** (EQ curve from commanded values). F1 still waits on the owner's
   preset-data decision; F5 waits on a hardware Program Change test.
+
+## Status update (2026-11-19, second stage)
+
+- **P7 / F4 delivered** — EQ view computes a biquad response from the commanded 4-band gains
+  and the low cut, dashed when `UNSYNCED`, solid when `COMMANDED`/`OBSERVED`; band and low cut
+  nodes drag; `RESET` goes through the change plan. The bus 9-band GEQ stays read-only and
+  labelled "no verified MIDI address".
+- **P8 delivered** — found and fixed two real defects: `renderInspector()` was never called, and
+  the Inspector was an in-flow row that squeezed the fader bank. It is now an overlay, canvas
+  buffers match their layout box, compact rules cover 1366×768, and pointer drags use a
+  `beginGesture`/`endGesture` batch so one drag is one undo step.
+- **P1 owner decision, F1 unblocked with Option A** — `flow8/presets_th.py` is a clean-room Thai
+  catalog (original values and Thai text, no CueAir data). It is applied only through
+  `previewChangePlan` → `commitChangePlan`, with EQ / Low Cut / Comp scope toggles and no
+  gain/+48V path. Report: `P7_P8_F1_IMPLEMENTATION.md`.
+- Still blocked: **P0 / F0** inbound telemetry and unplug detection; **P9 / F5** needs a
+  hardware Program Change test.

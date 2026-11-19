@@ -752,6 +752,13 @@ body.locked .status-strip { box-shadow: inset 0 -2px 0 var(--led-amber); }
 .split-workspace .console-bank {
   flex: 1 1 54%; min-height: 230px; padding-top: 8px; padding-bottom: 8px;
 }
+/* The Inspector is a non-blocking overlay: the bank keeps its full height. */
+@media (min-width: 761px) {
+  .split-workspace > .inspector {
+    position: absolute; top: 0; right: 0; bottom: 0; z-index: 22;
+    width: min(var(--insp-w), 92vw);
+  }
+}
 
 /* Mixer Overview Strip (top half in Mixer tab) */
 .mixer-overview-grid {
@@ -813,7 +820,13 @@ body.locked .status-strip { box-shadow: inset 0 -2px 0 var(--led-amber); }
   background: var(--bg-well); border: 1px solid var(--border-light); border-radius: 8px;
   padding: 8px; display: flex; flex-direction: column; gap: 6px; min-height: 0;
 }
-.cue-eq-canvas { width: 100%; flex: 1; min-height: 150px; display: block; touch-action: none; cursor: crosshair; }
+.cue-eq-canvas { width: 100%; flex: 0 0 auto; display: block; touch-action: none; cursor: crosshair; }
+/* A graph canvas keeps its aspect through CSS; the drawing buffer is fixed. */
+.eq-graph { width: 100%; height: auto; display: block; border-radius: 6px; touch-action: none; cursor: crosshair; }
+#eq-canvas.eq-graph { height: clamp(140px, 26vh, 190px); }
+#cue-eq-canvas.eq-graph { height: clamp(150px, 26vh, 300px); }
+#bus-geq-canvas.eq-graph { height: clamp(130px, 22vh, 170px); }
+.eq-legend { margin: 4px 0 0; font-size: 11px; color: var(--text-muted); line-height: 1.3; }
 .cue-eq-bands { display: flex; gap: 6px; flex-wrap: wrap; }
 .eq-band-pill {
   padding: 4px 10px; border-radius: 999px; border: 1px solid var(--border-light);
@@ -829,10 +842,11 @@ body.locked .status-strip { box-shadow: inset 0 -2px 0 var(--led-amber); }
 .num-row .num-val { font-variant-numeric: tabular-nums; font-weight: 700; }
 
 /* CueAir Presets Two-Column Thai Browser */
-.cue-presets-wrap { display: grid; grid-template-columns: 1.05fr 1fr; gap: 12px; height: 100%; min-height: 200px; }
+.cue-presets-wrap { display: grid; grid-template-columns: 1.05fr 1fr; gap: 12px; height: 100%; min-height: 0; }
 .presets-left, .presets-right {
   background: var(--bg-panel); border: 1px solid var(--border-dark); border-radius: 8px;
-  padding: 10px; display: flex; flex-direction: column; gap: 8px; overflow-y: auto;
+  padding: 10px; display: flex; flex-direction: column; gap: 8px;
+  overflow-y: auto; overflow-x: hidden; min-width: 0;
 }
 .cat-chips { display: flex; gap: 5px; flex-wrap: wrap; }
 .cat-chip {
@@ -853,6 +867,7 @@ body.locked .status-strip { box-shadow: inset 0 -2px 0 var(--led-amber); }
 .preset-preview-svg { width: 100%; height: 84px; background: var(--bg-well); border: 1px solid var(--border-dark); border-radius: 6px; }
 .preset-scope-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
 .preset-notes { font-size: 12px; color: var(--text-secondary); margin: 0; padding-left: 16px; display: flex; flex-direction: column; gap: 3px; }
+.preset-notes li, .preset-card-title, .sec-note { overflow-wrap: anywhere; }
 .phantom-safety-row {
   display: flex; align-items: center; justify-content: space-between; gap: 8px;
   padding: 6px 8px; border-radius: 6px; border: 1px dashed rgba(255, 176, 32, 0.45);
@@ -922,4 +937,23 @@ body.locked .status-strip { box-shadow: inset 0 -2px 0 var(--led-amber); }
 @media (max-width: 960px) {
   .cue-eq-wrap, .cue-presets-wrap, .top-grid-2, .top-grid-3 { grid-template-columns: 1fr; }
   .mixer-overview-grid { min-width: 680px; }
+}
+
+/* 1366x768 and iPad landscape: tighten the split so every action stays on screen. */
+@media (max-height: 820px) {
+  .top-pane { padding: 8px 10px; gap: 8px; }
+  .split-workspace .console-bank { padding-top: 6px; padding-bottom: 6px; }
+  .insp-title { font-size: 17px; }
+  .insp-body { padding: 8px 10px 14px; gap: 8px; }
+  .insp-sec { padding: 7px 8px 8px; }
+  .insp-keys .mute-switch, .key-btn { min-height: 34px; }
+  .knob-svg { width: 48px; height: 48px; }
+  .cue-eq-wrap { grid-template-columns: 1fr 250px; gap: 8px; }
+  .cue-eq-side { padding: 8px; gap: 6px; }
+  .cue-presets-wrap { gap: 8px; }
+  .presets-left, .presets-right { padding: 8px; gap: 6px; }
+  .preset-preview-svg { height: 60px; }
+  .preset-notes { font-size: 11px; }
+  .flowai-drawer { width: min(360px, 92vw); }
+  .plan-drawer { width: min(440px, 96vw); }
 }

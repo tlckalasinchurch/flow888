@@ -40,6 +40,10 @@ MAX_BODY_BYTES = 1_000_000
 METER_MIN_INTERVAL_S = 1.0 / 30.0
 METER_STALE_S = 2.0
 
+#: A drag gesture older than this is closed before the next command, so an
+#: abandoned pointer cannot turn unrelated commands into one undo step.
+GESTURE_MAX_S = 20.0
+
 # Actions that change the mix. After a scene recall, any of these marks the
 # current scene as edited. Scene, scribble and preset-list actions do not.
 _MIX_ACTIONS = frozenset({
@@ -78,7 +82,7 @@ LAN_LOCKED_FEATURES = {
 # Actions that change no mixer value: allowed while MIDI is closed.
 _OFFLINE_ACTIONS = frozenset({
     "setScribble", "librarySave", "libraryRename", "libraryDelete", "libraryImport",
-    "setActiveBus", "setActiveView", "previewChangePlan",
+    "setActiveBus", "setActiveView", "previewChangePlan", "beginGesture", "endGesture",
 })
 
 
@@ -135,6 +139,9 @@ class Flow8LanHub:
         self._last_meter_frame = 0.0
         self._last_meter_sent = 0.0
         self._local = threading.local()
+        # One open batch gesture at a time; a stale one is closed before the next command.
+        self._gesture_client: Optional[str] = None
+        self._gesture_started = 0.0
         self._meter_status: dict[str, Any] = {
             "state": "stopped", "detail": "Meters are off.", "device": None, "mode": None,
         }
@@ -204,6 +211,16 @@ class Flow8LanHub:
 
                 if self.path.startswith("/api/status"):
                     self._send_json(200, hub.status_snapshot())
+                    return
+
+                if self.path.startswith("/api/presets/thai"):
+                    from flow8.presets_th import CATALOG_ID, CATEGORIES, list_thai_presets
+
+                    self._send_json(200, {
+                        "catalog": CATALOG_ID,
+                        "categories": list(CATEGORIES),
+                        "presets": [p.as_payload() for p in list_thai_presets()],
+                    })
                     return
 
                 if self.path.startswith("/api/presets"):
@@ -546,6 +563,12 @@ class Flow8LanHub:
         """Execute a LAN action strictly through Flow8Service and safety rules."""
         action = str(msg.get("action", ""))
 
+        # A gesture the client never closed must not swallow later commands into
+        # one undo step, so close it after a bounded time.
+        if self._gesture_client is not None and time.monotonic() - self._gesture_started > GESTURE_MAX_S:
+            self.service.end_batch()
+            self._gesture_client = None
+
         # Safety blocks: never allow gain or +48V ON over LAN
         if action == "setGain" or "gain" in BLOCKED_PARAMETER_TYPES and action == "gain":
             return 403, {"ok": False, "error": "Preamp gain is blocked by safety policy (SR-05)."}
@@ -676,6 +699,16 @@ class Flow8LanHub:
                                     self.service.set_send(ch, str(target), val, unit=unit)
                     finally:
                         self.service.end_batch()
+            elif action == "beginGesture":
+                # A drag (pointer down) opens one ledger batch: every value the
+                # drag sends coalesces into a single undo step.
+                self.service.begin_batch()
+                self._gesture_client = str(msg.get("clientId") or "")
+                self._gesture_started = time.monotonic()
+            elif action == "endGesture":
+                steps = self.service.end_batch()
+                self._gesture_client = None
+                extra = {"steps": steps}
             elif action == "previewChangePlan":
                 from flow8.change_plan import make_plan
 
