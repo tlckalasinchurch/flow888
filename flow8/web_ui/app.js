@@ -2398,6 +2398,16 @@
     loadSession();
   }
 
+  // Merge several FlowAi suggestions into one reviewed plan; a later card wins
+  // a duplicated channel+parameter so the plan never has two conflicting rows.
+  function mergePlanChanges(cards) {
+    const byKey = new Map();
+    cards.forEach((card) => (card.changes || []).forEach((change) => {
+      byKey.set(`${change.channel}:${change.parameter}`, change);
+    }));
+    return [...byKey.values()];
+  }
+
   function renderFlowAiDrawer() {
     const drawer = document.getElementById('flowai-drawer');
     const btn = document.getElementById('btn-flowai');
