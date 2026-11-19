@@ -1818,20 +1818,22 @@
 
   function setTopTab(tab, syncHub = true) {
     topTab = tab;
+    const prevView = view;
     if (tab === 'mixer' || tab === 'stage') {
       lastLiveView = tab;
       view = tab;
-      if (syncHub) {
-        fetch('/api/action', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'setActiveView', view: tab, clientId }),
-        }).catch(() => {});
-      }
     } else if (tab === 'setup') {
       view = 'setup';
     } else {
+      lastLiveView = 'mixer';
       view = 'mixer';
+    }
+    if (syncHub && (view === 'mixer' || view === 'stage') && (view !== prevView || (session && session.activeView !== view))) {
+      fetch('/api/action', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'setActiveView', view, clientId }),
+      }).catch(() => {});
     }
     renderView();
   }
