@@ -1396,10 +1396,17 @@
     if (view === 'setup') renderSetup();
     renderInspector();
   }
-  function setView(v, page) {
+  function setView(v, page, syncHub = true) {
     if (v !== 'setup') lastLiveView = v;
     view = v;
     if (page) setupPage = page;
+    if (syncHub && (v === 'mixer' || v === 'stage')) {
+      fetch('/api/action', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'setActiveView', view: v, clientId }),
+      }).catch(() => {});
+    }
     renderView();
   }
 
@@ -1609,7 +1616,7 @@
 
   // ---------- Bus selector ----------
   // Tap a mix to put it on the faders. Tap the active mix again to open its settings.
-  function setLayer(layer, render = true) {
+  function setLayer(layer, render = true, syncHub = true) {
     activeLayer = layer;
     document.body.dataset.layer = layer;
     document.querySelectorAll('.bus-tab').forEach((b) => {
@@ -1619,6 +1626,13 @@
     });
     // A bus Inspector follows the selected mix.
     if (insp && insp.kind === 'bus') insp = { kind: 'bus', id: layer };
+    if (syncHub) {
+      fetch('/api/action', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'setActiveBus', bus: layer, clientId }),
+      }).catch(() => {});
+    }
     if (render) renderView();
   }
   document.querySelectorAll('.bus-tab').forEach((btn) => {
@@ -1689,6 +1703,13 @@
     } catch (_) {
       hubDown = true;
       applyConnectionState(false, 'HUB UNREACHABLE — check the host computer and the Wi-Fi link.');
+      return;
+    }
+    if (session.activeBus && LAYERS[session.activeBus] && session.activeBus !== activeLayer) {
+      setLayer(session.activeBus, false, false);
+    }
+    if (session.activeView && (session.activeView === 'mixer' || session.activeView === 'stage') && view !== 'setup' && session.activeView !== view) {
+      setView(session.activeView, undefined, false);
       return;
     }
     renderView();

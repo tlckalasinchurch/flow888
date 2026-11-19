@@ -97,6 +97,8 @@ class Flow8Service:
         self._connection_error: Optional[str] = None
         self._listeners: list[Callable[[str, Any], None]] = []
         self._command_log_listeners: list[Callable[[list], None]] = []
+        self._active_bus: str = "main"
+        self._active_view: str = "mixer"
 
         # Undo/redo and scenes. Both only ever dispatch through the public set_*
         # methods below, i.e. through the existing command boundary.
@@ -107,6 +109,42 @@ class Flow8Service:
 
         if auto_connect:
             self.connect()
+
+    @property
+    def active_bus(self) -> str:
+        """Currently selected Sends-on-Fader bus ('main', 'mon1', 'mon2', 'fx1', 'fx2')."""
+        with self._lock:
+            return self._active_bus
+
+    def set_active_bus(self, bus_id: str) -> str:
+        """Set the active Sends-on-Fader bus and notify UI listeners if changed."""
+        b_key = str(bus_id or "main").lower()
+        if b_key not in ("main", "mon1", "mon2", "fx1", "fx2"):
+            raise ValueError(f"Unsupported bus: {bus_id!r}")
+        with self._lock:
+            if self._active_bus == b_key:
+                return self._active_bus
+            self._active_bus = b_key
+        self._notify_listeners(STATE_CHANGED_EVENT, None)
+        return b_key
+
+    @property
+    def active_view(self) -> str:
+        """Currently selected workstation view mode ('mixer' or 'stage')."""
+        with self._lock:
+            return self._active_view
+
+    def set_active_view(self, view: str) -> str:
+        """Set the active workstation view mode ('mixer' or 'stage') and notify listeners."""
+        v_key = str(view or "mixer").lower()
+        if v_key not in ("mixer", "stage"):
+            raise ValueError(f"Unsupported view mode: {view!r}")
+        with self._lock:
+            if self._active_view == v_key:
+                return self._active_view
+            self._active_view = v_key
+        self._notify_listeners(STATE_CHANGED_EVENT, None)
+        return v_key
 
     @property
     def is_connected(self) -> bool:
@@ -689,7 +727,9 @@ class Flow8Service:
                 "No commanded or observed fader, pan or mute values to capture; "
                 "nothing was stored."
             )
-        return self.scenes.save_snapshot(name, state)
+        snapshot = self.scenes.save_snapshot(name, state)
+        self._notify_listeners(STATE_CHANGED_EVENT, None)
+        return snapshot
 
     def recall_scene(self, name: str, scope: Optional[Iterable[str]] = None) -> SceneRecallResult:
         """Dispatch a stored scene through the boundary as one undoable step.

@@ -78,6 +78,7 @@ LAN_LOCKED_FEATURES = {
 # Actions that change no mixer value: allowed while MIDI is closed.
 _OFFLINE_ACTIONS = frozenset({
     "setScribble", "librarySave", "libraryRename", "libraryDelete", "libraryImport",
+    "setActiveBus", "setActiveView",
 })
 
 
@@ -133,6 +134,7 @@ class Flow8LanHub:
         self._scene_edited = False
         self._last_meter_frame = 0.0
         self._last_meter_sent = 0.0
+        self._local = threading.local()
         self._meter_status: dict[str, Any] = {
             "state": "stopped", "detail": "Meters are off.", "device": None, "mode": None,
         }
@@ -296,6 +298,7 @@ class Flow8LanHub:
         self._server = _ThreadedHTTPServer((self.host, self._requested_port), Handler)
         self._listening = True
         self.service.add_listener(self._on_service_event)
+        self.service.add_command_log_listener(self._on_command_log)
         self._thread = threading.Thread(
             target=self._server.serve_forever,
             name="flow8-lan-hub",
@@ -310,6 +313,10 @@ class Flow8LanHub:
             self.service.remove_listener(self._on_service_event)
         except Exception:
             pass
+        try:
+            self.service.remove_command_log_listener(self._on_command_log)
+        except Exception:
+            pass
         if self._server is not None:
             try:
                 self._server.shutdown()
@@ -321,10 +328,18 @@ class Flow8LanHub:
             self._thread.join(timeout=2.0)
             self._thread = None
 
+    def _on_command_log(self, _entries: list) -> None:
+        """Broadcast desktop-originated commands to SSE browser clients."""
+        if getattr(self._local, "in_dispatch", False):
+            return
+        self.broadcast({"type": "state"})
+
     def _on_service_event(self, param_id: str, value: Any) -> None:
         # The service reports a real parameter id only for values the mixer sent
         # over MIDI IN (hardware moves). "__name__" ids are internal state events.
         if param_id.startswith("__"):
+            if param_id == "__changed__" and getattr(self._local, "in_dispatch", False):
+                return
             kind = "link" if param_id == "__reconcile__" else "state"
             self.broadcast({"type": kind})
             return
@@ -492,6 +507,8 @@ class Flow8LanHub:
             "meterStatus": self.meter_status,
             "currentScene": current_scene,
             "sceneEdited": scene_edited,
+            "activeBus": self.service.active_bus,
+            "activeView": self.service.active_view,
             "channels": channels,
             "buses": buses,
             "scenes": list(self.service.scenes.names()),
@@ -533,6 +550,7 @@ class Flow8LanHub:
             }
 
         extra: dict[str, Any] = {}
+        self._local.in_dispatch = True
         try:
             if action == "setFader":
                 self.service.set_fader(int(msg["channel"]), int(msg["value"]))
@@ -617,10 +635,20 @@ class Flow8LanHub:
                         "label": str(msg.get("label", ""))[:14] or LOGICAL_CHANNELS[ch].name,
                         "color": str(msg.get("color", "#38bdf8")),
                     }
+            elif action == "setActiveBus":
+                extra = {"activeBus": self.service.set_active_bus(str(msg.get("bus", "main")))}
+            elif action == "setActiveView":
+                extra = {"activeView": self.service.set_active_view(str(msg.get("view", "mixer")))}
             else:
                 return 400, {"ok": False, "error": f"unsupported or blocked action: {action!r}"}
         except Exception as exc:
             return 400, {"ok": False, "error": str(exc)}
+        finally:
+            if getattr(self._local, "in_dispatch", False):
+                try:
+                    self.service._notify_listeners("__changed__", None)
+                finally:
+                    self._local.in_dispatch = False
 
         with self._scene_lock:
             if action in ("captureScene", "recallScene"):

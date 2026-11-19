@@ -64,6 +64,12 @@ class _BaseControl(tk.Canvas):
     def _redraw(self) -> None:  # pragma: no cover
         raise NotImplementedError
 
+    def set_accent(self, accent: str) -> None:
+        """Update the control's active fill/cap accent color and redraw."""
+        if accent and accent != self.accent:
+            self.accent = accent
+            self._redraw()
+
     # -- interaction --------------------------------------------------------
     def _commit(self, value: int) -> None:
         value = max(self.minimum, min(self.maximum, int(value)))
@@ -181,8 +187,10 @@ class VerticalFader(_BaseControl):
         # handle
         hh = self.HANDLE_H / 2
         self.create_rectangle(cx - 20, y - hh, cx + 20, y + hh,
-                              fill=colors["surface_hover"], outline=self.accent, width=2)
-        self.create_line(cx - 14, y, cx + 14, y, fill=self.accent, width=3)
+                              fill=colors["surface_hover"], outline=self.accent, width=2,
+                              tags=("fader-cap",))
+        self.create_line(cx - 14, y, cx + 14, y, fill=self.accent, width=3,
+                         tags=("fader-cap-line",))
 
 
 class HorizontalSlider(_BaseControl):

@@ -53,6 +53,33 @@ COLORS = {
     "card_hero": "#14243A",
     "card_strip": "#172338",
     "pill_bg": "#112B35",
+
+    # Official FLOW 8 Sends-on-Fader Bus & Input Identity Colors
+    "bus_main": "#E6E8EB",
+    "bus_mon1": "#34D399",
+    "bus_mon2": "#34D399",
+    "bus_fx1": "#A78BFA",
+    "bus_fx2": "#A78BFA",
+    "bus_usb": "#4FA8FF",
+}
+
+BUS_COLORS = {
+    "main": "#E6E8EB",
+    "mon1": "#34D399",
+    "mon2": "#34D399",
+    "fx1": "#A78BFA",
+    "fx2": "#A78BFA",
+    "usb": "#4FA8FF",
+}
+
+BUS_ORDER = ("main", "mon1", "mon2", "fx1", "fx2")
+
+BUS_SPECS = {
+    "main": {"badge": "MAIN", "title": "Main L/R", "subtitle": "Master Output", "color": "#E6E8EB"},
+    "mon1": {"badge": "MON 1", "title": "Monitor 1", "subtitle": "Stage Monitor 1", "color": "#34D399"},
+    "mon2": {"badge": "MON 2", "title": "Monitor 2", "subtitle": "Stage Monitor 2", "color": "#34D399"},
+    "fx1": {"badge": "FX 1", "title": "FX 1 Return", "subtitle": "Reverb Engine 1", "color": "#A78BFA"},
+    "fx2": {"badge": "FX 2", "title": "FX 2 Return", "subtitle": "Delay / Mod 2", "color": "#A78BFA"},
 }
 
 # ---------------------------------------------------------------------------

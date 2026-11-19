@@ -91,10 +91,11 @@ class ChannelStripWidget(tk.Frame):
             highlightthickness=1,
             bd=0,
             padx=4,
-            pady=8,
+            pady=4,
         )
         self.channel_index = channel_index
         self.is_master = is_master
+        self.active_bus = "main"
         self.fonts = fonts
         self.service = service
         self.on_feedback = on_feedback
@@ -129,13 +130,34 @@ class ChannelStripWidget(tk.Frame):
 
         self._build(title, subtitle, kind_badge, pan_label)
 
+    def _bus_accent_color(self, bus_id: Optional[str] = None) -> str:
+        b_key = (bus_id or self.active_bus or "main").lower()
+        if b_key == "main" and not self.is_master and self.channel_index == 7:
+            return theme.BUS_COLORS["usb"]
+        return theme.BUS_COLORS.get(b_key, theme.BUS_COLORS["main"])
+
+    def _fader_param_id(self) -> str:
+        if self.is_master:
+            return "main.fader" if self.active_bus == "main" else f"{self.active_bus}.fader"
+        if self.active_bus == "main":
+            return f"ch{self.channel_index}.fader"
+        return f"ch{self.channel_index}.send_{self.active_bus}"
+
+    def _default_fader_raw(self) -> int:
+        return 101 if (self.is_master and self.active_bus == "main") else 0
+
     def _build(self, title: str, subtitle: str, kind_badge: str, pan_label: str) -> None:
         colors = theme.COLORS
+        bus_accent = self._bus_accent_color("main")
 
         # 1. Strip Header (the only region that selects the strip)
         hdr = tk.Frame(self, bg=colors["surface"])
-        hdr.pack(fill="x", pady=(0, 6))
+        hdr.pack(fill="x", pady=(0, 4))
         self.header_frame = hdr
+
+        # Top Bus / Identity Color Bar (Sends on Fader visual cue)
+        self.header_accent_bar = tk.Frame(hdr, bg=bus_accent, height=3)
+        self.header_accent_bar.pack(fill="x", pady=(0, 3))
 
         # Channel Number & Type Badge
         top_row = tk.Frame(hdr, bg=colors["surface"])
@@ -145,37 +167,40 @@ class ChannelStripWidget(tk.Frame):
         # Bolder, larger channel badge for hierarchy
         ch_font = self.fonts["eyebrow"]
         ch_padx = 1 if self.is_master else 3
-        tk.Label(
+        self.num_badge_label = tk.Label(
             top_row,
             text=ch_num_text,
             font=ch_font,
-            fg=colors["cyan"] if self.is_master else colors["cyan_soft"],
+            fg=bus_accent if (self.is_master or self.channel_index == 7) else colors["cyan_soft"],
             bg=colors["surface"],
             padx=ch_padx,
             pady=1,
-        ).pack(side="left")
+        )
+        self.num_badge_label.pack(side="left")
 
-        tk.Label(
+        self.kind_badge_label = tk.Label(
             top_row,
             text=kind_badge,
             font=self.fonts["caption"],
-            fg=colors["purple_soft"] if not self.is_master else colors["lime"],
+            fg=bus_accent if self.channel_index == 7 else (colors["purple_soft"] if not self.is_master else colors["lime"]),
             bg=colors["surface_alt"],
             padx=1 if self.is_master else 3,
             pady=1,
-        ).pack(side="right")
+        )
+        self.kind_badge_label.pack(side="right")
 
         # Name
-        tk.Label(
+        self.title_label = tk.Label(
             hdr,
             text=title,
             font=self.fonts["subtitle"] if self.is_master else self.fonts["nav_active"],
             fg=colors["text"],
             bg=colors["surface"],
             anchor="w",
-        ).pack(fill="x", pady=(2, 0))
+        )
+        self.title_label.pack(fill="x", pady=(2, 0))
 
-        tk.Label(
+        self.subtitle_label = tk.Label(
             hdr,
             text=subtitle,
             font=self.fonts["caption"],
@@ -184,7 +209,8 @@ class ChannelStripWidget(tk.Frame):
             anchor="w",
             wraplength=76,
             justify="left",
-        ).pack(fill="x")
+        )
+        self.subtitle_label.pack(fill="x")
 
         self._bind_header_selection(hdr)
 
@@ -305,23 +331,21 @@ class ChannelStripWidget(tk.Frame):
             variable=self.fader_val,
             command=self._on_fader_drag,
             default=101,
-            accent=colors["cyan"] if self.is_master else (
-                colors["cyan"], colors["purple"], colors["warning"],
-                colors["danger"], colors["lime"], colors["cyan_soft"], colors["purple_soft"],
-            )[(self.channel_index - 1) % 7],
+            accent=bus_accent,
         )
         self.fader_scale.pack(fill="both", expand=True)
         self.fader_scale.bind("<ButtonPress-1>", self._begin_gesture, add="+")
         self.fader_scale.bind("<ButtonRelease-1>", self._on_fader_release, add="+")
 
         # 7. Strip Footer Number
-        tk.Label(
+        self.footer_label = tk.Label(
             self,
             text=ch_num_text,
             font=self.fonts["eyebrow"],
             fg=colors["text_muted"],
             bg=colors["surface"],
-        ).pack(side="bottom", pady=(4, 0))
+        )
+        self.footer_label.pack(side="bottom", pady=(2, 0))
 
     # -- User Interactions --------------------------------------------------
 
@@ -373,12 +397,20 @@ class ChannelStripWidget(tk.Frame):
         if not self.service:
             return
         try:
-            self.service.set_fader(self.channel_index, val)
+            if self.active_bus == "main":
+                self.service.set_fader(self.channel_index, val)
+                label = "MAIN: FADER COMMANDED" if self.is_master else f"CH {self.channel_index}: FADER COMMANDED"
+            elif self.is_master:
+                self.service.set_bus_fader(self.active_bus, val)
+                label = f"{self.active_bus.upper()}: MASTER FADER COMMANDED"
+            else:
+                self.service.set_send(self.channel_index, self.active_bus, val, unit="raw")
+                label = f"CH {self.channel_index} -> {self.active_bus.upper()}: SEND COMMANDED"
             self._last_fader_val = val
             self.fader_provenance = ValueProvenance.COMMANDED
             if hasattr(self, "fader_badge"):
                 self.fader_badge.set_provenance(self.fader_provenance)
-            self._feedback(f"CH {self.channel_index}: FADER COMMANDED")
+            self._feedback(label)
         except Exception:
             logging.getLogger(__name__).exception("Fader command failed")
             self.fader_val.set(previous)
@@ -511,16 +543,81 @@ class ChannelStripWidget(tk.Frame):
             self.configure(highlightbackground=colors["cyan"], highlightthickness=2)
         else:
             self.configure(
-                highlightbackground=colors["cyan"] if self.is_master else colors["border"],
+                highlightbackground=self._bus_accent_color() if self.is_master else colors["border"],
                 highlightthickness=1,
             )
+
+    def set_active_bus(self, bus_id: str) -> None:
+        """Switch this strip's Sends-on-Fader layer and dynamically retint its header & fader cap."""
+        b_key = str(bus_id or "main").lower()
+        if b_key not in theme.BUS_SPECS:
+            return
+        self.active_bus = b_key
+        accent = self._bus_accent_color(b_key)
+        self.header_accent_bar.configure(bg=accent)
+        self.fader_scale.set_accent(accent)
+
+        if self.is_master:
+            spec = theme.BUS_SPECS[b_key]
+            self.num_badge_label.configure(text=spec["badge"], fg=accent)
+            self.title_label.configure(text=spec["title"])
+            self.subtitle_label.configure(text=spec["subtitle"])
+            self.footer_label.configure(text=spec["badge"])
+            if not self.is_selected:
+                self.configure(highlightbackground=accent)
+        else:
+            self.num_badge_label.configure(
+                fg=accent if (b_key != "main" or self.channel_index == 7) else theme.COLORS["cyan_soft"]
+            )
+
+        self._load_active_bus_fader_state()
+
+    def _load_active_bus_fader_state(self) -> None:
+        """Load the current fader/send level for the active bus without dispatching."""
+        default_raw = self._default_fader_raw()
+        state = None
+        if self.service is not None:
+            try:
+                state = self.service.state_store.get_parameter(self._fader_param_id())
+            except Exception:
+                state = None
+        self._is_updating = True
+        try:
+            raw = None
+            prov = ValueProvenance.UNSYNCED_DEFAULT
+            if state is not None:
+                if state.commanded_raw_midi is not None:
+                    raw = int(state.commanded_raw_midi)
+                    prov = ValueProvenance.COMMANDED
+                elif getattr(state, "observed_raw_midi", None) is not None:
+                    raw = int(state.observed_raw_midi)
+                    prov = ValueProvenance.OBSERVED
+            if raw is None:
+                raw = default_raw
+                db_text, midi_text = format_db(raw).split(" · ", 1)
+                self.db_label_var.set(db_text)
+                self.midi_label_var.set(f"{midi_text} DEFAULT")
+            else:
+                self._set_fader_labels(raw)
+            self.fader_val.set(raw)
+            self._last_fader_val = raw
+            self.fader_provenance = prov
+            if hasattr(self, "fader_badge"):
+                self.fader_badge.set_provenance(self.fader_provenance)
+        finally:
+            self._is_updating = False
 
     def _restore_commanded_value(self, parameter: str) -> None:
         """Restore the last accepted software command after a failed dispatch."""
         if self.service is None:
             return
         target = "main" if self.is_master else f"ch{self.channel_index}"
-        param_id = "main.balance" if self.is_master and parameter == "pan" else f"{target}.{parameter}"
+        if parameter == "fader":
+            param_id = self._fader_param_id()
+        elif self.is_master and parameter == "pan":
+            param_id = "main.balance"
+        else:
+            param_id = f"{target}.{parameter}"
         try:
             state = self.service.state_store.get_parameter(param_id)
         except Exception:
@@ -528,34 +625,38 @@ class ChannelStripWidget(tk.Frame):
         if state is None:
             return
 
-        if parameter in ("fader", "pan"):
-            raw = state.commanded_raw_midi
-            if raw is None:
-                raw = state.raw_midi_value
-            if not isinstance(raw, int):
-                return
-            commanded = state.commanded_raw_midi is not None
-            if parameter == "fader":
-                self.fader_val.set(raw)
-                self._set_fader_labels(raw)
-                self._last_fader_val = raw
-                if commanded:
-                    self.fader_provenance = ValueProvenance.COMMANDED
-                if hasattr(self, "fader_badge"):
-                    self.fader_badge.set_provenance(self.fader_provenance)
-            else:
-                self.pan_val.set(raw)
-                self.pan_label_var.set(format_pan(raw))
-                self._last_pan_val = raw
-                if commanded:
-                    self.pan_provenance = ValueProvenance.COMMANDED
-        elif parameter == "mute":
-            self.is_muted.set(bool(state.commanded_value))
-            self._update_mute_ui(bool(state.commanded_value))
-            if state.commanded_raw_midi is not None:
-                self.mute_provenance = ValueProvenance.COMMANDED
-        elif parameter == "phantom":
-            self.sync_phantom(bool(state.commanded_value))
+        self._is_updating = True
+        try:
+            if parameter in ("fader", "pan"):
+                raw = state.commanded_raw_midi
+                if raw is None:
+                    raw = state.raw_midi_value
+                if not isinstance(raw, int):
+                    return
+                commanded = state.commanded_raw_midi is not None
+                if parameter == "fader":
+                    self.fader_val.set(raw)
+                    self._set_fader_labels(raw)
+                    self._last_fader_val = raw
+                    if commanded:
+                        self.fader_provenance = ValueProvenance.COMMANDED
+                    if hasattr(self, "fader_badge"):
+                        self.fader_badge.set_provenance(self.fader_provenance)
+                else:
+                    self.pan_val.set(raw)
+                    self.pan_label_var.set(format_pan(raw))
+                    self._last_pan_val = raw
+                    if commanded:
+                        self.pan_provenance = ValueProvenance.COMMANDED
+            elif parameter == "mute":
+                self.is_muted.set(bool(state.commanded_value))
+                self._update_mute_ui(bool(state.commanded_value))
+                if state.commanded_raw_midi is not None:
+                    self.mute_provenance = ValueProvenance.COMMANDED
+            elif parameter == "phantom":
+                self.sync_phantom(bool(state.commanded_value))
+        finally:
+            self._is_updating = False
 
     def refresh_commanded(self) -> None:
         """Show the last accepted software command (after undo/redo).
@@ -567,10 +668,12 @@ class ChannelStripWidget(tk.Frame):
             return
         target = "main" if self.is_master else f"ch{self.channel_index}"
         for parameter in ("fader", "pan") if self.is_master else ("fader", "pan", "mute"):
-            param_id = (
-                "main.balance" if self.is_master and parameter == "pan"
-                else f"{target}.{parameter}"
-            )
+            if parameter == "fader":
+                param_id = self._fader_param_id()
+            elif self.is_master and parameter == "pan":
+                param_id = "main.balance"
+            else:
+                param_id = f"{target}.{parameter}"
             try:
                 state = self.service.state_store.get_parameter(param_id)
             except Exception:
@@ -619,7 +722,7 @@ class ChannelStripWidget(tk.Frame):
         """
         self._is_updating = True
         try:
-            fader = 101 if self.is_master else 0
+            fader = self._default_fader_raw()
             self.fader_val.set(fader)
             self._last_fader_val = fader
             db_text, midi_text = format_db(fader).split(" · ", 1)
@@ -849,6 +952,8 @@ class MixerConsole(tk.Frame):
         self.on_feedback = on_feedback
         self.strips: Dict[int, ChannelStripWidget] = {}
         self.bus_strips: Dict[str, "BusMasterStripWidget"] = {}
+        self.bus_buttons: Dict[str, tk.Button] = {}
+        self.active_bus: str = "main"
         self._bus_view_active = False
         self.selected_target: Optional[SelectionTarget] = None
         # Service listeners may run on the MIDI thread: they only enqueue; the Tk
@@ -898,7 +1003,7 @@ class MixerConsole(tk.Frame):
 
         # Console Header Banner
         banner = tk.Frame(self, bg=colors["background"])
-        banner.pack(fill="x", padx=spacing["spacing_large"], pady=(spacing["spacing_medium"], spacing["spacing_small"]))
+        banner.pack(fill="x", padx=spacing["spacing_large"], pady=(4, 2))
 
         tk.Label(
             banner,
@@ -1004,6 +1109,45 @@ class MixerConsole(tk.Frame):
         )
         self.mute_all_btn.pack(side="left", padx=(4, 0))
 
+        # Sends-on-Fader Bus Selector Bar (Official FLOW 8 workflow parity)
+        bus_bar = tk.Frame(self, bg=colors["background"])
+        bus_bar.pack(fill="x", padx=spacing["spacing_large"], pady=(0, 3))
+        self.bus_bar = bus_bar
+
+        tk.Label(
+            bus_bar,
+            text="SENDS ON FADER:",
+            font=self.fonts["eyebrow"],
+            fg=colors["text_muted"],
+            bg=colors["background"],
+        ).pack(side="left", padx=(0, 6))
+
+        for bus_id in theme.BUS_ORDER:
+            spec = theme.BUS_SPECS[bus_id]
+            btn = tk.Button(
+                bus_bar,
+                text=spec["badge"],
+                font=self.fonts["eyebrow"],
+                bd=0,
+                relief="flat",
+                cursor="hand2",
+                padx=8,
+                pady=1,
+                command=lambda b=bus_id: self.select_bus(b),
+            )
+            btn.pack(side="left", padx=2)
+            self.bus_buttons[bus_id] = btn
+
+        self.active_bus_label_var = tk.StringVar(value="ACTIVE MIX: MAIN L/R")
+        tk.Label(
+            bus_bar,
+            textvariable=self.active_bus_label_var,
+            font=self.fonts["status_key"],
+            fg=theme.BUS_COLORS["main"],
+            bg=colors["background"],
+        ).pack(side="left", padx=(10, 0))
+        self._active_bus_indicator = bus_bar.winfo_children()[-1]
+
         # Middle band: strips on the left, the Channel Detail Inspector docks on
         # the right while a target is selected.
         self._middle = tk.Frame(self, bg=colors["background"])
@@ -1014,7 +1158,7 @@ class MixerConsole(tk.Frame):
         self._strips_container = strips_container
         strips_container.pack(
             side="left", fill="both", expand=True,
-            padx=spacing["spacing_medium"], pady=(0, spacing["spacing_large"]),
+            padx=spacing["spacing_medium"], pady=(0, 4),
         )
 
         # Grid configuration: 8 columns (1-7 strips + 8 main)
@@ -1096,6 +1240,37 @@ class MixerConsole(tk.Frame):
             bstrip.grid(row=0, column=col, sticky="nsew", padx=8, pady=4)
             self.bus_strips[bus_id] = bstrip
 
+        initial_bus = getattr(self.service, "active_bus", "main") if self.service else "main"
+        self.select_bus(initial_bus, notify_service=False)
+
+    def select_bus(self, bus_id: str, notify_service: bool = True) -> bool:
+        """Select the active Sends-on-Fader bus ('main', 'mon1', 'mon2', 'fx1', 'fx2')."""
+        b_key = str(bus_id or "main").lower()
+        if b_key not in theme.BUS_SPECS:
+            return False
+        self.active_bus = b_key
+        colors = theme.COLORS
+        for key, btn in self.bus_buttons.items():
+            accent = theme.BUS_COLORS[key]
+            if key == b_key:
+                btn.configure(bg=accent, fg=colors["background"], activebackground=accent, activeforeground=colors["background"])
+            else:
+                btn.configure(bg=colors["surface_alt"], fg=accent, activebackground=colors["surface_hover"], activeforeground=accent)
+        spec = theme.BUS_SPECS[b_key]
+        self.active_bus_label_var.set(f"ACTIVE MIX: {spec['title'].upper()}")
+        if hasattr(self, "_active_bus_indicator"):
+            self._active_bus_indicator.configure(fg=spec["color"])
+        for strip in self.strips.values():
+            strip.set_active_bus(b_key)
+        if notify_service and self.service is not None:
+            setter = getattr(self.service, "set_active_bus", None)
+            if callable(setter):
+                try:
+                    setter(b_key)
+                except Exception:
+                    pass
+        return True
+
     def toggle_bus_masters(self) -> None:
         """Toggle between the 7+1 input/main view and the 4 Bus Master faders."""
         colors = theme.COLORS
@@ -1103,7 +1278,7 @@ class MixerConsole(tk.Frame):
             self._bus_container.pack_forget()
             self._strips_container.pack(
                 side="left", fill="both", expand=True,
-                padx=theme.TOKENS["spacing_medium"], pady=(0, theme.TOKENS["spacing_large"]),
+                padx=theme.TOKENS["spacing_medium"], pady=(0, 4),
             )
             self._bus_view_active = False
             self.bus_view_btn.configure(bg=colors["surface_alt"], fg=colors["lime"])
@@ -1113,7 +1288,7 @@ class MixerConsole(tk.Frame):
             self._strips_container.pack_forget()
             self._bus_container.pack(
                 side="left", fill="both", expand=True,
-                padx=theme.TOKENS["spacing_medium"], pady=(0, theme.TOKENS["spacing_large"]),
+                padx=theme.TOKENS["spacing_medium"], pady=(0, 4),
             )
             self._bus_view_active = True
             self.bus_view_btn.configure(bg=colors["cyan"], fg=colors["background"])
@@ -1354,10 +1529,17 @@ class MixerConsole(tk.Frame):
             self._refresh_history_buttons()
         if STATE_CHANGED_EVENT in latest:
             del latest[STATE_CHANGED_EVENT]
+            svc_bus = getattr(self.service, "active_bus", None)
+            if isinstance(svc_bus, str) and svc_bus != self.active_bus and svc_bus in theme.BUS_SPECS:
+                self.select_bus(svc_bus, notify_service=False)
             for strip in self.strips.values():
                 strip.refresh_commanded()
             for bstrip in self.bus_strips.values():
                 bstrip.refresh_commanded()
+            self._refresh_scene_slots()
+            self._refresh_history_buttons()
+        if "__command_log__" in latest:
+            self._handle_log_update(latest.pop("__command_log__"))
         # Observed values only repaint the strip; they are never sent back to hardware.
         for param_id, value in latest.items():
             self._apply_observed(param_id, value)
@@ -1367,10 +1549,14 @@ class MixerConsole(tk.Frame):
         head, _, name = param_id.partition(".")
         if head in self.bus_strips and name == "fader" and value is not None:
             self.bus_strips[head].sync_fader(int(value))
+            if head == self.active_bus and 8 in self.strips:
+                self.strips[8].sync_fader(int(value))
             return
         if head == "main":
             strip = self.strips.get(8)
             name = "pan" if name == "balance" else name
+            if name == "fader" and self.active_bus != "main":
+                return
         elif head.startswith("ch") and head[2:].isdigit():
             strip = self.strips.get(int(head[2:]))
         else:
@@ -1378,6 +1564,10 @@ class MixerConsole(tk.Frame):
         if strip is None or value is None:
             return
         if name == "fader":
+            if not strip.is_master and self.active_bus != "main":
+                return
+            strip.sync_fader(int(value))
+        elif name == f"send_{self.active_bus}" and not strip.is_master:
             strip.sync_fader(int(value))
         elif name == "pan":
             strip.sync_pan(int(value))
@@ -1458,12 +1648,12 @@ class MixerConsole(tk.Frame):
 
     def _on_command_log_update(self, entries: list) -> None:
         """Schedule command-log rendering on the Tk main thread."""
+        snapshot = list(entries)
         try:
-            snapshot = list(entries)
             self.after_idle(lambda: self._handle_log_update(snapshot))
-        except tk.TclError:
-            # The widget may be closing while a worker callback is in flight.
-            return
+        except (tk.TclError, RuntimeError):
+            # Called from a worker thread while Tk mainloop is not active, or closing.
+            self._ui_queue.put(("__command_log__", snapshot))
 
     def _handle_log_update(self, snapshot: list) -> None:
         try:

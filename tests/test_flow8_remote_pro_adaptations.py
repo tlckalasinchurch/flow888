@@ -258,5 +258,108 @@ class LibraryAndSysexTests(unittest.TestCase):
         self.assertTrue(parsed_frame["crc_valid"])
 
 
+class SendsOnFaderAndCrossSurfaceSyncTests(unittest.TestCase):
+    def setUp(self):
+        patcher = mock.patch.object(
+            Flow8Service, "is_connected", new_callable=mock.PropertyMock, return_value=True,
+        )
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        self.root = tk.Tk()
+        self.root.withdraw()
+        self.addCleanup(self._cleanup)
+        self.fonts = theme.build_fonts(self.root)
+        self.service = Flow8Service(auto_connect=False)
+        self.console = MixerConsole(self.root, self.fonts, service=self.service)
+        self.console.pack(fill="both", expand=True)
+        self.hub = Flow8LanHub(self.service, host="127.0.0.1", port=0)
+        self.port = self.hub.start()
+        self.addCleanup(self.hub.stop)
+
+    def _cleanup(self):
+        try:
+            self.root.destroy()
+        except Exception:
+            pass
+
+    def _post(self, payload: dict) -> tuple[int, dict]:
+        req = urllib.request.Request(
+            f"http://127.0.0.1:{self.port}/api/action",
+            data=json.dumps(payload).encode("utf-8"),
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        with urllib.request.urlopen(req, timeout=3) as resp:
+            return resp.status, json.loads(resp.read().decode("utf-8"))
+
+    def _get_session(self) -> dict:
+        with urllib.request.urlopen(f"http://127.0.0.1:{self.port}/api/session", timeout=3) as resp:
+            return json.loads(resp.read().decode("utf-8"))
+
+    def test_bus_color_coding_and_sends_on_fader_dispatch(self):
+        # Default MAIN layer: Ch 1..6 White/Silver (#E6E8EB), Ch 7 USB/BT Blue (#4FA8FF), Master (#E6E8EB)
+        self.assertEqual(self.console.active_bus, "main")
+        self.assertEqual(str(self.console.strips[1].header_accent_bar.cget("bg")), "#E6E8EB")
+        self.assertEqual(self.console.strips[1].fader_scale.accent, "#E6E8EB")
+        self.assertEqual(str(self.console.strips[7].header_accent_bar.cget("bg")), "#4FA8FF")
+        self.assertEqual(self.console.strips[7].fader_scale.accent, "#4FA8FF")
+        self.assertEqual(str(self.console.strips[8].title_label.cget("text")), "Main L/R")
+
+        # Select MON 1 -> Emerald Green (#34D399)
+        self.console.select_bus("mon1")
+        self.assertEqual(self.console.active_bus, "mon1")
+        self.assertEqual(self.service.active_bus, "mon1")
+        for ch in range(1, 9):
+            self.assertEqual(str(self.console.strips[ch].header_accent_bar.cget("bg")), "#34D399")
+            self.assertEqual(self.console.strips[ch].fader_scale.accent, "#34D399")
+        self.assertEqual(str(self.console.strips[8].title_label.cget("text")), "Monitor 1")
+        self.assertEqual(str(self.console.strips[8].num_badge_label.cget("text")), "MON 1")
+
+        # Moving strip 1 fader in MON 1 mode dispatches ch1.send_mon1
+        self.console.strips[1]._on_fader_drag("77")
+        self.console.strips[1]._flush_fader()
+        self.assertEqual(self.service.state_store.get_parameter("ch1.send_mon1").commanded_raw_midi, 77)
+
+        # Moving Master strip (8) fader in MON 1 mode dispatches mon1.fader
+        self.console.strips[8]._on_fader_drag("92")
+        self.console.strips[8]._flush_fader()
+        self.assertEqual(self.service.state_store.get_parameter("mon1.fader").commanded_raw_midi, 92)
+
+        # Select FX 2 -> Violet Purple (#A78BFA)
+        self.console.select_bus("fx2")
+        self.assertEqual(self.console.active_bus, "fx2")
+        self.assertEqual(str(self.console.strips[1].header_accent_bar.cget("bg")), "#A78BFA")
+        self.assertEqual(self.console.strips[8].fader_scale.accent, "#A78BFA")
+        self.assertEqual(str(self.console.strips[8].title_label.cget("text")), "FX 2 Return")
+        self.console.strips[2]._on_fader_drag("65")
+        self.console.strips[2]._flush_fader()
+        self.assertEqual(self.service.state_store.get_parameter("ch2.send_fx2").commanded_raw_midi, 65)
+
+    def test_cross_surface_sync_between_lan_hub_and_tkinter_console(self):
+        # 1. iPad Web UI switches active bus to FX 1 and adjusts send + bus master
+        code, _ = self._post({"action": "setActiveBus", "bus": "fx1"})
+        self.assertEqual(code, 200)
+        self.console._drain_ui_queue()
+        self.assertEqual(self.console.active_bus, "fx1")
+        self.assertEqual(self.console.strips[1].fader_scale.accent, "#A78BFA")
+
+        code, _ = self._post({"action": "setSend", "channel": 1, "target": "fx1", "value": 88})
+        self.assertEqual(code, 200)
+        code, _ = self._post({"action": "setBusFader", "bus": "fx1", "value": 105})
+        self.assertEqual(code, 200)
+        self.console._drain_ui_queue()
+        self.assertEqual(self.console.strips[1].fader_val.get(), 88)
+        self.assertEqual(self.console.strips[8].fader_val.get(), 105)
+
+        # 2. Desktop switches back to MAIN and moves ch1 fader -> session reflects both
+        self.console.select_bus("main")
+        self.console.strips[1]._on_fader_drag("99")
+        self.console.strips[1]._flush_fader()
+        snap = self._get_session()
+        self.assertEqual(snap["activeBus"], "main")
+        ch1 = next(c for c in snap["channels"] if c["index"] == 1)
+        self.assertEqual(ch1["fader"], 99)
+
+
 if __name__ == "__main__":
     unittest.main()
