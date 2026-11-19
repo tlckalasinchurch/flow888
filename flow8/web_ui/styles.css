@@ -52,7 +52,7 @@ button { font-family: var(--font-sans); }
 :focus { outline: none; }
 :focus-visible { outline: 2px solid var(--accent-cyan); outline-offset: 2px; }
 
-.app-shell { display: flex; flex-direction: column; height: 100vh; height: 100dvh; }
+.app-shell { display: flex; flex-direction: column; height: 100%; }
 
 /* ---------- Status strip ---------- */
 .app-header {
@@ -1117,4 +1117,44 @@ body[data-section="sound"] .fader-well, body[data-tab="stage"] .fader-well { min
   body[data-tab="stage"] .split-workspace .console-bank { height: 292px; }
   body[data-section="sound"] .fader-zone, body[data-tab="stage"] .fader-zone { min-height: 100px; }
   body[data-section="sound"] .fader-well, body[data-tab="stage"] .fader-well { min-height: 100px; }
+}
+
+/* ============================================================================
+   Automatic device fit (no device sniffing): safe areas, large screens, short screens
+   ============================================================================ */
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; overscroll-behavior: none; }
+button, [role="button"], select, input[type="range"] { touch-action: manipulation; }
+:root { --ui-zoom: 1; }
+body { height: calc(100vh / var(--ui-zoom)); height: calc(100dvh / var(--ui-zoom)); width: calc(100vw / var(--ui-zoom)); zoom: var(--ui-zoom); }
+/* Safari / notched phones and the iPad home indicator: viewport-fit=cover lets content reach the edges. */
+.app-shell {
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  padding-left: env(safe-area-inset-left, 0px);
+}
+@media (max-width: 760px) { .inspector { padding-bottom: env(safe-area-inset-bottom, 0px); } }
+.toast { margin-bottom: env(safe-area-inset-bottom, 0px); }
+
+/* Large screens: scale the whole UI so controls keep a finger/eye-sized footprint.
+   Stepped on both width and height so a wide-but-short window is not over-scaled. */
+@media (min-width: 1700px) and (min-height: 900px)  { :root { --ui-zoom: 1.2; } }
+@media (min-width: 2200px) and (min-height: 1200px) { :root { --ui-zoom: 1.5; } }
+@media (min-width: 3600px) and (min-height: 1900px) { :root { --ui-zoom: 2; } }
+/* Wide screens: strips may grow, and the bank centres when there is spare room (auto margins
+   collapse to 0 when it overflows, so scrolling still reaches the first strip). */
+@media (min-width: 1500px) { .strip { max-width: 190px; } }
+.console-bank > .strip:first-child { margin-left: auto; }
+.console-bank > .strip.master { margin-right: auto; }
+
+/* Short screens (phone in landscape): one toolbar row, and a bank that cannot crowd out the tool. */
+.toolbars { display: block; flex-shrink: 0; }
+@media (max-height: 520px) {
+  .app-header { min-height: 0; padding-top: 2px; padding-bottom: 2px; }
+  .toolbars { display: flex; align-items: stretch; overflow-x: auto; background: var(--bg-panel); border-bottom: 1px solid var(--border-dark); }
+  .toolbars .control-bar { flex: 0 0 auto; border-bottom: 0; }
+  .toolbars .cue-tabs { flex: 1 0 auto; border-bottom: 0; padding-top: 0; padding-bottom: 0; }
+  /* No room for a tool and a bank together: the tool gets the screen; faders are one tap away in Mix. */
+  body[data-section="sound"] .console-bank, body[data-tab="stage"] .console-bank { display: none; }
+  body[data-section="sound"] .top-pane, body[data-tab="stage"] .top-pane { flex: 1 1 auto; }
 }
