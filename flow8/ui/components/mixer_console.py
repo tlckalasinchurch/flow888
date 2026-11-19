@@ -9,15 +9,21 @@ from __future__ import annotations
 import logging
 import queue
 import sys
+import time
 import tkinter as tk
 from enum import Enum
-from typing import Any, Callable, Dict, Optional
+from typing import Any, Callable, Dict, Mapping, Optional
 
 from flow8.domain_model import LOGICAL_CHANNELS
 from flow8.service import RECONCILE_EVENT, STATE_CHANGED_EVENT
 from flow8.parameter_mapping import fader_midi_to_db, pan_midi_to_percent
 from flow8.ui import theme
-from flow8.ui.components.controls import HorizontalSlider, ProvenanceBadge, VerticalFader
+from flow8.ui.components.controls import (
+    HorizontalSlider,
+    ProvenanceBadge,
+    RotaryDial,
+    VerticalFader,
+)
 from flow8.ui.components.command_log import CommandLogPanel
 from flow8.ui.components.scene_bar import SceneBar, slot_name
 from flow8.ui.components.channel_detail import (
@@ -942,19 +948,342 @@ class BusMasterStripWidget(tk.Frame):
         super().destroy()
 
 
+STAGE_STRIP_TAGS = {
+    1: "MIC 1",
+    2: "MIC 2",
+    3: "COMBO 3",
+    4: "COMBO 4",
+    5: "LINE 5/6",
+    6: "LINE 7/8",
+    7: "BT/USB",
+}
+
+
+class StageChannelCard(tk.Frame):
+    """Single channel rotary card in the live-performance STAGE view."""
+
+    def __init__(
+        self,
+        master: tk.Misc,
+        channel_index: int,
+        title: str,
+        subtitle: str,
+        fonts: dict,
+        service: Any = None,
+        on_select: Optional[Callable[[SelectionTarget], None]] = None,
+        on_feedback: Any = None,
+    ) -> None:
+        colors = theme.COLORS
+        super().__init__(
+            master,
+            bg=colors["surface"],
+            highlightbackground=colors["border"],
+            highlightthickness=1,
+            bd=0,
+            padx=8,
+            pady=6,
+        )
+        self.channel_index = channel_index
+        self.tag = STAGE_STRIP_TAGS.get(channel_index, f"CH {channel_index}")
+        self.title = title
+        self.subtitle = subtitle
+        self.fonts = fonts
+        self.service = service
+        self._on_select = on_select
+        self.on_feedback = on_feedback
+        self.active_bus = "main"
+        self.is_selected = False
+        self._is_updating = False
+
+        self.level_val = tk.IntVar(value=0)
+        self._last_level_val = 0
+        self._pending_level: Optional[int] = None
+        self._level_after_id: Optional[str] = None
+        self.is_muted = tk.BooleanVar(value=False)
+        self.level_label_var = tk.StringVar(value="Approx. -inf dB · DEFAULT")
+        self.bus_route_var = tk.StringVar(value="LEVEL · MAIN")
+
+        self._build()
+
+    def _bus_accent_color(self, bus_id: Optional[str] = None) -> str:
+        b_key = (bus_id or self.active_bus or "main").lower()
+        if b_key == "main" and self.channel_index == 7:
+            return theme.BUS_COLORS["usb"]
+        return theme.BUS_COLORS.get(b_key, theme.BUS_COLORS["main"])
+
+    def _param_id(self) -> str:
+        if self.active_bus == "main":
+            return f"ch{self.channel_index}.fader"
+        return f"ch{self.channel_index}.send_{self.active_bus}"
+
+    def _build(self) -> None:
+        colors = theme.COLORS
+        accent = self._bus_accent_color("main")
+
+        self.header_accent_bar = tk.Frame(self, bg=accent, height=3)
+        self.header_accent_bar.pack(fill="x", pady=(0, 4))
+
+        hdr = tk.Frame(self, bg=colors["surface_alt"], padx=6, pady=3)
+        hdr.pack(fill="x")
+        self.header_frame = hdr
+
+        top = tk.Frame(hdr, bg=colors["surface_alt"])
+        top.pack(fill="x")
+        self.tag_label = tk.Label(
+            top, text=self.tag, font=self.fonts["eyebrow"],
+            fg=accent, bg=colors["surface_alt"], anchor="w",
+        )
+        self.tag_label.pack(side="left")
+
+        self.route_label = tk.Label(
+            top, textvariable=self.bus_route_var, font=self.fonts["status_key"],
+            fg=colors["text_secondary"], bg=colors["surface_alt"], anchor="e",
+        )
+        self.route_label.pack(side="right")
+
+        self.name_label = tk.Label(
+            hdr, text=f"{self.title} · {self.subtitle}", font=self.fonts["caption"],
+            fg=colors["text"], bg=colors["surface_alt"], anchor="w",
+        )
+        self.name_label.pack(fill="x")
+        self._bind_click(hdr)
+
+        self.dial = RotaryDial(
+            self,
+            variable=self.level_val,
+            command=self._on_dial_drag,
+            default=101,
+            accent=accent,
+            width=108,
+            height=108,
+        )
+        self.dial.pack(expand=True, pady=2)
+        self.dial.bind("<ButtonPress-1>", self._begin_gesture, add="+")
+        self.dial.bind("<ButtonRelease-1>", self._on_dial_release, add="+")
+
+        tk.Label(
+            self, textvariable=self.level_label_var, font=self.fonts["caption"],
+            fg=colors["text_secondary"], bg=colors["surface"],
+        ).pack(fill="x", pady=(0, 3))
+
+        self.mute_btn = tk.Button(
+            self,
+            text="MUTE",
+            font=self.fonts["eyebrow"],
+            bg=colors["surface_alt"],
+            fg=colors["text_secondary"],
+            activebackground=colors["danger"],
+            activeforeground=colors["text"],
+            bd=0,
+            relief="flat",
+            cursor="hand2",
+            pady=3,
+            command=self._toggle_mute,
+        )
+        self.mute_btn.pack(fill="x", side="bottom")
+
+    def _bind_click(self, widget: tk.Misc) -> None:
+        widget.bind("<Button-1>", self._on_header_click, add="+")
+        try:
+            widget.configure(cursor="hand2")
+        except tk.TclError:
+            pass
+        for child in widget.winfo_children():
+            self._bind_click(child)
+
+    def _on_header_click(self, _event: tk.Event) -> None:
+        if self._on_select is not None:
+            self._on_select(SelectionTarget.input(self.channel_index))
+
+    def set_selected(self, selected: bool) -> None:
+        colors = theme.COLORS
+        self.is_selected = bool(selected)
+        self.configure(
+            highlightbackground=colors["cyan"] if self.is_selected else colors["border"],
+            highlightthickness=2 if self.is_selected else 1,
+        )
+
+    def set_active_bus(self, bus_id: str) -> None:
+        b_key = str(bus_id or "main").lower()
+        if b_key not in theme.BUS_SPECS:
+            return
+        self.active_bus = b_key
+        accent = self._bus_accent_color(b_key)
+        self.header_accent_bar.configure(bg=accent)
+        self.tag_label.configure(fg=accent)
+        self.dial.set_accent(accent)
+        badge = theme.BUS_SPECS[b_key]["badge"]
+        self.bus_route_var.set("LEVEL · MAIN" if b_key == "main" else f"SEND → {badge}")
+        self.refresh_commanded()
+
+    def set_meter_level(self, rms_db: Optional[float], peak_db: Optional[float], live: bool = True) -> None:
+        if self.channel_index <= 6:
+            self.dial.set_meter_level(rms_db, peak_db, live=live)
+        else:
+            self.dial.clear_meter()
+
+    def clear_meter(self) -> None:
+        self.dial.clear_meter()
+
+    def _begin_gesture(self, _event: Optional[tk.Event] = None) -> None:
+        begin = getattr(self.service, "begin_batch", None)
+        if callable(begin):
+            try:
+                begin()
+            except Exception:
+                pass
+
+    def _end_gesture(self) -> None:
+        end = getattr(self.service, "end_batch", None)
+        if callable(end):
+            try:
+                end()
+            except Exception:
+                pass
+
+    def _set_readout(self, raw: int, default_tag: bool = False) -> None:
+        db_text, midi_text = format_db(raw).split(" · ", 1)
+        suffix = " DEFAULT" if default_tag else f" · {midi_text}"
+        self.level_label_var.set(f"{db_text}{suffix}")
+
+    def _on_dial_drag(self, val_str: str) -> None:
+        if self._is_updating:
+            return
+        val = int(val_str)
+        self._pending_level = val
+        self._set_readout(val)
+        if self._level_after_id is None:
+            self._level_after_id = self.after(30, self._flush_level)
+
+    def _on_dial_release(self, _event: Optional[tk.Event]) -> None:
+        if self._level_after_id is not None:
+            self.after_cancel(self._level_after_id)
+            self._level_after_id = None
+        self._flush_level()
+        self._end_gesture()
+
+    def _flush_level(self) -> None:
+        self._level_after_id = None
+        if self._pending_level is None:
+            return
+        val = self._pending_level
+        self._pending_level = None
+        prev = self._last_level_val
+        if not self.service:
+            return
+        try:
+            if self.active_bus == "main":
+                self.service.set_fader(self.channel_index, val)
+            else:
+                self.service.set_send(self.channel_index, self.active_bus, val, unit="raw")
+            self._last_level_val = val
+            if self.on_feedback:
+                self.on_feedback(f"STAGE {self.tag}: LEVEL COMMANDED")
+        except Exception:
+            self._is_updating = True
+            try:
+                self.level_val.set(prev)
+                self._set_readout(prev)
+            finally:
+                self._is_updating = False
+
+    def _toggle_mute(self) -> None:
+        prev = self.is_muted.get()
+        new_mute = not prev
+        self.is_muted.set(new_mute)
+        self._update_mute_ui(new_mute)
+        if self.service:
+            try:
+                self.service.set_mute(self.channel_index, new_mute)
+            except Exception:
+                self.is_muted.set(prev)
+                self._update_mute_ui(prev)
+
+    def _update_mute_ui(self, muted: bool) -> None:
+        colors = theme.COLORS
+        self.mute_btn.configure(
+            bg=colors["danger"] if muted else colors["surface_alt"],
+            fg=colors["text"] if muted else colors["text_secondary"],
+            text="MUTED" if muted else "MUTE",
+        )
+
+    def refresh_commanded(self) -> None:
+        if self.service is None:
+            return
+        self._is_updating = True
+        try:
+            st = self.service.state_store.get_parameter(self._param_id())
+            raw = None
+            if st is not None:
+                raw = st.commanded_raw_midi if st.commanded_raw_midi is not None else getattr(st, "observed_raw_midi", None)
+            if isinstance(raw, int):
+                self.level_val.set(raw)
+                self._last_level_val = raw
+                self._set_readout(raw, default_tag=False)
+            else:
+                self.level_val.set(0)
+                self._last_level_val = 0
+                self._set_readout(0, default_tag=True)
+
+            m_st = self.service.state_store.get_parameter(f"ch{self.channel_index}.mute")
+            if m_st is not None and (m_st.commanded_raw_midi is not None or getattr(m_st, "observed_raw_midi", None) is not None):
+                muted = bool(m_st.commanded_value if m_st.commanded_raw_midi is not None else m_st.observed_value)
+                self.is_muted.set(muted)
+                self._update_mute_ui(muted)
+            else:
+                self.is_muted.set(False)
+                self._update_mute_ui(False)
+        finally:
+            self._is_updating = False
+
+    def reset_unsynced(self) -> None:
+        self._is_updating = True
+        try:
+            self.level_val.set(0)
+            self._last_level_val = 0
+            self._set_readout(0, default_tag=True)
+            self.is_muted.set(False)
+            self._update_mute_ui(False)
+            self.clear_meter()
+        finally:
+            self._is_updating = False
+
+    def destroy(self) -> None:
+        if self._level_after_id is not None:
+            try:
+                self.after_cancel(self._level_after_id)
+            except tk.TclError:
+                pass
+        super().destroy()
+
+
 class MixerConsole(tk.Frame):
     """Container holding the 7 logical input channel strips + 1 Master strip."""
 
-    def __init__(self, master: tk.Misc, fonts: dict, service: Any = None, on_feedback: Any = None) -> None:
+    def __init__(
+        self,
+        master: tk.Misc,
+        fonts: dict,
+        service: Any = None,
+        on_feedback: Any = None,
+        on_view_changed: Optional[Callable[[str], None]] = None,
+    ) -> None:
         super().__init__(master, bg=theme.COLORS["background"])
         self.fonts = fonts
         self.service = service
         self.on_feedback = on_feedback
+        self._on_view_changed = on_view_changed
         self.strips: Dict[int, ChannelStripWidget] = {}
+        self.stage_cards: Dict[int, StageChannelCard] = {}
         self.bus_strips: Dict[str, "BusMasterStripWidget"] = {}
         self.bus_buttons: Dict[str, tk.Button] = {}
+        self.view_buttons: Dict[str, tk.Button] = {}
         self.active_bus: str = "main"
+        self.active_view: str = "mixer"
         self._bus_view_active = False
+        self._tap_times: list[float] = []
+        self.tap_bpm: Optional[int] = None
+        self._last_meter_ts: float = 0.0
         self.selected_target: Optional[SelectionTarget] = None
         # Service listeners may run on the MIDI thread: they only enqueue; the Tk
         # main thread drains the queue (never touch a widget from another thread).
@@ -994,6 +1323,9 @@ class MixerConsole(tk.Frame):
             add_state = getattr(self.service, "add_listener", None)
             if callable(add_state):
                 add_state(self._on_state_event)
+            add_meter = getattr(self.service, "add_meter_listener", None)
+            if callable(add_meter):
+                add_meter(self._on_meter_event)
         self._refresh_history_buttons()
         self._poll_ui_queue()
 
@@ -1148,6 +1480,24 @@ class MixerConsole(tk.Frame):
         ).pack(side="left", padx=(10, 0))
         self._active_bus_indicator = bus_bar.winfo_children()[-1]
 
+        # Segmented MIXER | STAGE View Toggle on the right of bus_bar
+        view_seg = tk.Frame(bus_bar, bg=colors["surface"], highlightbackground=colors["border"], highlightthickness=1)
+        view_seg.pack(side="right")
+        for v_key, v_label in (("mixer", "MIXER"), ("stage", "STAGE")):
+            vbtn = tk.Button(
+                view_seg,
+                text=v_label,
+                font=self.fonts["eyebrow"],
+                bd=0,
+                relief="flat",
+                cursor="hand2",
+                padx=8,
+                pady=1,
+                command=lambda v=v_key: self.set_view_mode(v),
+            )
+            vbtn.pack(side="left")
+            self.view_buttons[v_key] = vbtn
+
         # Middle band: strips on the left, the Channel Detail Inspector docks on
         # the right while a target is selected.
         self._middle = tk.Frame(self, bg=colors["background"])
@@ -1240,8 +1590,77 @@ class MixerConsole(tk.Frame):
             bstrip.grid(row=0, column=col, sticky="nsew", padx=8, pady=4)
             self.bus_strips[bus_id] = bstrip
 
+        # Stage View Container (7 rotary dial cards + FX 2 TAP TEMPO pad in 4x2 grid)
+        self._stage_container = tk.Frame(self._middle, bg=colors["background"])
+        for col in range(4):
+            self._stage_container.grid_columnconfigure(col, weight=1, uniform="stage_col")
+        for row in range(2):
+            self._stage_container.grid_rowconfigure(row, weight=1, uniform="stage_row")
+
+        for idx, title, subtitle, _kind_badge, _pan_label, _has_phantom in specs:
+            scard = StageChannelCard(
+                master=self._stage_container,
+                channel_index=idx,
+                title=title,
+                subtitle=subtitle,
+                fonts=self.fonts,
+                service=self.service,
+                on_select=self.select_target,
+                on_feedback=self.on_feedback,
+            )
+            r, c = divmod(idx - 1, 4)
+            scard.grid(row=r, column=c, sticky="nsew", padx=4, pady=3)
+            self.stage_cards[idx] = scard
+
+        # 8th Stage Card: FX 2 TAP TEMPO (BPM) Pad
+        tap_card = tk.Frame(
+            self._stage_container,
+            bg=colors["surface"],
+            highlightbackground=theme.BUS_COLORS["fx2"],
+            highlightthickness=1,
+            bd=0,
+            padx=8,
+            pady=6,
+        )
+        tap_card.grid(row=1, column=3, sticky="nsew", padx=4, pady=3)
+        self.tap_card = tap_card
+        tk.Frame(tap_card, bg=theme.BUS_COLORS["fx2"], height=3).pack(fill="x", pady=(0, 4))
+        tk.Label(
+            tap_card, text="FX 2 · TAP TEMPO", font=self.fonts["eyebrow"],
+            fg=theme.BUS_COLORS["fx2"], bg=colors["surface"], anchor="w",
+        ).pack(fill="x")
+        self.tap_bpm_var = tk.StringVar(value="TAP TEMPO · — BPM")
+        self.tap_tempo_btn = tk.Button(
+            tap_card,
+            textvariable=self.tap_bpm_var,
+            font=self.fonts["subtitle"],
+            bg=colors["surface_alt"],
+            fg=theme.BUS_COLORS["fx2"],
+            activebackground=theme.BUS_COLORS["fx2"],
+            activeforeground=colors["background"],
+            highlightbackground=theme.BUS_COLORS["fx2"],
+            highlightthickness=1,
+            bd=0,
+            relief="flat",
+            cursor="hand2",
+            pady=14,
+            command=self.tap_tempo,
+        )
+        self.tap_tempo_btn.pack(fill="both", expand=True, pady=6)
+        tk.Label(
+            tap_card,
+            text="LOCKED · MIDI Ch 16 blocked by safety policy",
+            font=self.fonts["caption"],
+            fg=colors["warning"],
+            bg=colors["surface"],
+            wraplength=200,
+            justify="left",
+        ).pack(fill="x", side="bottom")
+
         initial_bus = getattr(self.service, "active_bus", "main") if self.service else "main"
         self.select_bus(initial_bus, notify_service=False)
+        initial_view = getattr(self.service, "active_view", "mixer") if self.service else "mixer"
+        self.set_view_mode(initial_view, notify_service=False)
 
     def select_bus(self, bus_id: str, notify_service: bool = True) -> bool:
         """Select the active Sends-on-Fader bus ('main', 'mon1', 'mon2', 'fx1', 'fx2')."""
@@ -1262,6 +1681,8 @@ class MixerConsole(tk.Frame):
             self._active_bus_indicator.configure(fg=spec["color"])
         for strip in self.strips.values():
             strip.set_active_bus(b_key)
+        for scard in self.stage_cards.values():
+            scard.set_active_bus(b_key)
         if notify_service and self.service is not None:
             setter = getattr(self.service, "set_active_bus", None)
             if callable(setter):
@@ -1270,6 +1691,98 @@ class MixerConsole(tk.Frame):
                 except Exception:
                     pass
         return True
+
+    def set_view_mode(self, view: str, notify_service: bool = True) -> bool:
+        """Switch between MIXER (vertical fader bank) and STAGE (7 rotary dials + tap tempo)."""
+        v_key = str(view or "mixer").lower()
+        if v_key not in ("mixer", "stage"):
+            return False
+        self.active_view = v_key
+        colors = theme.COLORS
+        for key, btn in self.view_buttons.items():
+            if key == v_key:
+                btn.configure(bg=colors["cyan"], fg=colors["background"], activebackground=colors["cyan"], activeforeground=colors["background"])
+            else:
+                btn.configure(bg=colors["surface_alt"], fg=colors["text_secondary"], activebackground=colors["surface_hover"], activeforeground=colors["text"])
+
+        if v_key == "stage":
+            self._bus_view_active = False
+            self.bus_view_btn.configure(bg=colors["surface_alt"], fg=colors["lime"])
+            if self._strips_container.winfo_manager():
+                self._strips_container.pack_forget()
+            if self._bus_container.winfo_manager():
+                self._bus_container.pack_forget()
+            for scard in self.stage_cards.values():
+                scard.refresh_commanded()
+            if not self._stage_container.winfo_manager():
+                self._stage_container.pack(
+                    side="left", fill="both", expand=True,
+                    padx=theme.TOKENS["spacing_medium"], pady=(0, 4),
+                )
+        else:
+            if self._stage_container.winfo_manager():
+                self._stage_container.pack_forget()
+            if self._bus_container.winfo_manager():
+                self._bus_container.pack_forget()
+            self._bus_view_active = False
+            self.bus_view_btn.configure(bg=colors["surface_alt"], fg=colors["lime"])
+            if not self._strips_container.winfo_manager():
+                self._strips_container.pack(
+                    side="left", fill="both", expand=True,
+                    padx=theme.TOKENS["spacing_medium"], pady=(0, 4),
+                )
+
+        if self._on_view_changed is not None:
+            try:
+                self._on_view_changed(v_key)
+            except Exception:
+                pass
+        if notify_service and self.service is not None:
+            setter = getattr(self.service, "set_active_view", None)
+            if callable(setter):
+                try:
+                    setter(v_key)
+                except Exception:
+                    pass
+        return True
+
+    def tap_tempo(self, now: Optional[float] = None) -> Optional[int]:
+        """Calculate rolling BPM from consecutive taps while keeping MIDI Ch 16 safety-locked."""
+        ts = time.monotonic() if now is None else float(now)
+        if self._tap_times and (ts - self._tap_times[-1]) > 2.0:
+            self._tap_times.clear()
+        self._tap_times.append(ts)
+        if len(self._tap_times) > 5:
+            self._tap_times = self._tap_times[-5:]
+        if len(self._tap_times) >= 2:
+            intervals = [
+                b - a for a, b in zip(self._tap_times[:-1], self._tap_times[1:])
+                if 0.2 <= (b - a) <= 2.0
+            ]
+            if intervals:
+                avg = sum(intervals) / len(intervals)
+                bpm = max(40, min(240, round(60.0 / avg)))
+                self.tap_bpm = bpm
+                self.tap_bpm_var.set(f"TAP TEMPO · {bpm} BPM")
+                self._feedback(f"TAP TEMPO: {bpm} BPM (LOCAL) — MIDI CH 16 LOCKED BY SAFETY POLICY")
+                return bpm
+        self._feedback("TAP TEMPO: TAP AGAIN FOR BPM — MIDI CH 16 LOCKED BY SAFETY POLICY")
+        return self.tap_bpm
+
+    def ingest_meter_levels(self, levels: Mapping[str, Mapping[str, float]], live: bool = True) -> None:
+        """Update STAGE view pre-fader USB meter arcs. Renders arcs only when live=True."""
+        if not live or not levels:
+            self._last_meter_ts = 0.0
+            for scard in self.stage_cards.values():
+                scard.clear_meter()
+            return
+        self._last_meter_ts = time.monotonic()
+        for idx, scard in self.stage_cards.items():
+            entry = levels.get(f"ch{idx}")
+            if entry is not None and idx <= 6:
+                scard.set_meter_level(entry.get("rms", -120.0), entry.get("peak", -120.0), live=True)
+            else:
+                scard.clear_meter()
 
     def toggle_bus_masters(self) -> None:
         """Toggle between the 7+1 input/main view and the 4 Bus Master faders."""
@@ -1319,6 +1832,8 @@ class MixerConsole(tk.Frame):
             if other is not strip and other.is_selected:
                 other.set_selected(False)
         strip.set_selected(True)
+        for idx, scard in self.stage_cards.items():
+            scard.set_selected(target.kind == "input" and target.index == idx)
         self.selected_target = target
         self._show_inspector()
         self.inspector.show_target(target)
@@ -1328,6 +1843,9 @@ class MixerConsole(tk.Frame):
         for strip in self.strips.values():
             if strip.is_selected:
                 strip.set_selected(False)
+        for scard in self.stage_cards.values():
+            if scard.is_selected:
+                scard.set_selected(False)
         self.selected_target = None
         self.inspector.clear()
         if self.inspector.winfo_manager():
@@ -1344,12 +1862,21 @@ class MixerConsole(tk.Frame):
         spacing = theme.TOKENS
         self.inspector.configure(width=self._inspector_width())
         if not self.inspector.winfo_manager():
-            # Packed before the strips so the strips yield space, not the inspector.
-            self.inspector.pack(
-                side="right", fill="y", before=self._strips_container,
-                padx=(0, spacing["spacing_large"]),
-                pady=(0, spacing["spacing_large"]),
-            )
+            # Packed before the active left container so the strips/stage yield space, not the inspector.
+            anchor_widget = None
+            for candidate in (self._strips_container, self._stage_container, self._bus_container):
+                if candidate.winfo_manager():
+                    anchor_widget = candidate
+                    break
+            pack_kw = {
+                "side": "right",
+                "fill": "y",
+                "padx": (0, spacing["spacing_large"]),
+                "pady": (0, spacing["spacing_large"]),
+            }
+            if anchor_widget is not None:
+                pack_kw["before"] = anchor_widget
+            self.inspector.pack(**pack_kw)
 
     def _on_console_resize(self, _event: tk.Event) -> None:
         if self.inspector_visible:
@@ -1482,6 +2009,8 @@ class MixerConsole(tk.Frame):
     def _refresh_strips(self) -> None:
         for strip in self.strips.values():
             strip.refresh_commanded()
+        for scard in self.stage_cards.values():
+            scard.refresh_commanded()
         for bstrip in self.bus_strips.values():
             bstrip.refresh_commanded()
         self._refresh_inspector()
@@ -1499,10 +2028,16 @@ class MixerConsole(tk.Frame):
         """Service listener; any thread. Enqueue only."""
         self._ui_queue.put((param_id, value))
 
+    def _on_meter_event(self, levels: dict[str, dict[str, float]]) -> None:
+        """Meter listener; any thread. Enqueue only."""
+        self._ui_queue.put(("__meters__", levels))
+
     def _poll_ui_queue(self) -> None:
         self._poll_after_id = None
         try:
             self._drain_ui_queue()
+            if self._last_meter_ts > 0.0 and (time.monotonic() - self._last_meter_ts) > 2.0:
+                self.ingest_meter_levels({}, live=False)
             self._poll_after_id = self.after(self.POLL_MS, self._poll_ui_queue)
         except tk.TclError:
             return
@@ -1520,10 +2055,16 @@ class MixerConsole(tk.Frame):
             latest[param_id] = value
         if not latest:
             return
+        if "__meters__" in latest:
+            self.ingest_meter_levels(latest.pop("__meters__"), live=True)
+        if not latest:
+            return
         if RECONCILE_EVENT in latest:
             del latest[RECONCILE_EVENT]
             for strip in self.strips.values():
                 strip.reset_unsynced()
+            for scard in self.stage_cards.values():
+                scard.reset_unsynced()
             for bstrip in self.bus_strips.values():
                 bstrip.reset_unsynced()
             self._refresh_history_buttons()
@@ -1532,8 +2073,13 @@ class MixerConsole(tk.Frame):
             svc_bus = getattr(self.service, "active_bus", None)
             if isinstance(svc_bus, str) and svc_bus != self.active_bus and svc_bus in theme.BUS_SPECS:
                 self.select_bus(svc_bus, notify_service=False)
+            svc_view = getattr(self.service, "active_view", None)
+            if isinstance(svc_view, str) and svc_view != self.active_view and svc_view in ("mixer", "stage"):
+                self.set_view_mode(svc_view, notify_service=False)
             for strip in self.strips.values():
                 strip.refresh_commanded()
+            for scard in self.stage_cards.values():
+                scard.refresh_commanded()
             for bstrip in self.bus_strips.values():
                 bstrip.refresh_commanded()
             self._refresh_scene_slots()
@@ -1680,6 +2226,9 @@ class MixerConsole(tk.Frame):
             remove_state = getattr(self.service, "remove_listener", None)
             if callable(remove_state):
                 remove_state(self._on_state_event)
+            remove_meter = getattr(self.service, "remove_meter_listener", None)
+            if callable(remove_meter):
+                remove_meter(self._on_meter_event)
         try:
             self.inspector.detach()
         except Exception:

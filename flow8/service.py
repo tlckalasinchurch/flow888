@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import logging
 import threading
+import time
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, Iterable, Iterator, Mapping, Optional
@@ -97,6 +98,9 @@ class Flow8Service:
         self._connection_error: Optional[str] = None
         self._listeners: list[Callable[[str, Any], None]] = []
         self._command_log_listeners: list[Callable[[list], None]] = []
+        self._meter_listeners: list[Callable[[dict[str, dict[str, float]]], None]] = []
+        self._latest_meters: dict[str, dict[str, float]] = {}
+        self._last_meter_time: float = 0.0
         self._active_bus: str = "main"
         self._active_view: str = "mixer"
 
@@ -145,6 +149,46 @@ class Flow8Service:
             self._active_view = v_key
         self._notify_listeners(STATE_CHANGED_EVENT, None)
         return v_key
+
+    def add_meter_listener(self, listener: Callable[[dict[str, dict[str, float]]], None]) -> None:
+        """Register listener for measured USB audio meter frames."""
+        with self._lock:
+            if listener not in self._meter_listeners:
+                self._meter_listeners.append(listener)
+
+    def remove_meter_listener(self, listener: Callable[[dict[str, dict[str, float]]], None]) -> None:
+        with self._lock:
+            if listener in self._meter_listeners:
+                self._meter_listeners.remove(listener)
+
+    def publish_meters(self, levels: Mapping[str, Mapping[str, float]]) -> None:
+        """Broadcast measured USB capture meter levels to registered UI listeners."""
+        clean = {
+            str(k): {
+                "peak": round(float(v.get("peak", -120.0)), 1),
+                "rms": round(float(v.get("rms", -120.0)), 1),
+            }
+            for k, v in levels.items()
+        }
+        with self._lock:
+            self._latest_meters = clean
+            self._last_meter_time = time.monotonic()
+            callbacks = list(self._meter_listeners)
+        for cb in callbacks:
+            try:
+                cb(clean)
+            except Exception:
+                logger.exception("FLOW 8 meter listener failed")
+
+    @property
+    def meter_feed_live(self) -> bool:
+        with self._lock:
+            return self._last_meter_time > 0.0 and (time.monotonic() - self._last_meter_time) < 2.0
+
+    @property
+    def latest_meters(self) -> dict[str, dict[str, float]]:
+        with self._lock:
+            return dict(self._latest_meters)
 
     @property
     def is_connected(self) -> bool:

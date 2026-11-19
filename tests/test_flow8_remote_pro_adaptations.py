@@ -360,6 +360,53 @@ class SendsOnFaderAndCrossSurfaceSyncTests(unittest.TestCase):
         ch1 = next(c for c in snap["channels"] if c["index"] == 1)
         self.assertEqual(ch1["fader"], 99)
 
+    def test_stage_view_toggle_rotary_dials_live_meter_arcs_and_tap_tempo(self):
+        # 1. Switch to STAGE view via LAN Hub and verify desktop sync
+        code, _ = self._post({"action": "setActiveView", "view": "stage"})
+        self.assertEqual(code, 200)
+        self.console._drain_ui_queue()
+        self.assertEqual(self.console.active_view, "stage")
+        self.assertEqual(len(self.console.stage_cards), 7)
+        expected_tags = {
+            1: "MIC 1", 2: "MIC 2", 3: "COMBO 3", 4: "COMBO 4",
+            5: "LINE 5/6", 6: "LINE 7/8", 7: "BT/USB",
+        }
+        for idx, tag in expected_tags.items():
+            self.assertEqual(self.console.stage_cards[idx].tag, tag)
+
+        # 2. Meter arcs are strictly gated: absent before live meter feed
+        self.root.deiconify()
+        self.root.update()
+        dial1 = self.console.stage_cards[1].dial
+        self.assertEqual(len(dial1.find_withtag("meter-arc")), 0)
+
+        # Publish real-time USB meter frame via hub -> desktop StageView dial renders meter-arc
+        self.hub.publish_meters({"ch1": {"rms": -12.0, "peak": -6.0}, "ch6": {"rms": -3.0, "peak": -0.2}})
+        self.console._drain_ui_queue()
+        self.root.update()
+        self.assertGreater(len(dial1.find_withtag("meter-arc")), 0)
+        self.assertGreater(len(self.console.stage_cards[6].dial.find_withtag("meter-arc")), 0)
+        # Ch 7 (BT/USB) is not in the USB capture stream -> never shows a fake meter arc
+        self.assertEqual(len(self.console.stage_cards[7].dial.find_withtag("meter-arc")), 0)
+
+        # Clearing meters hides the meter arc immediately
+        self.console.ingest_meter_levels({}, live=False)
+        self.root.update()
+        self.assertEqual(len(dial1.find_withtag("meter-arc")), 0)
+
+        # 3. Stage rotary dial dispatches active bus level (MAIN vs MON/FX sends)
+        self.console.select_bus("mon2")
+        self.assertEqual(self.console.stage_cards[3].dial.accent, "#34D399")
+        self.console.stage_cards[3]._on_dial_drag("84")
+        self.console.stage_cards[3]._flush_level()
+        self.assertEqual(self.service.state_store.get_parameter("ch3.send_mon2").commanded_raw_midi, 84)
+
+        # 4. Tap tempo pad computes rolling BPM locally while keeping MIDI Ch 16 locked
+        self.console.tap_tempo(now=10.0)
+        bpm = self.console.tap_tempo(now=10.5)  # 0.5s interval -> 120 BPM
+        self.assertEqual(bpm, 120)
+        self.assertIn("120 BPM", self.console.tap_bpm_var.get())
+
 
 if __name__ == "__main__":
     unittest.main()

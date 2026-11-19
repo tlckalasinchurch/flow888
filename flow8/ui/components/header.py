@@ -22,6 +22,7 @@ class Header(tk.Frame):
         on_disconnect: Optional[Callable[[], None]] = None,
         on_retry: Optional[Callable[[], None]] = None,
         on_toggle_lan: Optional[Callable[[], None]] = None,
+        on_select_view: Optional[Callable[[str], None]] = None,
     ) -> None:
         super().__init__(
             master,
@@ -37,6 +38,9 @@ class Header(tk.Frame):
             "RETRY": on_retry,
             "LAN": on_toggle_lan,
         }
+        self._on_select_view = on_select_view
+        self.active_view = "mixer"
+        self.view_buttons: dict[str, tk.Button] = {}
         self.connection_buttons: dict[str, tk.Button] = {}
         self.device_status_var = tk.StringVar(
             value="MIDI PORTS CLOSED"
@@ -94,6 +98,7 @@ class Header(tk.Frame):
 
         self._build_device_pill()
         self._build_connection_controls()
+        self._build_view_switch()
 
         # Hairline closing the band
         tk.Frame(self, bg=colors["border"], height=1).place(
@@ -195,6 +200,63 @@ class Header(tk.Frame):
                 command=self._callbacks["LAN"],
             )
             self.lan_button.pack(side="left", padx=(4, 0))
+
+    def _build_view_switch(self) -> None:
+        """Segmented MIXER | STAGE workstation view toggle in the top header."""
+        colors = theme.COLORS
+        seg = tk.Frame(
+            self,
+            bg=colors["surface"],
+            highlightbackground=colors["border"],
+            highlightthickness=1,
+            bd=0,
+        )
+        seg.pack(side="right", padx=(0, theme.TOKENS["spacing_medium"]), pady=16)
+        for view_key, label in (("mixer", "MIXER"), ("stage", "STAGE")):
+            btn = tk.Button(
+                seg,
+                text=label,
+                font=self.fonts["eyebrow"],
+                bd=0,
+                relief="flat",
+                cursor="hand2",
+                padx=10,
+                pady=4,
+                command=lambda v=view_key: self.select_view(v),
+            )
+            btn.pack(side="left")
+            self.view_buttons[view_key] = btn
+        self.set_active_view(self.active_view)
+
+    def select_view(self, view: str) -> None:
+        v_key = str(view or "mixer").lower()
+        if v_key not in ("mixer", "stage"):
+            return
+        self.set_active_view(v_key)
+        if self._on_select_view is not None:
+            self._on_select_view(v_key)
+
+    def set_active_view(self, view: str) -> None:
+        v_key = str(view or "mixer").lower()
+        if v_key not in ("mixer", "stage"):
+            return
+        self.active_view = v_key
+        colors = theme.COLORS
+        for key, btn in self.view_buttons.items():
+            if key == v_key:
+                btn.configure(
+                    bg=colors["cyan"],
+                    fg=colors["background"],
+                    activebackground=colors["cyan"],
+                    activeforeground=colors["background"],
+                )
+            else:
+                btn.configure(
+                    bg=colors["surface_alt"],
+                    fg=colors["text_secondary"],
+                    activebackground=colors["surface_hover"],
+                    activeforeground=colors["text"],
+                )
 
     def set_lan_active(self, active: bool) -> None:
         btn = getattr(self, "lan_button", None)

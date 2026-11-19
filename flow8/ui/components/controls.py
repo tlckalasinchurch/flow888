@@ -10,11 +10,12 @@ is changed programmatically), which keeps hardware echo from looping back out.
 
 from __future__ import annotations
 
+import math
 import tkinter as tk
 from typing import Callable, Optional
 
 from flow8.ui import theme
-from flow8.parameter_mapping import fader_db_to_midi
+from flow8.parameter_mapping import fader_db_to_midi, fader_midi_to_db
 
 
 class _BaseControl(tk.Canvas):
@@ -319,3 +320,120 @@ class ProvenanceBadge(tk.Frame):
     def update_provenance(self, provenance: object) -> None:
         """Alias for set_provenance that avoids AST set_ linter checks."""
         self.set_provenance(provenance)
+
+
+class RotaryDial(_BaseControl):
+    """Touch-friendly rotary level dial with gated pre-fader USB meter ring (STAGE view)."""
+
+    START_DEG = 225.0
+    SWEEP_DEG = -270.0
+
+    def __init__(self, master, variable, command=None, default=101, accent=None, **kw):
+        kw.setdefault("width", 112)
+        kw.setdefault("height", 112)
+        self._meter_live = False
+        self._meter_rms_db = -120.0
+        self._meter_peak_db = -120.0
+        self._drag_origin_y: Optional[int] = None
+        self._drag_origin_val: int = 0
+        super().__init__(
+            master, variable, command, default,
+            accent or theme.BUS_COLORS["main"], **kw,
+        )
+
+    def set_meter_level(self, rms_db: Optional[float], peak_db: Optional[float], live: bool = True) -> None:
+        """Update the outer pre-fader USB meter arc. Renders ONLY when live=True."""
+        self._meter_live = bool(live and rms_db is not None and peak_db is not None)
+        self._meter_rms_db = float(rms_db) if rms_db is not None else -120.0
+        self._meter_peak_db = float(peak_db) if peak_db is not None else -120.0
+        self._redraw()
+
+    def clear_meter(self) -> None:
+        if self._meter_live:
+            self._meter_live = False
+            self._meter_rms_db = -120.0
+            self._meter_peak_db = -120.0
+            self._redraw()
+
+    def _value_from_event(self, event: tk.Event) -> int:
+        if event.type == tk.EventType.ButtonPress or self._drag_origin_y is None:
+            self._drag_origin_y = event.y
+            self._drag_origin_val = self.variable.get()
+            return self._drag_origin_val
+        dy = self._drag_origin_y - event.y
+        return max(self.minimum, min(self.maximum, self._drag_origin_val + round(dy * 0.9)))
+
+    def _redraw(self) -> None:
+        colors = theme.COLORS
+        self.delete("all")
+        w = max(self.winfo_width(), 88)
+        h = max(self.winfo_height(), 88)
+        cx, cy = w / 2.0, h / 2.0
+        r_outer = min(w, h) / 2.0 - 8.0
+        r_inner = r_outer - 8.0
+        r_cap = max(18.0, r_inner - 8.0)
+
+        # 1. Outer Pre-Fader USB Level Ring (strictly gated: drawn ONLY when live feed is active)
+        if self._meter_live:
+            self.create_arc(
+                cx - r_outer, cy - r_outer, cx + r_outer, cy + r_outer,
+                start=self.START_DEG, extent=self.SWEEP_DEG,
+                style="arc", outline=colors["background_alt"], width=4,
+                tags=("meter-track",),
+            )
+            frac = max(0.0, min(1.0, (self._meter_rms_db + 60.0) / 60.0))
+            if frac > 0.0:
+                meter_color = (
+                    colors["danger"] if self._meter_peak_db >= -0.5
+                    else (colors["warning"] if self._meter_peak_db > -6.0 else colors["success"])
+                )
+                self.create_arc(
+                    cx - r_outer, cy - r_outer, cx + r_outer, cy + r_outer,
+                    start=self.START_DEG, extent=self.SWEEP_DEG * frac,
+                    style="arc", outline=meter_color, width=4,
+                    tags=("meter-arc",),
+                )
+
+        # 2. Inner Level Arc Track + Active Bus Accent Fill
+        self.create_arc(
+            cx - r_inner, cy - r_inner, cx + r_inner, cy + r_inner,
+            start=self.START_DEG, extent=self.SWEEP_DEG,
+            style="arc", outline=colors["border"], width=5,
+        )
+        val = self.variable.get()
+        val_frac = max(0.0, min(1.0, val / float(self.maximum)))
+        if val_frac > 0.0:
+            self.create_arc(
+                cx - r_inner, cy - r_inner, cx + r_inner, cy + r_inner,
+                start=self.START_DEG, extent=self.SWEEP_DEG * val_frac,
+                style="arc", outline=self.accent, width=5,
+                tags=("dial-arc",),
+            )
+
+        # 3. Rotary Cap & Indicator Line
+        self.create_oval(
+            cx - r_cap, cy - r_cap, cx + r_cap, cy + r_cap,
+            fill=colors["background_alt"], outline=self.accent, width=2,
+            tags=("dial-cap",),
+        )
+        angle_deg = self.START_DEG + self.SWEEP_DEG * val_frac
+        angle_rad = math.radians(angle_deg)
+        p_in = r_cap * 0.42
+        p_out = r_cap * 0.88
+        x1 = cx + p_in * math.cos(angle_rad)
+        y1 = cy - p_in * math.sin(angle_rad)
+        x2 = cx + p_out * math.cos(angle_rad)
+        y2 = cy - p_out * math.sin(angle_rad)
+        self.create_line(x1, y1, x2, y2, fill=self.accent, width=3, tags=("dial-pointer",))
+
+        # 4. Center dB Readout
+        if val <= 0:
+            db_str = "-inf"
+        else:
+            db = fader_midi_to_db(val)
+            db_str = f"{db:+.1f}"
+        self.create_text(
+            cx, cy, text=db_str,
+            fill=colors["text"], font=("Segoe UI", 8, "bold"),
+            tags=("dial-readout",),
+        )

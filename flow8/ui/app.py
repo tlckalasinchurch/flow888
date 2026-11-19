@@ -133,6 +133,7 @@ class Flow8App:
             on_disconnect=self.disconnect_hardware,
             on_retry=self.connect_hardware_async,
             on_toggle_lan=self.toggle_lan_hub,
+            on_select_view=self.select_workstation_view,
         )
         self.header.grid(row=0, column=0, sticky="ew")
 
@@ -161,6 +162,7 @@ class Flow8App:
                 self.fonts,
                 service=self.service,
                 on_feedback=self.status_bar.show_feedback,
+                on_view_changed=self.header.set_active_view,
             )
             self.routing_view = RoutingView(
                 self.workspace,
@@ -441,6 +443,18 @@ class Flow8App:
         return True
 
     # -- navigation ---------------------------------------------------------
+
+    def select_workstation_view(self, view: str) -> bool:
+        """Switch the main console between MIXER and STAGE views from the top header."""
+        v_key = str(view or "mixer").lower()
+        if v_key not in ("mixer", "stage"):
+            return False
+        if not self.show_placeholder and self._active_page != "mixer":
+            self.show_page("mixer")
+        console = getattr(self, "mixer_console", None)
+        if console is not None:
+            return console.set_view_mode(v_key)
+        return False
 
     def show_page(self, key: str) -> bool:
         """Select *key* destination and swap the active workspace frame."""

@@ -370,6 +370,12 @@ class Flow8LanHub:
             for k, v in levels.items()
         }
         self.broadcast({"type": "meters", "levels": clean}, droppable=True)
+        pub = getattr(self.service, "publish_meters", None)
+        if callable(pub):
+            try:
+                pub(clean)
+            except Exception:
+                pass
         return True
 
     def set_meter_status(self, status: dict[str, Any]) -> None:
