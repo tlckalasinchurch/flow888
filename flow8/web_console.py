@@ -90,7 +90,7 @@ def open_console(
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="flow8",
-        description="FLOW 8 CueAir Pro web console.",
+        description="FLOW 8 Live Console (web).",
     )
     parser.add_argument("--port", type=int, default=DEFAULT_LAN_PORT,
                         help=f"LAN port (default {DEFAULT_LAN_PORT}; 0 picks a free port)")
@@ -105,7 +105,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def _print_banner(port: int, lan_urls: list[str], meter_status: Optional[dict[str, Any]]) -> None:
-    print("FLOW 8 web console running — CueAir-style console")
+    print("FLOW 8 web console running — FLOW 8 Live Console")
     print(f"  This computer : {console_url(port)}")
     if lan_urls:
         print(f"  iPad / LAN    : {lan_urls[0]}")

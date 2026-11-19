@@ -480,6 +480,8 @@ class Flow8LanHub:
             "meterStatus": self.meter_status,
             "transportMode": self.service.transport_mode,
             "ble": self.service.ble_status_snapshot(),
+            "transport": self.service.transport_status(),
+            "stateSync": self.service.state_sync_snapshot(),
             "telemetry": self.service.telemetry_status(),
             "dispatch": self._dispatch_snapshot(),
             "lanUrls": self.lan_urls(),
@@ -581,6 +583,8 @@ class Flow8LanHub:
             "activeView": self.service.active_view,
             "transportMode": self.service.transport_mode,
             "ble": self.service.ble_status_snapshot(),
+            "transport": self.service.transport_status(),
+            "stateSync": self.service.state_sync_snapshot(),
             "channels": channels,
             "buses": buses,
             "scenes": list(self.service.scenes.names()),
@@ -631,15 +635,21 @@ class Flow8LanHub:
                         "error": "Preamp gain and +48V are never part of a change plan (SR-05 / SR-06).",
                     }
 
-        # A command sent while MIDI is closed would be recorded as "commanded" but
-        # never reach the mixer. Reject it so the remote cannot show a false success.
-        # Scribble labels stay local to the hub, so they stay allowed.
-        if action not in _OFFLINE_ACTIONS and not self.service.is_connected:
-            return 503, {
-                "ok": False,
-                "code": "not_connected",
-                "error": "Mixer is not connected. The command was not sent.",
-            }
+        # A command sent while the active control transport is closed would be
+        # recorded as "commanded" but never reach the mixer. In USB mode keep
+        # the historical requirement (both endpoints + listening); in BLE /
+        # hybrid mode require an authenticated BLE session instead.
+        if action not in _OFFLINE_ACTIONS:
+            if self.service.transport_mode == "usb_midi":
+                control_ready = self.service.is_connected
+            else:
+                control_ready = self.service.control_connected
+            if not control_ready:
+                return 503, {
+                    "ok": False,
+                    "code": "not_connected",
+                    "error": "Mixer control transport is not connected/authenticated. The command was not sent.",
+                }
 
         extra: dict[str, Any] = {}
         self._local.in_dispatch = True

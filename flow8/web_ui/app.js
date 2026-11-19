@@ -1678,38 +1678,60 @@
 
   function renderRoutingPage(page) {
     pageHead(page, 'ROUTING');
-    const tMode = session.transportMode || 'usb_midi';
-    const ble = session.ble || {};
-    const bleStatus = ble.authenticated
-      ? `CONNECTED · ${esc(ble.device || 'FLOW 8 LE')} (RX ${ble.packetsRx || 0} / TX ${ble.packetsTx || 0})`
-      : ble.connected
+    const tMode = session.transportMode || session.transport?.mode || 'usb_midi';
+    const tr = session.transport || {};
+    const tusb = tr.usb || {};
+    const tble = tr.ble || session.ble || {};
+    const tsync = session.stateSync || {};
+    const tfeat = tr.features || {};
+
+    const usbState = tusb.connected ? 'CONNECTED' : 'OFFLINE';
+    const bleState = tble.authenticated
+      ? `AUTHENTICATED · ${tble.deviceName || tble.device || 'FLOW 8 LE'}`
+      : tble.connected
         ? 'HANDSHAKING…'
-        : (ble.error ? `DISCONNECTED (${esc(ble.error)})` : 'IDLE');
-    const tr = document.createElement('section');
-    tr.className = 'insp-sec';
-    tr.innerHTML = `
-      <div class="sec-hdr"><span class="sec-title">CONTROL TRANSPORT</span><span class="sec-meta">${tMode === 'usb_midi' ? 'USB MIDI' : bleStatus}</span></div>
+        : 'OFFLINE';
+    const syncCounts = tsync.counts || {};
+    const syncBits = ['SYNCED', 'PENDING_DISPATCH', 'DIVERGENT', 'UNKNOWN']
+      .filter((k) => syncCounts[k])
+      .map((k) => `${k} ${syncCounts[k]}`)
+      .join(' · ') || 'no parameters tracked';
+    const lastErr = tr.lastError || tusb.error || tble.lastError || tble.error || null;
+
+    const trSec = document.createElement('section');
+    trSec.className = 'insp-sec';
+    trSec.innerHTML = `
+      <div class="sec-hdr"><span class="sec-title">CONTROL TRANSPORT</span><span class="sec-meta">${tMode === 'usb_midi' ? 'USB MIDI' : tMode === 'ble' ? 'BLUETOOTH BLE' : 'HYBRID'}</span></div>
       <div class="seg wide">
         <button class="seg-btn ${tMode === 'usb_midi' ? 'on' : ''}" data-tmode="usb_midi">USB MIDI</button>
         <button class="seg-btn ${tMode === 'ble' ? 'on' : ''}" data-tmode="ble">BLUETOOTH BLE</button>
-        <button class="seg-btn ${tMode === 'hybrid' ? 'on' : ''}" data-tmode="hybrid">HYBRID (BLE + USB METERS)</button>
+        <button class="seg-btn ${tMode === 'hybrid' ? 'on' : ''}" data-tmode="hybrid">HYBRID</button>
       </div>
+      <dl class="info-list" style="margin-top:8px;">
+        <dt>USB MIDI</dt><dd>${usbState}${tusb.listening ? ' · meters in' : ''}${tusb.error ? ` — ${esc(tusb.error)}` : ''}</dd>
+        <dt>BLUETOOTH LE</dt><dd>${bleState}${tble.packetsRx != null ? ` · RX ${tble.packetsRx} / TX ${tble.packetsTx || 0}` : ''}${tble.dumpChunks ? ` · dump ${tble.dumpChunks} chunks` : ''}</dd>
+        <dt>ACTIVE CONTROL</dt><dd>${tr.controlConnected ? 'READY' : 'NOT READY'} — ${esc(tfeat.control || tMode)}</dd>
+        <dt>STATE SYNC</dt><dd>${esc(syncBits)}${(tsync.divergent || []).length ? ` · ${tsync.divergent.length} divergent` : ''}</dd>
+        ${lastErr ? `<dt>LAST ERROR</dt><dd>${esc(lastErr)}</dd>` : ''}
+      </dl>
+      ${tfeat.commands ? `<p class="sec-note"><strong>This mode sends:</strong> ${esc(tfeat.commands)}</p>` : ''}
+      ${tfeat.limits ? `<p class="sec-note">${esc(tfeat.limits)}</p>` : ''}
       <div style="display:flex;align-items:center;gap:8px;margin-top:6px;">
-        <button class="key-btn" id="btn-ble-dump" ${ble.authenticated ? '' : 'disabled'}>SYNC DUMP (0x4B)</button>
-        <span class="sec-note" style="margin:0;">Hybrid uses BLE 2-way fader sync + 10-ch USB WASAPI audio meters.</span>
+        <button class="key-btn" id="btn-ble-dump" ${tble.authenticated ? '' : 'disabled'}>SYNC DUMP (0x4B)</button>
+        <span class="sec-note" style="margin:0;">USB audio meters stay live in every mode. BLE dump chunks are counted but not decoded (format unverified).</span>
       </div>`;
-    tr.querySelectorAll('[data-tmode]').forEach((b) => {
+    trSec.querySelectorAll('[data-tmode]').forEach((b) => {
       b.onclick = async () => {
         const res = await postAction({ action: 'setTransportMode', mode: b.dataset.tmode });
         if (res.ok) showToast(`Transport switched to ${b.dataset.tmode.toUpperCase()}.`);
         loadSession();
       };
     });
-    tr.querySelector('#btn-ble-dump').onclick = async () => {
+    trSec.querySelector('#btn-ble-dump').onclick = async () => {
       const res = await postAction({ action: 'bleDumpTrigger' });
       if (res.ok) showToast(res.triggered ? 'BLE dump trigger (0x4B) sent.' : 'BLE is not authenticated yet.', !res.triggered);
     };
-    page.appendChild(tr);
+    page.appendChild(trSec);
 
     const ms = session.meterStatus || {};
     const mode = ms.mode === 'recording' ? 'RECORDING' : ms.mode === 'streaming' ? 'STREAMING' : 'UNKNOWN';
@@ -1762,14 +1784,14 @@
     page.appendChild(sec);
 
     // Bluetooth on the FLOW 8 has two very different halves. BT audio is a
-    // device-side pairing and arrives on CH 7; BT control is the FLOW app's
-    // vendor BLE protocol, which this console does not write to without evidence.
+    // device-side pairing and arrives on CH 7; BT control is the vendor BLE
+    // protocol. Only fader writes on strips 1-6 are verified — see ROUTING.
     const bt = document.createElement('section');
     bt.className = 'insp-sec';
-    bt.innerHTML = `<div class="sec-hdr"><span class="sec-title">BLUETOOTH</span><span class="sec-meta">AUDIO IN · CONTROL NOT VERIFIED</span></div>
+    bt.innerHTML = `<div class="sec-hdr"><span class="sec-title">BLUETOOTH</span><span class="sec-meta">AUDIO IN · BLE FADERS 1-6</span></div>
       <dl class="info-list">
         <dt>BT AUDIO</dt><dd>Pair on the mixer (BT PAIRING → PAIR AUDIO). Audio arrives on <strong>CH 7 (USB/BT)</strong>; this console controls that strip normally.</dd>
-        <dt>BT CONTROL (FLOW APP)</dt><dd>Vendor BLE service <code>14839ad4-8d7e-415c-9a42-167340cf2339</code> with a notify/write characteristic. This console does not write to it: the mixer requires pairing/bonding and the payload format is unverified. USB MIDI stays the verified control path.</dd>
+        <dt>BT CONTROL (BLE)</dt><dd>Vendor BLE service <code>14839ad4-8d7e-415c-9a42-167340cf2339</code>. Verified writes: input faders on strips 1-6 (packet 0x06). Everything else stays on USB MIDI — see the ROUTING page for per-mode capabilities.</dd>
         <dt>BLE PROBE</dt><dd><code>python -m tools.ble_probe --scan-seconds 8</code> (read-only discovery)</dd>
       </dl>
       <button class="hw-btn" id="bt-open-ch7">เปิด CH 7 (USB/BT)</button>`;
@@ -1783,7 +1805,7 @@
     } catch (_) { /* the hub banner reports the failure */ }
   }
 
-  // ---------- CueAir Split-Screen Pro Console ----------
+  // ---------- Split-Screen Pro Console ----------
   // Clean-room Thai catalog (original content, no CueAir data). Loaded additively
   // from /api/presets/thai; values arrive as exact raw MIDI, so the plan that the
   // engineer reviews is exactly what will be sent.

@@ -41,6 +41,11 @@ PKT_DUMP_TRIGGER = 0x4B
 
 PARAM_FADER = 0x0F
 ECHO_SUPPRESS_WINDOW_S = 0.50
+#: The mixer must answer the 0x39 auth write with a 0x36 ACK before we trust
+#: the session. A successful GATT write alone is NOT authentication.
+AUTH_ACK_TIMEOUT_S = 4.0
+#: Cap on remembered outbound echoes so the suppression map cannot grow forever.
+MAX_TRACKED_ECHOES = 256
 
 
 def ble_checksum(body: bytes) -> int:
@@ -120,11 +125,15 @@ class BleEvent:
 
 
 def decode_ble_notification(packet: bytes) -> Optional[BleEvent]:
-    """Decode an incoming notification packet from FLOW 8 LE."""
-    if len(packet) < 3:
+    """Decode an incoming notification packet from FLOW 8 LE.
+
+    Every packet must pass the §2 framing checksum before it is interpreted —
+    a corrupt or truncated notification is dropped, never partially applied.
+    """
+    if len(packet) < 3 or not verify_ble_packet(packet):
         return None
     pkt_type = packet[0]
-    if pkt_type == PKT_PARAM_CMD and len(packet) >= 6 and verify_ble_packet(packet):
+    if pkt_type == PKT_PARAM_CMD and len(packet) >= 6:
         ch = packet[2]
         param = packet[3]
         val = packet[4]
@@ -172,6 +181,16 @@ class BleTransport:
         self._packets_tx = 0
         self._recent_echoes: dict[tuple[int, int, int], float] = {}
         self._snapshot_names: list[Optional[str]] = []
+        # Serializes every GATT write (handshake + data) on the BLE loop.
+        self._write_lock: Optional[asyncio.Lock] = None
+        # Set by the BLE loop before the auth write; released by the 0x36 ACK.
+        self._auth_event: Optional[asyncio.Event] = None
+        # 3068-byte state dump observability: counted, never decoded (the
+        # chunked float format is documented but not verified in-repo).
+        self._dump_chunks = 0
+        self._dump_bytes = 0
+        self._last_dump_at: Optional[float] = None
+        self._last_rx_mono: Optional[float] = None
 
     @property
     def is_connected(self) -> bool:
@@ -187,6 +206,13 @@ class BleTransport:
                 "packetsRx": self._packets_rx,
                 "packetsTx": self._packets_tx,
                 "snapshotNames": list(self._snapshot_names),
+                "dumpChunks": self._dump_chunks,
+                "dumpBytes": self._dump_bytes,
+                "lastDumpAt": self._last_dump_at,
+                "lastRxAgo": (
+                    round(time.monotonic() - self._last_rx_mono, 3)
+                    if self._last_rx_mono is not None else None
+                ),
                 "error": self._last_error,
             }
 
@@ -230,16 +256,30 @@ class BleTransport:
         """Send a Type 0x06 fader write over BLE if connected and authenticated."""
         if not self.is_connected or self._loop is None or self._client is None:
             return False
-        pkt = encode_fader_command(channel, raw_midi)
+        try:
+            pkt = encode_fader_command(channel, raw_midi)
+        except ValueError as exc:
+            logger.warning("BLE fader encode refused: %s", exc)
+            return False
         val_byte = pkt[4]
+        echo_key = (int(channel), PARAM_FADER, val_byte)
+        echo_ts = time.monotonic()
         with self._lock:
-            self._recent_echoes[(int(channel), PARAM_FADER, val_byte)] = time.monotonic()
+            self._prune_echoes_locked()
+            self._recent_echoes[echo_key] = echo_ts
         fut = asyncio.run_coroutine_threadsafe(self._write_packet(pkt), self._loop)
         try:
-            return bool(fut.result(timeout=2.0))
+            accepted = bool(fut.result(timeout=2.0))
         except Exception as exc:
             logger.warning("BLE write failed: %s", exc)
-            return False
+            accepted = False
+        if not accepted:
+            # The mixer never saw this value, so no echo can legitimately
+            # arrive for it — drop the marker so it cannot mask a real one.
+            with self._lock:
+                if self._recent_echoes.get(echo_key) == echo_ts:
+                    del self._recent_echoes[echo_key]
+        return accepted
 
     def request_dump_trigger(self) -> bool:
         """Send Type 0x4B dump trigger so FLOW 8 emits its 3068-byte SysEx state dump."""
@@ -252,25 +292,60 @@ class BleTransport:
             logger.warning("BLE dump trigger failed: %s", exc)
             return False
 
+    def _prune_echoes_locked(self) -> None:
+        """Drop expired echo markers; hard-cap the map so it cannot grow forever."""
+        now = time.monotonic()
+        expired = [k for k, ts in self._recent_echoes.items() if now - ts > ECHO_SUPPRESS_WINDOW_S]
+        for k in expired:
+            del self._recent_echoes[k]
+        if len(self._recent_echoes) > MAX_TRACKED_ECHOES:
+            oldest = sorted(self._recent_echoes.items(), key=lambda kv: kv[1])
+            for k, _ in oldest[: len(self._recent_echoes) - MAX_TRACKED_ECHOES]:
+                del self._recent_echoes[k]
+
     async def _write_packet(self, payload: bytes) -> bool:
         client = self._client
         if client is None or not getattr(client, "is_connected", False):
             return False
-        await client.write_gatt_char(FLOW8_DATA_CHAR_UUID, payload, response=True)
+        # Serialize all GATT writes: handshake packets and user commands can
+        # never interleave on the wire.
+        if self._write_lock is None:
+            self._write_lock = asyncio.Lock()
+        async with self._write_lock:
+            await client.write_gatt_char(FLOW8_DATA_CHAR_UUID, payload, response=True)
         with self._lock:
             self._packets_tx += 1
         return True
 
+    def _signal_auth_ack(self) -> None:
+        """Mark the session authenticated and release the handshake waiter."""
+        with self._lock:
+            self._authenticated = True
+        ev = self._auth_event
+        loop = self._loop
+        if ev is not None:
+            if loop is not None and loop.is_running():
+                loop.call_soon_threadsafe(ev.set)
+            else:
+                ev.set()
+        self._emit_status()
+
     def _handle_notification(self, raw: bytes) -> None:
         with self._lock:
             self._packets_rx += 1
+            self._last_rx_mono = time.monotonic()
+            # The 3068-byte state dump arrives as 0x38 chunks; count them for
+            # observability. Decoding stays unimplemented: the chunked float
+            # layout is documented but not verified against this firmware.
+            if raw and raw[0] == PKT_STATE_DUMP:
+                self._dump_chunks += 1
+                self._dump_bytes += len(raw)
+                self._last_dump_at = time.time()
         ev = decode_ble_notification(raw)
         if ev is None:
             return
         if ev.pkt_type == PKT_AUTH_ACK:
-            with self._lock:
-                self._authenticated = True
-            self._emit_status()
+            self._signal_auth_ack()
             return
         if ev.pkt_type == PKT_SNAPSHOT_NAMES and ev.snapshot_names is not None:
             with self._lock:
@@ -284,12 +359,62 @@ class BleTransport:
             key = (ev.channel, ev.param_id, val_byte)
             now = time.monotonic()
             with self._lock:
+                self._prune_echoes_locked()
                 sent_at = self._recent_echoes.get(key)
                 if sent_at is not None and (now - sent_at) <= ECHO_SUPPRESS_WINDOW_S:
                     del self._recent_echoes[key]
                     return
             if 1 <= ev.channel <= 6 and self._on_parameter is not None:
                 self._on_parameter(f"ch{ev.channel}.fader", ev.raw_midi)
+
+    @staticmethod
+    def _require_flow8_gatt(client: Any) -> None:
+        """Fail the session unless the peripheral exposes the FLOW 8 GATT layout."""
+        try:
+            services = list(client.services)
+        except Exception as exc:
+            raise RuntimeError(f"BLE GATT discovery failed: {exc}") from exc
+        if not any(
+            str(getattr(svc, "uuid", "")).lower() == FLOW8_SERVICE_UUID
+            for svc in services
+        ):
+            raise RuntimeError(
+                f"Connected device does not expose FLOW 8 service {FLOW8_SERVICE_UUID}"
+            )
+        char = None
+        try:
+            char = client.services.get_characteristic(FLOW8_DATA_CHAR_UUID)
+        except Exception:
+            char = None
+        if char is None:
+            raise RuntimeError(
+                f"FLOW 8 data characteristic {FLOW8_DATA_CHAR_UUID} not found"
+            )
+
+    async def _handshake(self) -> None:
+        """Run the verified handshake and wait for the mixer auth ACK.
+
+        Sequence (docs/product/REA_FLOW_MIX_SPEC.md §3):
+        ``0x39`` auth -> mixer answers ``0x36`` -> ``0x37`` session start ->
+        ``0x07`` config request -> ``0x4B`` dump trigger.
+        Raises TimeoutError when the 0x36 ACK never arrives: a completed GATT
+        write is transport evidence only, never authentication.
+        """
+        self._auth_event = asyncio.Event()
+        await self._write_packet(AUTH_PACKET)
+        try:
+            await asyncio.wait_for(
+                self._auth_event.wait(), timeout=AUTH_ACK_TIMEOUT_S
+            )
+        except asyncio.TimeoutError as exc:
+            raise TimeoutError(
+                f"BLE auth ACK (0x36) not received within {AUTH_ACK_TIMEOUT_S:.1f}s"
+            ) from exc
+        await self._write_packet(SESSION_START_PACKET)
+        await asyncio.sleep(0.5)
+        await self._write_packet(CONFIG_REQUEST_PACKET)
+        await asyncio.sleep(0.2)
+        await self._write_packet(DUMP_TRIGGER_PACKET)
 
     def _run_worker(self, ready: threading.Event) -> None:
         loop = asyncio.new_event_loop()
@@ -332,12 +457,17 @@ class BleTransport:
                     continue
 
                 async with BleakClient(target.address, timeout=12.0) as client:
-                    self._client = client
                     with self._lock:
+                        self._client = client
                         self._connected = True
                         self._device_name = target.name or "FLOW 8 LE"
                         self._device_address = target.address
                         self._last_error = None
+
+                    # Identity check: the connected peripheral must actually
+                    # expose the FLOW 8 GATT service and data characteristic.
+                    # A name match alone is not proof of identity.
+                    self._require_flow8_gatt(client)
 
                     winrt_token = None
                     char_obj = None
@@ -363,18 +493,10 @@ class BleTransport:
                         else:
                             raise
 
-                    # Handshake: Auth (0x39) -> Session Start (0x37) -> Config Request (0x07) -> Dump Trigger (0x4B)
-                    await self._write_packet(AUTH_PACKET)
-                    await asyncio.sleep(0.3)
-                    with self._lock:
-                        # Mark authenticated after auth write completes (0x36 ack also confirms)
-                        self._authenticated = True
-                    self._emit_status()
-                    await self._write_packet(SESSION_START_PACKET)
-                    await asyncio.sleep(0.5)
-                    await self._write_packet(CONFIG_REQUEST_PACKET)
-                    await asyncio.sleep(0.2)
-                    await self._write_packet(DUMP_TRIGGER_PACKET)
+                    # Handshake: Auth (0x39) -> await 0x36 ACK -> Session Start
+                    # (0x37) -> Config Request (0x07) -> Dump Trigger (0x4B).
+                    # Authentication is only marked after the mixer's ACK.
+                    await self._handshake()
 
                     while not stop_ev.is_set() and client.is_connected:
                         await asyncio.sleep(0.5)
