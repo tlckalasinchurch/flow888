@@ -330,6 +330,18 @@ class LiveConsoleLayoutAssetsTests(unittest.TestCase):
         self.assertIn("if (tab === 'mixer' || tab === 'stage')", js)
         self.assertIn("view = 'mixer';", js)
 
+    def test_device_fit_safe_areas_large_and_short_screens(self):
+        html = self._html()
+        css = (self.UI / "styles.css").read_text(encoding="utf-8")
+        self.assertIn("viewport-fit=cover", html)
+        self.assertIn("apple-mobile-web-app-capable", html)
+        self.assertIn("env(safe-area-inset-top", css)  # Safari notch and home indicator
+        self.assertIn("env(safe-area-inset-bottom", css)
+        self.assertIn("--ui-zoom: 1.5", css)  # large screens scale the whole UI
+        self.assertIn("@media (max-height: 520px)", css)  # phone in landscape
+        self.assertIn('body[data-section="sound"] .console-bank, body[data-tab="stage"] .console-bank { display: none; }', css)
+        self.assertIn('class="toolbars"', html)
+
     def test_touch_targets_are_44px_on_coarse_pointers(self):
         css = (self.UI / "styles.css").read_text(encoding="utf-8")
         self.assertIn("@media (pointer: coarse)", css)

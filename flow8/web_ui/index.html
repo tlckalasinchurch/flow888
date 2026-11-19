@@ -5,6 +5,10 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
   <title>FLOW 8 Live Console</title>
   <meta name="theme-color" content="#0E1013" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="FLOW 8" />
   <!-- Belt and braces with the hub's no-store headers, for Safari/iPad. -->
   <meta http-equiv="Cache-Control" content="no-store" />
   <meta http-equiv="Pragma" content="no-cache" />
@@ -45,6 +49,7 @@
     </div>
   </header>
 
+  <div class="toolbars">
   <!-- Control bar: edit tools on the left, show control on the right. Hidden in Setup. -->
   <div class="control-bar" id="control-bar">
     <div class="edit-tools" role="group" aria-label="Edit tools">
@@ -77,6 +82,7 @@
     <button class="cue-tab" data-tab="fx" data-group="sound" role="tab" aria-selected="false" hidden>FX</button>
     <button class="cue-tab" data-tab="channel" data-group="sound" role="tab" aria-selected="false" hidden>Channel</button>
   </nav>
+  </div>
 
   <div class="conn-banner" id="conn-banner" role="alert" hidden></div>
   <div class="conn-banner meter-lost" id="meter-banner" role="status" hidden></div>
