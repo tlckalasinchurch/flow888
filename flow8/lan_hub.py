@@ -46,6 +46,26 @@ _MIX_ACTIONS = frozenset({
 })
 
 
+UNSUPPORTED = ParameterProvenance.UNSUPPORTED.value
+
+# What the LAN remote may send for the two host-only safety parameters.
+# Both stay False: dispatch_action() rejects gain and +48V with 403 regardless.
+# The UI reads this map to show the controls as read-only.
+LAN_POLICY = {"gain": False, "phantom": False}
+
+# FLOW 8 functions that the Inspector shows but cannot send, with the reason.
+# A feature leaves this map only when its MIDI address is on the verified
+# allowlist (command_boundary.ACTIVE_ALLOWLIST) and the hub has an action for it.
+LAN_LOCKED_FEATURES = {
+    "gain": "Preamp gain is host-only (safety rule SR-05). Set it on the mixer.",
+    "phantom": "+48V is host-only. Use the 48V key on the mixer.",
+    "solo": "Solo (CC 6) is not on the verified MIDI allowlist.",
+    "limiter": "Bus limiter (CC 8) is documented but not hardware-verified.",
+    "geq": "The 9-band GEQ (CC 11-19) is documented but not hardware-verified.",
+    "fx": "FX engine controls stay disabled until the preset list and CC meanings are confirmed (conflict C-09).",
+}
+
+
 def get_lan_ips() -> list[str]:
     """Return non-loopback IPv4 addresses for LAN clients."""
     ips: list[str] = []
@@ -378,8 +398,11 @@ class Flow8LanHub:
                 target: int(self._param_raw(f"ch{idx}.send_{target}", 0)[0])
                 for target in ("mon1", "mon2", "fx1", "fx2")
             }
-            low_cut = int(self._param_raw(f"ch{idx}.low_cut", 0)[0]) if idx <= 4 else 0
-            comp = int(self._param_raw(f"ch{idx}.compressor", 0)[0]) if idx <= 4 else 0
+            low_cut, lc_prov = self._param_raw(f"ch{idx}.low_cut", 0) if idx <= 4 else (0, UNSUPPORTED)
+            comp, comp_prov = self._param_raw(f"ch{idx}.compressor", 0) if idx <= 4 else (0, UNSUPPORTED)
+            # Gain and +48V are shown read-only: the LAN remote never sends them.
+            gain, gain_prov = self._param_raw(f"ch{idx}.gain", None) if idx <= 4 else (None, UNSUPPORTED)
+            phantom, ph_prov = self._param_raw(f"ch{idx}.phantom", None) if idx <= 2 else (None, UNSUPPORTED)
             scribble = self._scribbles.get(idx, {})
             channels.append({
                 "index": idx,
@@ -394,8 +417,14 @@ class Flow8LanHub:
                 "muteProvenance": m_prov,
                 "eq": eq,
                 "eqProvenance": eq_prov,
-                "lowCut": low_cut,
-                "compressor": comp,
+                "lowCut": int(low_cut),
+                "lowCutProvenance": lc_prov,
+                "compressor": int(comp),
+                "compressorProvenance": comp_prov,
+                "gain": None if gain is None else int(gain),
+                "gainProvenance": gain_prov,
+                "phantom": None if phantom is None else bool(phantom),
+                "phantomProvenance": ph_prov,
                 "sends": sends,
             })
         main_f, main_f_prov = self._param_raw("main.fader", 101)
@@ -431,6 +460,8 @@ class Flow8LanHub:
             "channels": channels,
             "buses": buses,
             "scenes": list(self.service.scenes.names()),
+            "lanPolicy": dict(LAN_POLICY),
+            "locked": dict(LAN_LOCKED_FEATURES),
         }
 
     def dispatch_action(self, msg: dict[str, Any]) -> tuple[int, dict[str, Any]]:

@@ -4,10 +4,10 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
   <title>FLOW 8 Live Console</title>
-  <meta name="theme-color" content="#16181C" />
+  <meta name="theme-color" content="#0E1013" />
   <link rel="stylesheet" href="/styles.css" />
 </head>
-<body data-view="faders">
+<body data-layer="main">
 <div class="app-shell">
   <!-- Status strip: what is live right now -->
   <div class="status-strip">
@@ -32,83 +32,48 @@
     </div>
   </div>
 
-  <!-- Control row -->
+  <!-- Control row: bus selector, scenes, actions -->
   <header class="topbar">
-    <div class="layer-bar" id="layer-bar" role="group" aria-label="Fader layer">
-      <span class="layer-label">FADERS</span>
-      <button class="layer-btn active" data-layer="main" aria-pressed="true">MAIN</button>
-      <button class="layer-btn" data-layer="mon1" aria-pressed="false">MON 1</button>
-      <button class="layer-btn" data-layer="mon2" aria-pressed="false">MON 2</button>
-      <button class="layer-btn" data-layer="fx1" aria-pressed="false">FX 1</button>
-      <button class="layer-btn" data-layer="fx2" aria-pressed="false">FX 2</button>
+    <div class="bus-tabs" id="bus-tabs" role="group" aria-label="Mix on the faders. Tap the active mix again to open its settings.">
+      <button class="bus-tab active" data-layer="main" aria-pressed="true">MAIN</button>
+      <button class="bus-tab" data-layer="mon1" aria-pressed="false">MON 1</button>
+      <button class="bus-tab" data-layer="mon2" aria-pressed="false">MON 2</button>
+      <button class="bus-tab" data-layer="fx1" aria-pressed="false">FX 1</button>
+      <button class="bus-tab" data-layer="fx2" aria-pressed="false">FX 2</button>
+    </div>
+
+    <div class="scene-bar" role="group" aria-label="Scenes: tap to recall, hold to save">
+      <span class="group-label">SCENES</span>
+      <div class="scene-grid" id="scene-grid"></div>
     </div>
 
     <div class="toolbar-actions">
       <button class="hw-btn lock-btn" id="btn-lock" aria-pressed="false" title="Lock all controls against stray touches."><span class="lock-text">LOCK</span></button>
       <button class="hw-btn danger" id="btn-mute-all">MUTE ALL</button>
-      <button class="hw-btn" id="btn-undo" aria-label="Undo">↶ UNDO</button>
-      <button class="hw-btn" id="btn-redo" aria-label="Redo">↷ REDO</button>
-      <button class="hw-btn accent" id="btn-presets">★ PRESETS</button>
+      <button class="hw-btn icon" id="btn-undo" aria-label="Undo" title="Undo">↶</button>
+      <button class="hw-btn icon" id="btn-redo" aria-label="Redo" title="Redo">↷</button>
     </div>
   </header>
 
   <div class="conn-banner" id="conn-banner" role="alert" hidden></div>
 
-  <!-- Phone Navigation Switcher -->
-  <nav class="mobile-nav" id="mobile-nav" role="tablist" aria-label="View">
-    <button class="mobile-tab active" data-view="faders" role="tab" aria-selected="true">FADERS</button>
-    <button class="mobile-tab" data-view="buses" role="tab" aria-selected="false">BUS MASTERS</button>
-    <button class="mobile-tab" data-view="dsp" role="tab" aria-selected="false">CH DSP / EQ</button>
-  </nav>
-
-  <!-- Top Channel Strip DSP Rack -->
-  <section class="dsp-rack" id="dsp-rack">
-    <!-- Phone only: pick the channel to edit without leaving this view -->
-    <div class="ch-picker" id="ch-picker" role="group" aria-label="Channel to edit"></div>
-    <!-- Card 1: 4-Band Parametric EQ -->
-    <div class="rack-card">
-      <div class="rack-hdr">
-        <span class="rack-title" id="eq-title">CH 01 · 4-BAND EQ</span>
-        <div style="display:flex;align-items:center;gap:8px;">
-          <span class="rack-meta" id="eq-prov">COMMANDED — not measured</span>
-          <button class="hw-btn" id="btn-eq-flat" style="padding:2px 7px;font-size:10px;" aria-label="Reset EQ to flat">FLAT</button>
+  <!-- Fader bank and Inspector side by side. The Inspector never covers the whole bank. -->
+  <div class="workspace" id="workspace">
+    <main class="console-bank" id="console-bank" aria-label="Fader bank"></main>
+    <aside class="inspector" id="inspector" aria-labelledby="insp-title" hidden>
+      <div class="insp-head">
+        <button class="insp-step" id="insp-prev" aria-label="Previous channel">‹</button>
+        <div class="insp-id">
+          <span class="insp-chip" id="insp-chip"></span>
+          <h2 class="insp-title" id="insp-title" tabindex="-1">CH 01</h2>
+          <span class="insp-sub" id="insp-sub"></span>
         </div>
+        <button class="insp-step" id="insp-next" aria-label="Next channel">›</button>
+        <button class="insp-close" id="insp-close" aria-label="Close settings">✕</button>
       </div>
-      <div class="eq-canvas-wrap">
-        <canvas id="eq-canvas" width="520" height="118" aria-label="EQ curve. Drag a band point, or use the band boxes below with the arrow keys."></canvas>
-      </div>
-      <div class="eq-band-row" id="eq-band-row"></div>
-    </div>
-
-    <!-- Card 2: Rotary Dynamics / HPF & Scenes -->
-    <div class="rack-card">
-      <div class="rack-hdr">
-        <span class="rack-title">DYNAMICS &amp; HPF</span>
-        <span class="rack-meta" id="dyn-scope">CH 1–4</span>
-      </div>
-      <div class="knobs-row" id="knobs-row"></div>
-      <div class="rack-hdr" style="margin-top:2px;">
-        <span class="rack-title">SCENES</span>
-        <span class="rack-meta">TAP RECALL · HOLD SAVE</span>
-      </div>
-      <div class="scene-grid" id="scene-grid"></div>
-    </div>
-
-    <!-- Card 3: Aux Sends & Safety -->
-    <div class="rack-card">
-      <div class="rack-hdr">
-        <span class="rack-title">AUX SENDS</span>
-        <span class="rack-meta">MON &amp; FX</span>
-      </div>
-      <div class="sends-list" id="sends-list"></div>
-      <div class="safety-note">
-        🔒 Host-only safety lock: Preamp Gain (CC 8) and +48V Phantom ON (CC 12) require the host workstation.
-      </div>
-    </div>
-  </section>
-
-  <!-- Bottom Machined Fader Bank -->
-  <main class="console-bank" id="console-bank"></main>
+      <div class="insp-body" id="insp-body"></div>
+    </aside>
+  </div>
 </div>
 
 <!-- Preset Modal -->
@@ -124,32 +89,32 @@
 
 <!-- Scribble Edit Modal -->
 <div class="modal-backdrop" id="scribble-modal">
-  <div class="modal" style="max-width:340px;" role="dialog" aria-modal="true" aria-labelledby="scribble-title">
+  <div class="modal narrow" role="dialog" aria-modal="true" aria-labelledby="scribble-title">
     <div class="modal-hdr">
       <span class="rack-title" id="scribble-title">RENAME CHANNEL</span>
       <button class="hw-btn" id="btn-close-scribble">CLOSE</button>
     </div>
     <div class="modal-body">
-      <label for="scribble-input" style="font-size:11px;color:var(--text-secondary);display:flex;justify-content:space-between;">Name <span id="scribble-count">0/14</span></label>
-      <input id="scribble-input" type="text" maxlength="14" autocomplete="off" style="padding:8px;background:var(--bg-well);color:var(--text-primary);border:1px solid var(--border-light);border-radius:5px;" />
-      <span style="font-size:11px;color:var(--text-secondary);margin-top:4px;">Color tag</span>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;" id="scribble-colors" role="group" aria-label="Color tag"></div>
-      <button class="hw-btn accent" id="btn-save-scribble" style="margin-top:8px;">SAVE</button>
+      <label for="scribble-input" class="field-label">Name <span id="scribble-count">0/14</span></label>
+      <input id="scribble-input" class="text-input" type="text" maxlength="14" autocomplete="off" />
+      <span class="field-label">Color tag</span>
+      <div class="color-row" id="scribble-colors" role="group" aria-label="Color tag"></div>
+      <button class="hw-btn accent" id="btn-save-scribble">SAVE</button>
     </div>
   </div>
 </div>
 
 <!-- Confirm Modal -->
 <div class="modal-backdrop" id="confirm-modal">
-  <div class="modal" style="max-width:340px;" role="dialog" aria-modal="true" aria-labelledby="confirm-title">
+  <div class="modal narrow" role="dialog" aria-modal="true" aria-labelledby="confirm-title">
     <div class="modal-hdr">
       <span class="rack-title" id="confirm-title">CONFIRM</span>
     </div>
     <div class="modal-body">
-      <p id="confirm-text" style="font-size:13px;color:var(--text-secondary);margin:0;"></p>
-      <div style="display:flex;gap:8px;margin-top:8px;">
-        <button class="hw-btn" id="btn-confirm-cancel" style="flex:1;">CANCEL</button>
-        <button class="hw-btn danger" id="btn-confirm-ok" style="flex:1;">OVERWRITE</button>
+      <p id="confirm-text" class="confirm-text"></p>
+      <div class="confirm-row">
+        <button class="hw-btn" id="btn-confirm-cancel">CANCEL</button>
+        <button class="hw-btn danger" id="btn-confirm-ok">OVERWRITE</button>
       </div>
     </div>
   </div>

@@ -2,18 +2,40 @@
   const clientId = Math.random().toString(36).slice(2);
   let session = null;
   let presets = [];
-  let selectedCh = 1;
   let activeLayer = 'main'; // 'main' | 'mon1' | 'mon2' | 'fx1' | 'fx2'
-  let mobileView = 'faders'; // 'faders' | 'buses' | 'dsp'
+  // Inspector target: null (closed), { kind: 'ch', index: 1..7 } or { kind: 'bus', id: 'main'|'mon1'|... }
+  let insp = null;
 
+  // Strip legends as printed on the FLOW 8 panel.
+  const STRIP_TAG = { 1: 'MIC 1', 2: 'MIC 2', 3: 'COMBO 3', 4: 'COMBO 4', 5: 'LINE 5/6', 6: 'LINE 7/8', 7: 'USB/BT' };
+  const LAYERS = {
+    main: { label: 'MAIN', name: 'Main L/R', color: '#E6E8EB' },
+    mon1: { label: 'MON 1', name: 'Monitor 1', color: '#34D399' },
+    mon2: { label: 'MON 2', name: 'Monitor 2', color: '#34D399' },
+    fx1: { label: 'FX 1', name: 'FX 1 engine', color: '#A78BFA' },
+    fx2: { label: 'FX 2', name: 'FX 2 engine', color: '#A78BFA' },
+  };
+  const LAYER_ORDER = ['main', 'mon1', 'mon2', 'fx1', 'fx2'];
+  const USB_BLUE = '#4FA8FF';
+  const HUB_DEFAULT_COLOR = '#38bdf8';
+  // Band labels from the FLOW 8 app. The curve is an approximate picture (conflict C-04).
   const BANDS = [
-    { key: 'low', label: 'LOW', freq: 80, color: '#2EF2E2' },
-    { key: 'low_mid', label: 'L-MID', freq: 400, color: '#52E59A' },
-    { key: 'hi_mid', label: 'H-MID', freq: 2000, color: '#FFB45B' },
-    { key: 'hi', label: 'HI', freq: 8000, color: '#BC71FF' },
+    { key: 'low', label: 'LOW', freq: 100, hz: '100 Hz', color: '#2EF2E2' },
+    { key: 'low_mid', label: 'LO MID', freq: 500, hz: '500 Hz', color: '#52E59A' },
+    { key: 'hi_mid', label: 'HI MID', freq: 2000, hz: '2 kHz', color: '#FFB45B' },
+    { key: 'hi', label: 'HIGH', freq: 12000, hz: '12 kHz', color: '#BC71FF' },
   ];
-  const SCRIBBLE_PALETTE = ['#2EF2E2', '#52E59A', '#FFB45B', '#BC71FF', '#FF6BAA', '#C5FF4A'];
-  const SCRIBBLE_NAMES = { '#2EF2E2': 'cyan', '#52E59A': 'green', '#FFB45B': 'amber', '#BC71FF': 'purple', '#FF6BAA': 'pink', '#C5FF4A': 'lime' };
+  const GEQ_BANDS = ['63', '125', '250', '500', '1k', '2k', '4k', '8k', '16k'];
+  const FX_ENGINE = {
+    fx1: { param: 'DECAY', modes: ['INSTRUMENT', 'VOCAL'] },
+    fx2: { param: 'FEEDBACK', modes: ['DULL', 'BRIGHT'] },
+  };
+  const SCRIBBLE_PALETTE = ['#2EF2E2', '#52E59A', '#FFB45B', '#BC71FF', '#FF6BAA', '#C5FF4A', '#4FA8FF', '#D5DAE1'];
+  const SCRIBBLE_NAMES = { '#2EF2E2': 'cyan', '#52E59A': 'green', '#FFB45B': 'amber', '#BC71FF': 'purple', '#FF6BAA': 'pink', '#C5FF4A': 'lime', '#4FA8FF': 'blue', '#D5DAE1': 'silver' };
+
+  // LCD backlight colour: the hub default shows as silver, USB/BT as blue.
+  const lcdColor = (ch) => (!ch.color || ch.color === HUB_DEFAULT_COLOR ? (ch.index === 7 ? USB_BLUE : '#D5DAE1') : ch.color);
+  const chName = (ch) => ch.label || ch.name;
 
   let hubDown = false;
   let toastTimer = null;
@@ -87,30 +109,23 @@
     });
   }
 
+  // ---------- Value text ----------
   function midiToDbStr(raw) {
     if (raw <= 0) return '-∞ dB';
     const db = raw >= 101 ? ((raw - 101) / 26) * 10 : ((raw - 101) / 101) * 70;
     return `${db >= 0 ? '+' : ''}${db.toFixed(1)} dB`;
   }
-
-  function eqRawToDb(raw) {
-    return ((raw - 64) / 63.5) * 15.0;
-  }
-
-  function dbToEqRaw(db) {
-    return Math.max(0, Math.min(127, Math.round((Math.max(-15, Math.min(15, db)) / 15.0) * 63.5 + 64)));
-  }
-
+  const eqRawToDb = (raw) => ((raw - 64) / 63.5) * 15.0;
+  const dbToEqRaw = (db) => Math.max(0, Math.min(127, Math.round((Math.max(-15, Math.min(15, db)) / 15.0) * 63.5 + 64)));
+  const eqText = (raw) => { const d = eqRawToDb(raw); return `${d > 0.05 ? '+' : ''}${d.toFixed(1)} dB`; };
   function panText(raw) {
     const pct = Math.round(((raw - 64) / 63.5) * 100);
     if (Math.abs(pct) <= 1) return 'C';
     return pct < 0 ? `L${Math.abs(pct)}` : `R${pct}`;
   }
-
-  function hpfHz(raw) {
-    if (raw <= 0) return 'OFF';
-    return `${Math.round(20 + (raw / 127) * 580)} Hz`;
-  }
+  const hpfHz = (raw) => (raw <= 0 ? 'OFF' : `${Math.round(20 + (raw / 127) * 580)} Hz`);
+  // Approximate preamp gain (parameter_mapping.gain_midi_to_db: -20..+60 dB linear).
+  const gainText = (raw) => (raw == null ? '—' : `${Math.round(-20 + (raw / 127) * 80)} dB`);
 
   // Short provenance codes fit a narrow strip header. The title gives the full meaning.
   const PROV = {
@@ -123,13 +138,14 @@
   const provCode = (p) => (PROV[p] ? PROV[p][0] : p);
   const provTitle = (p) => (PROV[p] ? PROV[p][1] : p);
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const lockReason = (key) => (session && session.locked && session.locked[key]) || 'Not available over MIDI.';
 
   // Keyboard control for a custom slider (fader, knob, EQ band).
   // Arrow keys step 1, Page keys step 10, Home/End go to the limits.
   // The value is sent 300 ms after the last key press.
-  function attachSliderKeys(el, { label, min, max, get, set, text, onCommit }) {
+  function attachSliderKeys(el, { label, min, max, get, set, text, onCommit, focusKey }) {
     el.tabIndex = 0;
-    el.dataset.focusKey = el.dataset.focusKey || `slider:${label}`;
+    el.dataset.focusKey = focusKey || el.dataset.focusKey || `slider:${label}`;
     el.setAttribute('role', 'slider');
     el.setAttribute('aria-label', label);
     el.setAttribute('aria-valuemin', min);
@@ -211,106 +227,7 @@
     requestAnimationFrame(frame);
   }
 
-  // Overview EQ curve for a strip, drawn from the known band values.
-  function eqThumbPath(ch, w = 60, h = 18) {
-    const gains = BANDS.map((b) => eqRawToDb(ch.eq ? ch.eq[b.key] : 64));
-    const pts = [];
-    for (let i = 0; i <= 24; i++) {
-      const f = 20 * Math.pow(1000, i / 24);
-      const db = Math.max(-15, Math.min(15, eqResponseAt(f, gains)));
-      pts.push(`${((i / 24) * w).toFixed(1)},${(h / 2 - (db / 15) * (h / 2 - 1)).toFixed(1)}`);
-    }
-    return `M${pts.join(' L')}`;
-  }
-
-  // ---------- Rotary SVG Knob Builder ----------
-  function createRotaryKnob({ label, valueText, raw, min, max, color, bipolar = false, disabled = false, onMove, onCommit }) {
-    const cell = document.createElement('div');
-    cell.className = 'knob-cell' + (disabled ? ' disabled' : '');
-    const norm = (raw - min) / (max - min);
-    const startDeg = -135;
-    const endDeg = 135;
-    const curDeg = startDeg + norm * (endDeg - startDeg);
-
-    const polar = (deg, r) => {
-      const rad = ((deg - 90) * Math.PI) / 180;
-      return [26 + r * Math.cos(rad), 26 + r * Math.sin(rad)];
-    };
-
-    const arcPath = (a1, a2, r) => {
-      const [x1, y1] = polar(a1, r);
-      const [x2, y2] = polar(a2, r);
-      const large = Math.abs(a2 - a1) > 180 ? 1 : 0;
-      const sweep = a2 >= a1 ? 1 : 0;
-      return `M ${x1.toFixed(1)} ${y1.toFixed(1)} A ${r} ${r} 0 ${large} ${sweep} ${x2.toFixed(1)} ${y2.toFixed(1)}`;
-    };
-
-    const arcFrom = bipolar ? 0 : startDeg;
-    cell.innerHTML = `
-      <span class="knob-lbl">${label}</span>
-      <svg class="knob-svg" viewBox="0 0 52 52">
-        <path d="${arcPath(startDeg, endDeg, 21)}" fill="none" stroke="#1e2738" stroke-width="3.5" stroke-linecap="round" />
-        <path class="k-arc" d="${arcPath(arcFrom, curDeg, 21)}" fill="none" stroke="${color}" stroke-width="3.5" stroke-linecap="round" />
-        <circle cx="26" cy="26" r="15.5" fill="#1a2130" stroke="#334155" stroke-width="1.2" />
-        <line class="k-ptr" x1="26" y1="26" x2="${polar(curDeg, 12)[0]}" y2="${polar(curDeg, 12)[1]}" stroke="${color}" stroke-width="2.4" stroke-linecap="round" />
-      </svg>
-      <span class="knob-val">${valueText}</span>
-    `;
-
-    if (!disabled) {
-      const svg = cell.querySelector('svg');
-      const arcEl = cell.querySelector('.k-arc');
-      const ptrEl = cell.querySelector('.k-ptr');
-      const valEl = cell.querySelector('.knob-val');
-      let current = raw;
-      let startY = 0;
-      let startVal = raw;
-
-      const updateVisual = (v) => {
-        const n = (v - min) / (max - min);
-        const deg = startDeg + n * (endDeg - startDeg);
-        arcEl.setAttribute('d', arcPath(arcFrom, deg, 21));
-        const [px, py] = polar(deg, 12);
-        ptrEl.setAttribute('x2', px);
-        ptrEl.setAttribute('y2', py);
-        valEl.textContent = onMove(v);
-      };
-
-      svg.onpointerdown = (e) => {
-        svg.setPointerCapture(e.pointerId);
-        startY = e.clientY;
-        startVal = current;
-      };
-      svg.onpointermove = (e) => {
-        if (!svg.hasPointerCapture(e.pointerId)) return;
-        const delta = Math.round(((startY - e.clientY) / 110) * (max - min));
-        current = Math.max(min, Math.min(max, startVal + delta));
-        updateVisual(current);
-      };
-      svg.onpointerup = (e) => {
-        if (!svg.hasPointerCapture(e.pointerId)) return;
-        svg.releasePointerCapture(e.pointerId);
-        onCommit(current);
-      };
-      const syncKeys = attachSliderKeys(svg, {
-        label, min, max,
-        get: () => current,
-        set: (v) => { current = v; updateVisual(v); },
-        text: (v) => onMove(v),
-        onCommit,
-      });
-      svg.addEventListener('pointerup', syncKeys);
-      svg.ondblclick = () => {
-        current = bipolar ? Math.round((min + max) / 2) : min;
-        updateVisual(current);
-        onCommit(current);
-      };
-    }
-    return cell;
-  }
-
-  // ---------- Interactive 4-Band EQ Canvas ----------
-  let eqNodeDrag = null;
+  // ---------- EQ response (approximate picture, not a measured curve) ----------
   function eqResponseAt(freq, gains) {
     const lf = Math.log10(Math.max(20, freq));
     let total = 0;
@@ -324,298 +241,216 @@
     });
     return Math.max(-15, Math.min(15, total));
   }
-
-  function freqToX(freq, w) {
-    const minL = Math.log10(20), maxL = Math.log10(20000);
-    return 14 + ((Math.log10(freq) - minL) / (maxL - minL)) * (w - 28);
+  function eqThumbPath(ch, w = 60, h = 18) {
+    const gains = BANDS.map((b) => eqRawToDb(ch.eq ? ch.eq[b.key] : 64));
+    const pts = [];
+    for (let i = 0; i <= 24; i++) {
+      const f = 20 * Math.pow(1000, i / 24);
+      const db = eqResponseAt(f, gains);
+      pts.push(`${((i / 24) * w).toFixed(1)},${(h / 2 - (db / 15) * (h / 2 - 1)).toFixed(1)}`);
+    }
+    return `M${pts.join(' L')}`;
   }
+  const freqToX = (freq, w) => 14 + ((Math.log10(freq) - Math.log10(20)) / (Math.log10(20000) - Math.log10(20))) * (w - 28);
+  const dbToY = (db, h) => h / 2 - (db / 16) * (h * 0.42);
+  const yToDb = (y, h) => Math.max(-15, Math.min(15, ((h / 2 - y) / (h * 0.42)) * 16));
 
-  function dbToY(db, h) {
-    return h / 2 - (db / 16) * (h * 0.42);
-  }
-
-  function yToDb(y, h) {
-    return Math.max(-15, Math.min(15, ((h / 2 - y) / (h * 0.42)) * 16));
-  }
-
-  function drawEqCanvas(ch) {
-    const canvas = document.getElementById('eq-canvas');
+  function drawEqCanvas(canvas, ch) {
     const ctx = canvas.getContext('2d');
     const w = canvas.width;
     const h = canvas.height;
     ctx.clearRect(0, 0, w, h);
-
-    // Subtle frequency & dB grid
-    ctx.strokeStyle = '#1b2232';
     ctx.lineWidth = 1;
-    [50, 100, 250, 500, 1000, 2500, 5000, 10000].forEach((f) => {
+    ctx.font = '600 11px "Barlow Condensed", sans-serif';
+    [[100, '100'], [1000, '1k'], [10000, '10k']].forEach(([f, t]) => {
       const x = freqToX(f, w);
+      ctx.strokeStyle = '#1F242C';
       ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke();
+      ctx.fillStyle = '#4B525C';
+      ctx.fillText(t, x + 3, h - 4);
     });
     [-10, 0, 10].forEach((d) => {
       const y = dbToY(d, h);
-      ctx.strokeStyle = d === 0 ? '#2b364d' : '#181f2d';
+      ctx.strokeStyle = d === 0 ? '#2E343D' : '#1A1E25';
       ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke();
     });
-
-    if (!ch || !ch.eq) return;
     const gains = BANDS.map((b) => eqRawToDb(ch.eq[b.key]));
-    const active = ch.eqProvenance === 'COMMANDED' || ch.eqProvenance === 'OBSERVED';
-    const curveColor = active ? '#38bdf8' : '#5d6a80';
-
+    const known = ch.eqProvenance === 'COMMANDED' || ch.eqProvenance === 'OBSERVED';
     ctx.beginPath();
-    for (let i = 0; i <= 80; i++) {
-      const f = Math.pow(10, Math.log10(20) + (i / 80) * (Math.log10(20000) - Math.log10(20)));
+    for (let i = 0; i <= 96; i++) {
+      const f = Math.pow(10, Math.log10(20) + (i / 96) * 3);
       const x = freqToX(f, w);
       const y = dbToY(eqResponseAt(f, gains), h);
-      if (i === 0) ctx.moveTo(x, y);
-      else ctx.lineTo(x, y);
+      if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
     }
-    ctx.strokeStyle = curveColor;
-    ctx.lineWidth = 2.4;
+    ctx.strokeStyle = known ? '#3FD2E0' : '#5D6A80';
+    ctx.lineWidth = 2.2;
     ctx.stroke();
-
-    // Area fill under curve
     ctx.lineTo(freqToX(20000, w), h / 2);
     ctx.lineTo(freqToX(20, w), h / 2);
     ctx.closePath();
-    ctx.fillStyle = active ? 'rgba(56, 189, 248, 0.12)' : 'rgba(93, 106, 128, 0.08)';
+    ctx.fillStyle = known ? 'rgba(63, 210, 224, 0.10)' : 'rgba(93, 106, 128, 0.07)';
     ctx.fill();
-
-    // Draggable Band Nodes
-    if (ch.index <= 7) {
-      BANDS.forEach((b, idx) => {
-        const nx = freqToX(b.freq, w);
-        const ny = dbToY(gains[idx], h);
-        ctx.beginPath();
-        ctx.arc(nx, ny, 6.5, 0, Math.PI * 2);
-        ctx.fillStyle = '#090c11';
-        ctx.fill();
-        ctx.lineWidth = 2.2;
-        ctx.strokeStyle = b.color;
-        ctx.stroke();
-      });
-    }
+    BANDS.forEach((b, idx) => {
+      ctx.beginPath();
+      ctx.arc(freqToX(b.freq, w), dbToY(gains[idx], h), 7, 0, Math.PI * 2);
+      ctx.fillStyle = '#0B0D10';
+      ctx.fill();
+      ctx.lineWidth = 2.2;
+      ctx.strokeStyle = b.color;
+      ctx.stroke();
+    });
   }
 
-  function setupEqCanvasInteraction() {
-    const canvas = document.getElementById('eq-canvas');
+  // Drag a band point up or down. The value is sent on release.
+  function attachEqCanvas(canvas, ch, onBandMove) {
+    let drag = null;
     canvas.onpointerdown = (e) => {
-      if (!session) return;
-      const ch = session.channels.find((c) => c.index === selectedCh);
-      if (!ch || ch.index === 8) return;
       const rect = canvas.getBoundingClientRect();
       const sx = ((e.clientX - rect.left) / rect.width) * canvas.width;
       const sy = ((e.clientY - rect.top) / rect.height) * canvas.height;
       let best = null;
-      let bestDist = 28;
+      let bestDist = 34;
       BANDS.forEach((b) => {
-        const nx = freqToX(b.freq, canvas.width);
-        const ny = dbToY(eqRawToDb(ch.eq[b.key]), canvas.height);
-        const d = Math.hypot(sx - nx, sy - ny);
+        const d = Math.hypot(sx - freqToX(b.freq, canvas.width), sy - dbToY(eqRawToDb(ch.eq[b.key]), canvas.height));
         if (d < bestDist) { bestDist = d; best = b; }
       });
-      if (best) {
-        eqNodeDrag = best;
-        canvas.setPointerCapture(e.pointerId);
-      }
+      if (!best) return;
+      drag = best;
+      canvas.setPointerCapture(e.pointerId);
     };
     canvas.onpointermove = (e) => {
-      if (!eqNodeDrag || !session) return;
-      const ch = session.channels.find((c) => c.index === selectedCh);
-      if (!ch) return;
+      if (!drag) return;
       const rect = canvas.getBoundingClientRect();
       const sy = ((e.clientY - rect.top) / rect.height) * canvas.height;
-      const db = yToDb(sy, canvas.height);
-      ch.eq[eqNodeDrag.key] = dbToEqRaw(db);
-      ch.eqProvenance = 'COMMANDED';
-      drawEqCanvas(ch);
-      const valEl = document.getElementById(`eq-val-${eqNodeDrag.key}`);
-      if (valEl) valEl.textContent = `${eqRawToDb(ch.eq[eqNodeDrag.key]).toFixed(1)} dB`;
+      ch.eq[drag.key] = dbToEqRaw(yToDb(sy, canvas.height));
+      drawEqCanvas(canvas, ch);
+      onBandMove(drag.key, ch.eq[drag.key]);
     };
     canvas.onpointerup = (e) => {
-      if (!eqNodeDrag || !session) return;
-      const ch = session.channels.find((c) => c.index === selectedCh);
-      const bandKey = eqNodeDrag.key;
-      eqNodeDrag = null;
+      if (!drag) return;
+      const key = drag.key;
+      drag = null;
       if (canvas.hasPointerCapture(e.pointerId)) canvas.releasePointerCapture(e.pointerId);
-      if (ch) postAction({ action: 'setEqBand', channel: ch.index, band: bandKey, value: ch.eq[bandKey] });
+      postAction({ action: 'setEqBand', channel: ch.index, band: key, value: ch.eq[key] });
     };
   }
 
-  // ---------- Render Top DSP Rack ----------
-  function renderDsp() {
-    if (!session) return;
-    const ch = session.channels.find((c) => c.index === selectedCh) || session.channels[0];
-    const title = ch.index === 8 ? 'MAIN L/R' : `CH ${String(ch.index).padStart(2, '0')} · ${ch.label || ch.name}`;
-    document.getElementById('eq-title').textContent = `${title} · 4-BAND EQ`;
-    document.getElementById('eq-prov').textContent = `COMMANDED — not measured (${ch.eqProvenance || 'UNSYNCED'})`;
-
-    const eqRow = document.getElementById('eq-band-row');
-    eqRow.innerHTML = '';
-    BANDS.forEach((b) => {
-      const raw = ch.eq ? ch.eq[b.key] : 64;
-      const chip = document.createElement('div');
-      chip.className = 'band-chip';
-      chip.innerHTML = `
-        <div class="b-name" style="color:${b.color}">${b.label}</div>
-        <div class="b-val" id="eq-val-${b.key}">${eqRawToDb(raw).toFixed(1)} dB</div>
-      `;
-      if (ch.eq && ch.index <= 7) {
-        let bandRaw = raw;
-        attachSliderKeys(chip, {
-          label: `${b.label} EQ gain, CH ${ch.index}`,
-          min: 0, max: 127,
-          get: () => bandRaw,
-          set: (v) => {
-            bandRaw = v;
-            ch.eq[b.key] = v;
-            chip.querySelector('.b-val').textContent = `${eqRawToDb(v).toFixed(1)} dB`;
-            drawEqCanvas(ch);
-          },
-          text: (v) => `${eqRawToDb(v).toFixed(1)} dB`,
-          onCommit: (v) => postAction({ action: 'setEqBand', channel: ch.index, band: b.key, value: v }),
-        });
-      }
-      eqRow.appendChild(chip);
-    });
-    drawEqCanvas(ch);
-
-    const picker = document.getElementById('ch-picker');
-    picker.innerHTML = '';
-    session.channels.forEach((c) => {
-      const btn = document.createElement('button');
-      btn.className = 'ch-pick' + (c.index === ch.index ? ' active' : '');
-      btn.textContent = c.index === 8 ? 'MAIN' : String(c.index);
-      btn.title = c.label || c.name;
-      btn.setAttribute('aria-label', `Edit ${c.label || c.name}`);
-      btn.setAttribute('aria-pressed', c.index === ch.index ? 'true' : 'false');
-      btn.onclick = () => { selectedCh = c.index; renderConsole(); renderDsp(); };
-      picker.appendChild(btn);
-    });
-
-    // Rotary Knobs: Pan/Bal, Low Cut (HPF), Compressor
-    const knobsRow = document.getElementById('knobs-row');
-    knobsRow.innerHTML = '';
-    const isInput14 = ch.index <= 4;
-    document.getElementById('dyn-scope').textContent = isInput14 ? 'ACTIVE (CH 1–4)' : 'HPF/COMP: CH 1–4 ONLY';
-
-    knobsRow.appendChild(createRotaryKnob({
-      label: ch.index === 8 ? 'BALANCE' : 'PAN',
-      valueText: panText(ch.pan),
-      raw: ch.pan,
-      min: 0,
-      max: 127,
-      color: '#38bdf8',
-      bipolar: true,
-      onMove: (v) => panText(v),
-      onCommit: (v) => postAction({ action: 'setPan', channel: ch.index, value: v }),
-    }));
-
-    knobsRow.appendChild(createRotaryKnob({
-      label: 'LOW CUT',
-      valueText: hpfHz(ch.lowCut || 0),
-      raw: ch.lowCut || 0,
-      min: 0,
-      max: 127,
-      color: '#f59e0b',
-      disabled: !isInput14,
-      onMove: (v) => hpfHz(v),
-      onCommit: (v) => postAction({ action: 'setLowCut', channel: ch.index, value: v }),
-    }));
-
-    knobsRow.appendChild(createRotaryKnob({
-      label: 'COMP',
-      valueText: `${ch.compressor || 0}%`,
-      raw: ch.compressor || 0,
-      min: 0,
-      max: 100,
-      color: '#a78bfa',
-      disabled: !isInput14,
-      onMove: (v) => `${v}%`,
-      onCommit: (v) => postAction({ action: 'setCompressor', channel: ch.index, value: v }),
-    }));
-
-    // Scenes
-    const sceneGrid = document.getElementById('scene-grid');
-    sceneGrid.innerHTML = '';
-    for (let i = 1; i <= 8; i++) {
-      const name = `SCENE ${i}`;
-      const saved = session.scenes.includes(name);
-      const pad = document.createElement('button');
-      pad.className = 'scene-pad' + (saved ? ' saved' : '');
-      pad.textContent = `S${i}`;
-      const HOLD_MS = 550;
-      let timer = null;
-      const cancelHold = () => {
-        pad.classList.remove('holding');
-        if (timer) { clearTimeout(timer); timer = null; }
-      };
-      pad.setAttribute('aria-label', saved
-        ? `Scene ${i}: tap or Enter to recall, hold or Shift+Enter to overwrite`
-        : `Scene ${i}: empty, hold or Shift+Enter to save`);
-      const saveScene = async () => {
-        if (saved && !(await confirmAction(`OVERWRITE S${i}?`, `Scene S${i} already holds a saved mix. Save the current mix over it?`, 'OVERWRITE'))) return;
-        const res = await postAction({ action: 'captureScene', name });
-        if (res.ok) showToast(`Saved current mix to S${i}.`);
-        loadSession();
-      };
-      const recallScene = async () => {
-        if (!saved) { showToast(`S${i} is empty. Hold the pad (or press Shift+Enter) to save the current mix.`); return; }
-        const res = await postAction({ action: 'recallScene', name });
-        if (res.ok) showToast(`Recalled S${i}.`);
-        loadSession();
-      };
-      pad.onkeydown = (e) => {
-        if (e.key !== 'Enter' && e.key !== ' ') return;
-        e.preventDefault();
-        if (e.shiftKey) saveScene(); else recallScene();
-      };
-      pad.onpointerdown = () => {
-        cancelHold();
-        void pad.offsetWidth; // restart the progress animation
-        pad.classList.add('holding');
-        timer = setTimeout(() => {
-          timer = null;
-          pad.classList.remove('holding');
-          held = true;
-          saveScene();
-        }, HOLD_MS);
-      };
-      let held = false;
-      pad.onpointerup = () => {
-        // The hold timer is still pending only when the finger lifted before the hold time.
-        const wasTap = !!timer;
-        cancelHold();
-        if (held) { held = false; return; }
-        if (wasTap) recallScene();
-      };
-      pad.onpointercancel = cancelHold;
-      pad.onpointerleave = cancelHold;
-      sceneGrid.appendChild(pad);
+  // ---------- Rotary knob ----------
+  // locked: show the value, refuse input, and give the reason in the title.
+  function createRotaryKnob({ label, valueText, raw, min, max, color, bipolar = false, locked = null, focusKey, onMove, onCommit }) {
+    const cell = document.createElement('div');
+    cell.className = 'knob-cell' + (locked ? ' locked' : '');
+    const startDeg = -135;
+    const endDeg = 135;
+    const known = raw != null;
+    const norm = known ? (raw - min) / (max - min) : (bipolar ? 0.5 : 0);
+    const curDeg = startDeg + norm * (endDeg - startDeg);
+    const polar = (deg, r) => {
+      const rad = ((deg - 90) * Math.PI) / 180;
+      return [26 + r * Math.cos(rad), 26 + r * Math.sin(rad)];
+    };
+    const arcPath = (a1, a2, r) => {
+      const [x1, y1] = polar(a1, r);
+      const [x2, y2] = polar(a2, r);
+      const large = Math.abs(a2 - a1) > 180 ? 1 : 0;
+      const sweep = a2 >= a1 ? 1 : 0;
+      return `M ${x1.toFixed(1)} ${y1.toFixed(1)} A ${r} ${r} 0 ${large} ${sweep} ${x2.toFixed(1)} ${y2.toFixed(1)}`;
+    };
+    const arcFrom = bipolar ? 0 : startDeg;
+    const [px, py] = polar(curDeg, 12);
+    cell.innerHTML = `
+      <span class="knob-lbl">${label}${locked ? ' <span class="lock-glyph" aria-hidden="true">●</span>' : ''}</span>
+      <svg class="knob-svg" viewBox="0 0 52 52">
+        <path d="${arcPath(startDeg, endDeg, 21)}" fill="none" stroke="#232831" stroke-width="3.5" stroke-linecap="round" />
+        <path class="k-arc" d="${known ? arcPath(arcFrom, curDeg, 21) : ''}" fill="none" stroke="${locked ? '#5D646E' : color}" stroke-width="3.5" stroke-linecap="round" />
+        <circle cx="26" cy="26" r="15.5" fill="#181B21" stroke="#30353E" stroke-width="1.2" />
+        <line class="k-ptr" x1="26" y1="26" x2="${px}" y2="${py}" stroke="${locked ? '#79808A' : color}" stroke-width="2.4" stroke-linecap="round" />
+      </svg>
+      <span class="knob-val">${valueText}</span>
+    `;
+    const svg = cell.querySelector('svg');
+    if (locked) {
+      cell.title = locked;
+      svg.setAttribute('role', 'img');
+      svg.setAttribute('aria-label', `${label}: ${valueText}. Locked. ${locked}`);
+      return cell;
     }
-
-    // Aux Sends
-    const sendsList = document.getElementById('sends-list');
-    sendsList.innerHTML = '';
-    ['mon1', 'mon2', 'fx1', 'fx2'].forEach((t) => {
-      const val = ch.sends ? ch.sends[t] : 0;
-      const box = document.createElement('div');
-      box.className = 'send-box';
-      box.innerHTML = `
-        <div class="send-top"><span>${t.toUpperCase()}</span><span class="s-val">${midiToDbStr(val)}</span></div>
-        <input class="studio-range" type="range" min="0" max="127" value="${val}" aria-label="${t.toUpperCase()} send, CH ${ch.index}" aria-valuetext="${midiToDbStr(val)}" ${ch.index === 8 ? 'disabled' : ''} />
-      `;
-      const rng = box.querySelector('input');
-      rng.oninput = () => {
-        box.querySelector('.s-val').textContent = midiToDbStr(+rng.value);
-        rng.setAttribute('aria-valuetext', midiToDbStr(+rng.value));
-      };
-      rng.onchange = () => postAction({ action: 'setSend', channel: ch.index, target: t, value: +rng.value });
-      sendsList.appendChild(box);
+    const arcEl = cell.querySelector('.k-arc');
+    const ptrEl = cell.querySelector('.k-ptr');
+    const valEl = cell.querySelector('.knob-val');
+    let current = known ? raw : min;
+    let startY = 0;
+    let startVal = current;
+    const updateVisual = (v) => {
+      const deg = startDeg + ((v - min) / (max - min)) * (endDeg - startDeg);
+      arcEl.setAttribute('d', arcPath(arcFrom, deg, 21));
+      const [x, y] = polar(deg, 12);
+      ptrEl.setAttribute('x2', x);
+      ptrEl.setAttribute('y2', y);
+      valEl.textContent = onMove(v);
+    };
+    svg.onpointerdown = (e) => {
+      svg.setPointerCapture(e.pointerId);
+      startY = e.clientY;
+      startVal = current;
+    };
+    svg.onpointermove = (e) => {
+      if (!svg.hasPointerCapture(e.pointerId)) return;
+      const delta = Math.round(((startY - e.clientY) / 140) * (max - min));
+      current = Math.max(min, Math.min(max, startVal + delta));
+      updateVisual(current);
+    };
+    svg.onpointerup = (e) => {
+      if (!svg.hasPointerCapture(e.pointerId)) return;
+      svg.releasePointerCapture(e.pointerId);
+      onCommit(current);
+    };
+    const syncKeys = attachSliderKeys(svg, {
+      label, min, max, focusKey,
+      get: () => current,
+      set: (v) => { current = v; updateVisual(v); },
+      text: (v) => onMove(v),
+      onCommit,
     });
+    svg.addEventListener('pointerup', syncKeys);
+    svg.ondblclick = () => {
+      current = bipolar ? Math.round((min + max) / 2) : min;
+      updateVisual(current);
+      onCommit(current);
+    };
+    return cell;
   }
 
+  // Hold a key for `ms` to run onDone. A short tap runs onTap instead.
+  function attachHold(btn, ms, onDone, onTap) {
+    let timer = null;
+    btn.style.setProperty('--hold-ms', `${ms}ms`);
+    const cancel = () => {
+      btn.classList.remove('holding');
+      if (timer) { clearTimeout(timer); timer = null; return true; }
+      return false;
+    };
+    btn.onpointerdown = () => {
+      cancel();
+      void btn.offsetWidth; // restart the progress animation
+      btn.classList.add('holding');
+      timer = setTimeout(() => { timer = null; btn.classList.remove('holding'); onDone(); }, ms);
+    };
+    btn.onpointerup = () => { if (cancel() && onTap) onTap(); };
+    btn.onpointerleave = cancel;
+    btn.onpointercancel = cancel;
+    btn.onkeydown = (e) => {
+      if (e.key !== 'Enter' && e.key !== ' ') return;
+      e.preventDefault();
+      if (e.repeat) return;
+      btn.onpointerdown();
+      const up = (ev) => { if (ev.key === e.key) { btn.removeEventListener('keyup', up); btn.onpointerup(); } };
+      btn.addEventListener('keyup', up);
+    };
+  }
+
+  // ---------- Fader bank ----------
   // Tick labels at the raw values that midiToDbStr() maps to +10, 0, -20 and -40 dB.
   const FADER_TICKS = `<div class="fader-ticks" aria-hidden="true">${
     [['+10', 127], ['0', 101], ['-20', 72], ['-40', 43], ['-∞', 0]]
@@ -634,14 +469,20 @@
     <div class="meter" data-meter="${sid}" aria-hidden="true" title="${METER_TITLE[sid] || 'Input level before the fader (USB capture). The fader does not change it.'}">
       <div class="meter-rms"></div><div class="meter-hold"></div><span class="meter-clip"></span>
     </div>`;
+  const FADER_WELL = (focusKey) => `
+    <div class="fader-well" data-focus-key="${focusKey}">
+      ${FADER_TICKS}
+      <div class="fader-slot"></div>
+      <div class="unity-mark"></div>
+      <div class="fader-fill"></div>
+      <div class="fader-cap"></div>
+    </div>`;
 
-  // ---------- Vertical Fader Pointer Engine ----------
   function attachVerticalFader(well, initialVal, onMove, onCommit, label) {
     let val = initialVal;
     const fill = well.querySelector('.fader-fill');
     const cap = well.querySelector('.fader-cap');
     const unity = well.querySelector('.unity-mark');
-
     const updatePos = (v) => {
       const h = well.clientHeight || 160;
       const usable = Math.max(40, h - 28);
@@ -652,7 +493,6 @@
       unity.style.bottom = `${14 + (101 / 127) * usable}px`;
     };
     requestAnimationFrame(() => updatePos(val));
-
     const syncKeys = attachSliderKeys(well, {
       label, min: 0, max: 127,
       get: () => val,
@@ -660,14 +500,12 @@
       text: (v) => midiToDbStr(v),
       onCommit,
     });
-
     const valFromEvent = (e) => {
       const rect = well.getBoundingClientRect();
       const usable = Math.max(40, rect.height - 28);
       const yBottom = rect.bottom - e.clientY - 14;
       return Math.max(0, Math.min(127, Math.round((yBottom / usable) * 127)));
     };
-
     well.onpointerdown = (e) => {
       well.setPointerCapture(e.pointerId);
       well.classList.add('grab');
@@ -690,142 +528,112 @@
     };
   }
 
-  // ---------- Render Bottom Fader Bank ----------
+  // Selecting a strip (or the master) opens the Inspector. The keyboard opens it too.
+  function wireScribble(scribble, target) {
+    const open = (byKey) => openInspector(target, byKey);
+    scribble.onclick = () => open(false);
+    scribble.onkeydown = (e) => {
+      if (e.target !== scribble || (e.key !== 'Enter' && e.key !== ' ')) return;
+      e.preventDefault();
+      open(true);
+    };
+  }
+
+  // Values of the mix on the right-hand master strip.
+  function masterOf(layer) {
+    if (layer === 'main') {
+      const m = session.channels.find((c) => c.index === 8);
+      return { sid: 'main', fader: m.fader, prov: m.faderProvenance, commit: (v) => postAction({ action: 'setFader', channel: 8, value: v }) };
+    }
+    const b = session.buses.find((x) => x.id === layer);
+    return { sid: layer, fader: b.fader, prov: b.faderProvenance, commit: (v) => postAction({ action: 'setBusFader', bus: layer, value: v }) };
+  }
+
   function renderConsole() {
     if (!session) return;
     applyConnectionState(!!session.midiConnected);
     const allMuted = session.channels.filter((c) => c.index <= 7).every((c) => c.mute);
     document.getElementById('btn-mute-all').textContent = allMuted ? 'UNMUTE ALL' : 'MUTE ALL';
-
     const bank = document.getElementById('console-bank');
     bank.innerHTML = '';
+    const sendLayer = activeLayer !== 'main';
+    const layer = LAYERS[activeLayer];
 
-    const layerClass = activeLayer === 'main' ? '' : (activeLayer.startsWith('mon') ? ' layer-mon' : ' layer-fx');
-
-    // Input Channels 1-7 + Main L/R
-    if (mobileView !== 'buses') {
-      session.channels.forEach((ch) => {
-        const isMaster = ch.index === 8;
-        const isSendLayer = !isMaster && activeLayer !== 'main';
-        const faderVal = isSendLayer ? (ch.sends ? ch.sends[activeLayer] : 0) : ch.fader;
-        const faderProv = isSendLayer ? activeLayer.toUpperCase() : provCode(ch.faderProvenance);
-        const provHint = isSendLayer ? `Send level to ${activeLayer.toUpperCase()}` : provTitle(ch.faderProvenance);
-        const name = ch.label || ch.name;
-        const notInLayer = isMaster && activeLayer !== 'main';
-
-        const sid = stripIdForChannel(ch.index);
-        const prov = isSendLayer ? (ch.sends ? 'COMMANDED' : 'UNSYNCED') : ch.faderProvenance;
-        const strip = document.createElement('div');
-        strip.dataset.strip = sid;
-        strip.className = 'strip' + (isMaster ? ' master' : '') + (selectedCh === ch.index ? ' selected' : '') + (isSendLayer ? layerClass : '') + (notInLayer ? ' not-in-layer' : '');
-        if (notInLayer) strip.title = `Main L/R is not part of the ${activeLayer.toUpperCase()} mix. Its fader sets the main level.`;
-        const tagColor = ch.color || '#38bdf8';
-
-        strip.innerHTML = `
-          <div class="scribble" role="button" tabindex="0" data-focus-key="scribble:${sid}" aria-label="Select ${esc(name)}" style="--lcd:${tagColor}">
-            <div class="scribble-top">
-              <span class="scribble-num">${isMaster ? 'MAIN' : String(ch.index).padStart(2, '0')}</span>
-              <span class="scribble-prov" title="${esc(provHint)}">${faderProv}</span>
-            </div>
-            <div class="scribble-name" title="${esc(name)}">${esc(name)}</div>
+    session.channels.filter((c) => c.index <= 7).forEach((ch) => {
+      const sid = stripIdForChannel(ch.index);
+      const name = chName(ch);
+      const val = sendLayer ? (ch.sends ? ch.sends[activeLayer] : 0) : ch.fader;
+      const prov = sendLayer ? (ch.sends ? 'COMMANDED' : 'UNSYNCED') : ch.faderProvenance;
+      const code = sendLayer ? `→${layer.label.replace(' ', '')}` : provCode(ch.faderProvenance);
+      const hint = sendLayer ? `Send level from ${name} to ${layer.label}` : provTitle(ch.faderProvenance);
+      const selected = insp && insp.kind === 'ch' && insp.index === ch.index;
+      const strip = document.createElement('div');
+      strip.dataset.strip = sid;
+      strip.className = 'strip' + (ch.index === 7 ? ' usb' : '') + (selected ? ' selected' : '');
+      strip.innerHTML = `
+        <div class="mix-bar" aria-hidden="true"></div>
+        <div class="scribble" role="button" tabindex="0" data-focus-key="scribble:${sid}" aria-label="${esc(name)}: open settings" aria-expanded="${selected}" style="--lcd:${lcdColor(ch)}">
+          <div class="scribble-top">
+            <span class="scribble-num">${STRIP_TAG[ch.index]}</span>
+            <span class="scribble-prov" title="${esc(hint)}">${code}</span>
           </div>
-          <div class="lamp-row">
-            ${LAMPS(sid, prov)}
-          </div>
-          ${isMaster ? '<div class="eq-thumb eq-thumb-none">MAIN L/R</div>' : `<svg class="eq-thumb" viewBox="0 0 60 18" preserveAspectRatio="none" aria-hidden="true"><line x1="0" y1="9" x2="60" y2="9" class="eq-thumb-zero"/><path d="${eqThumbPath(ch)}"/></svg>`}
-          <div class="strip-pan${!isMaster && selectedCh === ch.index ? ' has-edit' : ''}">
-            ${!isMaster && selectedCh === ch.index ? `<button class="scribble-edit" aria-label="Rename ${esc(name)}" title="Rename channel">✎</button>` : ''}
-            <span class="strip-pan-val">${notInLayer ? 'MAIN MIX' : panText(ch.pan)}</span>
-          </div>
-          ${isMaster
-            ? '<div class="mute-na" title="The FLOW 8 has no MIDI mute for Main L/R. Use MUTE ALL or the main fader.">NO MUTE</div>'
-            : `<button class="mute-switch ${ch.mute ? 'muted' : ''}" data-focus-key="mute:${sid}" aria-pressed="${ch.mute}" aria-label="Mute ${esc(name)}">${ch.mute ? 'MUTED' : 'MUTE'}</button>`}
-          <div class="fader-zone">
-            ${METER(sid)}
-            <div class="fader-well" data-focus-key="fader:${sid}:${activeLayer}">
-              ${FADER_TICKS}
-              <div class="fader-slot"></div>
-              <div class="unity-mark"></div>
-              <div class="fader-fill"></div>
-              <div class="fader-cap"></div>
-            </div>
-          </div>
-          <div class="strip-readout">${midiToDbStr(faderVal)}</div>
-        `;
+          <div class="scribble-name" title="${esc(name)}">${esc(name)}</div>
+        </div>
+        <div class="lamp-row">${LAMPS(sid, prov)}</div>
+        <svg class="eq-thumb" viewBox="0 0 60 18" preserveAspectRatio="none" aria-hidden="true"><line x1="0" y1="9" x2="60" y2="9" class="eq-thumb-zero"/><path d="${eqThumbPath(ch)}"/></svg>
+        <div class="strip-pan"><span class="strip-pan-val">${panText(ch.pan)}</span></div>
+        <button class="mute-switch ${ch.mute ? 'muted' : ''}" data-focus-key="mute:${sid}" aria-pressed="${ch.mute}" aria-label="Mute ${esc(name)}">${ch.mute ? 'MUTED' : 'MUTE'}</button>
+        <div class="fader-zone">
+          ${METER(sid)}
+          ${FADER_WELL(`fader:${sid}:${activeLayer}`)}
+        </div>
+        <div class="strip-readout">${midiToDbStr(val)}</div>
+      `;
+      wireScribble(strip.querySelector('.scribble'), { kind: 'ch', index: ch.index });
+      strip.querySelector('.mute-switch').onclick = () =>
+        postAction({ action: 'setMute', channel: ch.index, value: !ch.mute }).then(scheduleReload);
+      const readout = strip.querySelector('.strip-readout');
+      attachVerticalFader(
+        strip.querySelector('.fader-well'), val,
+        (v) => { readout.textContent = midiToDbStr(v); },
+        (v) => (sendLayer
+          ? postAction({ action: 'setSend', channel: ch.index, target: activeLayer, value: v })
+          : postAction({ action: 'setFader', channel: ch.index, value: v })),
+        sendLayer ? `${name} send to ${layer.label}` : `${name} fader`
+      );
+      bank.appendChild(strip);
+    });
 
-        const scribble = strip.querySelector('.scribble');
-        const editBtn = strip.querySelector('.scribble-edit');
-        if (editBtn) editBtn.onclick = () => openScribbleModal(ch);
-        scribble.onclick = () => {
-          if (selectedCh === ch.index && !isMaster) openScribbleModal(ch);
-          else { selectedCh = ch.index; renderConsole(); renderDsp(); }
-        };
-        scribble.onkeydown = (e) => {
-          if (e.target !== scribble || (e.key !== 'Enter' && e.key !== ' ')) return;
-          e.preventDefault();
-          scribble.click();
-        };
-
-        if (!isMaster) {
-          strip.querySelector('.mute-switch').onclick = () =>
-            postAction({ action: 'setMute', channel: ch.index, value: !ch.mute }).then(scheduleReload);
-        }
-
-        const readout = strip.querySelector('.strip-readout');
-        attachVerticalFader(
-          strip.querySelector('.fader-well'),
-          faderVal,
-          (v) => { readout.textContent = midiToDbStr(v); },
-          (v) => {
-            if (isSendLayer) postAction({ action: 'setSend', channel: ch.index, target: activeLayer, value: v });
-            else postAction({ action: 'setFader', channel: ch.index, value: v });
-          },
-          isSendLayer ? `${name} send to ${activeLayer.toUpperCase()}` : `${name} fader`
-        );
-        bank.appendChild(strip);
-      });
-    }
-
-    // 4 Bus Master Strips (MON 1, MON 2, FX 1, FX 2)
-    if (mobileView !== 'faders' || window.innerWidth > 760) {
-      session.buses.forEach((b) => {
-        const strip = document.createElement('div');
-        strip.className = 'strip bus-strip' + (b.id.startsWith('fx') ? ' layer-fx' : ' layer-mon');
-        strip.dataset.strip = b.id;
-        strip.innerHTML = `
-          <div class="scribble" style="--lcd:${b.id.startsWith('fx') ? '#BC71FF' : '#FFB45B'}">
-            <div class="scribble-top"><span class="scribble-num">BUS</span><span class="scribble-prov" title="${esc(provTitle(b.faderProvenance))}">${provCode(b.faderProvenance)}</span></div>
-            <div class="scribble-name">${b.id.toUpperCase().replace(/(\d)/, ' $1')}</div>
-          </div>
-          <div class="lamp-row">
-            ${LAMPS(b.id, b.faderProvenance)}
-          </div>
-          <div class="eq-thumb eq-thumb-none">${b.id.startsWith('fx') ? 'FX SEND' : 'MONITOR'}</div>
-          <div class="strip-pan"><span class="strip-pan-val">MASTER</span></div>
-          <div class="mute-na mute-spacer" aria-hidden="true"></div>
-          <div class="fader-zone">
-            ${METER(b.id)}
-            <div class="fader-well" data-focus-key="fader:${b.id}">
-              ${FADER_TICKS}
-              <div class="fader-slot"></div>
-              <div class="unity-mark"></div>
-              <div class="fader-fill"></div>
-              <div class="fader-cap"></div>
-            </div>
-          </div>
-          <div class="strip-readout">${midiToDbStr(b.fader)}</div>
-        `;
-        const readout = strip.querySelector('.strip-readout');
-        attachVerticalFader(
-          strip.querySelector('.fader-well'),
-          b.fader,
-          (v) => { readout.textContent = midiToDbStr(v); },
-          (v) => postAction({ action: 'setBusFader', bus: b.id, value: v }),
-          `${b.id.toUpperCase()} master fader`
-        );
-        bank.appendChild(strip);
-      });
-    }
+    // The master strip follows the selected mix, as on the FLOW 8 app.
+    const m = masterOf(activeLayer);
+    const selected = insp && insp.kind === 'bus' && insp.id === activeLayer;
+    const strip = document.createElement('div');
+    strip.dataset.strip = m.sid;
+    strip.className = 'strip master' + (selected ? ' selected' : '');
+    strip.innerHTML = `
+      <div class="mix-bar" aria-hidden="true"></div>
+      <div class="scribble master-lcd" role="button" tabindex="0" data-focus-key="scribble:master" aria-label="${layer.label} master: open settings" aria-expanded="${selected}">
+        <div class="scribble-top">
+          <span class="scribble-num">MASTER</span>
+          <span class="scribble-prov" title="${esc(provTitle(m.prov))}">${provCode(m.prov)}</span>
+        </div>
+        <div class="scribble-name">${layer.label}</div>
+      </div>
+      <div class="lamp-row">${LAMPS(m.sid, m.prov)}</div>
+      <div class="eq-thumb eq-thumb-none">${activeLayer.startsWith('fx') ? 'FX RETURN' : 'GEQ · LIMIT'}</div>
+      <div class="strip-pan"><span class="strip-pan-val">${activeLayer === 'main' ? `BAL ${panText(session.channels.find((c) => c.index === 8).pan)}` : 'BUS'}</span></div>
+      <div class="mute-na" title="The FLOW 8 has no MIDI mute for the ${layer.label} bus.">NO MUTE</div>
+      <div class="fader-zone">
+        ${METER(m.sid)}
+        ${FADER_WELL(`fader:master:${activeLayer}`)}
+      </div>
+      <div class="strip-readout">${midiToDbStr(m.fader)}</div>
+    `;
+    wireScribble(strip.querySelector('.scribble'), { kind: 'bus', id: activeLayer });
+    const readout = strip.querySelector('.strip-readout');
+    attachVerticalFader(strip.querySelector('.fader-well'), m.fader,
+      (v) => { readout.textContent = midiToDbStr(v); }, m.commit, `${layer.label} master fader`);
+    bank.appendChild(strip);
     requestAnimationFrame(updateScrollHint);
   }
 
@@ -837,6 +645,345 @@
   }
   document.getElementById('console-bank').addEventListener('scroll', updateScrollHint, { passive: true });
   window.addEventListener('resize', updateScrollHint);
+
+  // ---------- Inspector ----------
+  const INSP_ORDER = [1, 2, 3, 4, 5, 6, 7].map((i) => ({ kind: 'ch', index: i }))
+    .concat(LAYER_ORDER.map((id) => ({ kind: 'bus', id })));
+  const sameTarget = (a, b) => !!a && !!b && a.kind === b.kind && (a.kind === 'ch' ? a.index === b.index : a.id === b.id);
+
+  function openInspector(target, focusTitle = false) {
+    insp = target;
+    // A bus Inspector shows that mix on the faders, so the two views agree.
+    if (target.kind === 'bus' && target.id !== activeLayer) setLayer(target.id, false);
+    renderConsole();
+    renderInspector();
+    if (focusTitle) document.getElementById('insp-title').focus({ preventScroll: true });
+  }
+  function closeInspector() {
+    if (!insp) return;
+    const was = insp;
+    insp = null;
+    renderConsole();
+    renderInspector();
+    const back = document.querySelector(was.kind === 'ch' ? `[data-focus-key="scribble:ch${was.index}"]` : '[data-focus-key="scribble:master"]');
+    if (back) back.focus({ preventScroll: true });
+  }
+  function stepInspector(dir) {
+    const i = INSP_ORDER.findIndex((t) => sameTarget(t, insp));
+    openInspector(INSP_ORDER[(i + dir + INSP_ORDER.length) % INSP_ORDER.length]);
+  }
+
+  function section(title, meta, locked) {
+    const el = document.createElement('section');
+    el.className = 'insp-sec' + (locked ? ' locked' : '');
+    el.innerHTML = `
+      <div class="sec-hdr"><span class="sec-title">${title}</span>${meta ? `<span class="sec-meta">${meta}</span>` : ''}</div>
+      ${locked ? `<p class="lock-note"><span class="lock-chip">LOCKED</span>${esc(locked)}</p>` : ''}`;
+    const body = document.createElement('div');
+    body.className = 'sec-body';
+    el.appendChild(body);
+    return { el, body };
+  }
+
+  // A labelled horizontal level control (send or bus level).
+  function levelRow({ label, color, value, aria, focusKey, onCommit, disabled = false }) {
+    const row = document.createElement('div');
+    row.className = 'level-row';
+    row.style.setProperty('--c', color);
+    row.innerHTML = `
+      <span class="level-lbl">${label}</span>
+      <input class="studio-range" type="range" min="0" max="127" value="${value}" data-focus-key="${focusKey}"
+        aria-label="${esc(aria)}" aria-valuetext="${midiToDbStr(value)}" ${disabled ? 'disabled' : ''} />
+      <span class="level-val">${midiToDbStr(value)}</span>`;
+    const rng = row.querySelector('input');
+    const paint = () => rng.style.setProperty('--fill', `${(rng.value / 127) * 100}%`);
+    paint();
+    rng.oninput = () => {
+      row.querySelector('.level-val').textContent = midiToDbStr(+rng.value);
+      rng.setAttribute('aria-valuetext', midiToDbStr(+rng.value));
+      paint();
+    };
+    rng.onchange = () => onCommit(+rng.value);
+    return row;
+  }
+
+  function renderInspector() {
+    const aside = document.getElementById('inspector');
+    document.body.classList.toggle('insp-open', !!insp);
+    if (!insp || !session) { aside.hidden = true; return; }
+    aside.hidden = false;
+    const body = document.getElementById('insp-body');
+    const scroll = body.scrollTop;
+    body.innerHTML = '';
+    if (insp.kind === 'ch') renderChannelInspector(body, session.channels.find((c) => c.index === insp.index));
+    else renderBusInspector(body, insp.id);
+    body.scrollTop = scroll;
+  }
+
+  function renderChannelInspector(body, ch) {
+    const name = chName(ch);
+    const idx = ch.index;
+    const sid = `ch${idx}`;
+    const chip = document.getElementById('insp-chip');
+    chip.textContent = STRIP_TAG[idx];
+    chip.style.setProperty('--lcd', lcdColor(ch));
+    document.getElementById('insp-title').textContent = name;
+    document.getElementById('insp-sub').textContent = `Fader ${midiToDbStr(ch.fader)} · ${provCode(ch.faderProvenance)}`;
+    const aside = document.getElementById('inspector');
+    aside.style.setProperty('--insp-accent', lcdColor(ch));
+
+    // Channel keys: mute, solo, rename, presets.
+    const keys = document.createElement('div');
+    keys.className = 'insp-keys';
+    keys.innerHTML = `
+      <button class="mute-switch ${ch.mute ? 'muted' : ''}" data-focus-key="insp-mute" aria-pressed="${ch.mute}">${ch.mute ? 'MUTED' : 'MUTE'}</button>
+      <button class="key-btn locked" data-focus-key="insp-solo" aria-disabled="true" title="${esc(lockReason('solo'))}">SOLO</button>
+      <button class="key-btn" data-focus-key="insp-rename">✎ RENAME</button>
+      <button class="key-btn accent" data-focus-key="insp-presets">★ PRESETS</button>`;
+    keys.children[0].onclick = () => postAction({ action: 'setMute', channel: idx, value: !ch.mute }).then(scheduleReload);
+    keys.children[1].onclick = () => showToast(lockReason('solo'));
+    keys.children[2].onclick = () => openScribbleModal(ch);
+    keys.children[3].onclick = () => openPresetsModal(idx);
+    body.appendChild(keys);
+
+    // Input stage.
+    const has14 = idx <= 4;
+    const input = section('INPUT', has14 ? (idx <= 2 ? 'MIC · XLR' : 'COMBO · XLR / TRS') : (idx === 7 ? 'USB / BLUETOOTH' : 'STEREO LINE'));
+    const knobs = document.createElement('div');
+    knobs.className = 'knob-row';
+    if (has14) {
+      knobs.appendChild(createRotaryKnob({
+        label: 'GAIN', valueText: gainText(ch.gain), raw: ch.gain, min: 0, max: 127, color: '#FFB020',
+        locked: lockReason('gain'),
+      }));
+      knobs.appendChild(createRotaryKnob({
+        label: 'LOW CUT', valueText: hpfHz(ch.lowCut), raw: ch.lowCut, min: 0, max: 127, color: '#FFB020',
+        focusKey: `insp:${sid}:lowcut`,
+        onMove: hpfHz,
+        onCommit: (v) => postAction({ action: 'setLowCut', channel: idx, value: v }),
+      }));
+      knobs.appendChild(createRotaryKnob({
+        label: 'COMP', valueText: `${ch.compressor}%`, raw: ch.compressor, min: 0, max: 100, color: '#A78BFA',
+        focusKey: `insp:${sid}:comp`,
+        onMove: (v) => `${v}%`,
+        onCommit: (v) => postAction({ action: 'setCompressor', channel: idx, value: v }),
+      }));
+    }
+    knobs.appendChild(createRotaryKnob({
+      label: has14 ? 'PAN' : 'BALANCE', valueText: panText(ch.pan), raw: ch.pan, min: 0, max: 127, color: '#3FD2E0', bipolar: true,
+      focusKey: `insp:${sid}:pan`,
+      onMove: panText,
+      onCommit: (v) => postAction({ action: 'setPan', channel: idx, value: v }),
+    }));
+    input.body.appendChild(knobs);
+    if (idx <= 2) input.body.appendChild(phantomKey(ch));
+    if (!has14) {
+      const note = document.createElement('p');
+      note.className = 'sec-note';
+      note.textContent = 'Gain, low cut and compressor exist on CH 1–4 only.';
+      input.body.appendChild(note);
+    }
+    body.appendChild(input.el);
+
+    // 4-band EQ.
+    const eq = section('EQ · 4-BAND', `<span title="${esc(provTitle(ch.eqProvenance))}">${provCode(ch.eqProvenance)}</span>`);
+    const flat = document.createElement('button');
+    flat.className = 'key-btn small';
+    flat.textContent = 'FLAT';
+    flat.dataset.focusKey = 'insp-eq-flat';
+    flat.setAttribute('aria-label', `Reset the EQ of ${name} to flat`);
+    flat.onclick = () => postAction({ action: 'resetEqFlat', channel: idx }).then(loadSession);
+    eq.el.querySelector('.sec-hdr').appendChild(flat);
+    const canvas = document.createElement('canvas');
+    canvas.id = 'eq-canvas';
+    canvas.width = 560;
+    canvas.height = 150;
+    canvas.setAttribute('aria-label', 'Approximate EQ curve. Drag a band point, or use the band knobs below.');
+    eq.body.appendChild(canvas);
+    const bandRow = document.createElement('div');
+    bandRow.className = 'knob-row bands';
+    const bandVal = {};
+    BANDS.forEach((b) => {
+      const cell = createRotaryKnob({
+        label: `${b.label}`, valueText: eqText(ch.eq[b.key]), raw: ch.eq[b.key], min: 0, max: 127, color: b.color, bipolar: true,
+        focusKey: `insp:${sid}:eq:${b.key}`,
+        onMove: (v) => { ch.eq[b.key] = v; drawEqCanvas(canvas, ch); return eqText(v); },
+        onCommit: (v) => postAction({ action: 'setEqBand', channel: idx, band: b.key, value: v }),
+      });
+      const hz = document.createElement('span');
+      hz.className = 'knob-hz';
+      hz.textContent = b.hz;
+      cell.appendChild(hz);
+      bandVal[b.key] = cell.querySelector('.knob-val');
+      bandRow.appendChild(cell);
+    });
+    eq.body.appendChild(bandRow);
+    const eqNote = document.createElement('p');
+    eqNote.className = 'sec-note';
+    eqNote.textContent = 'The curve is an approximate picture. Band gain values are exact.';
+    eq.body.appendChild(eqNote);
+    body.appendChild(eq.el);
+    drawEqCanvas(canvas, ch);
+    attachEqCanvas(canvas, ch, (key, v) => { bandVal[key].textContent = eqText(v); });
+
+    // Sends.
+    const sends = section('SENDS', 'POST-FADER LEVELS');
+    ['mon1', 'mon2', 'fx1', 'fx2'].forEach((t) => {
+      sends.body.appendChild(levelRow({
+        label: LAYERS[t].label, color: LAYERS[t].color, value: ch.sends ? ch.sends[t] : 0,
+        aria: `${name} send to ${LAYERS[t].label}`, focusKey: `insp:${sid}:send:${t}`,
+        onCommit: (v) => postAction({ action: 'setSend', channel: idx, target: t, value: v }),
+      }));
+    });
+    body.appendChild(sends.el);
+  }
+
+  // +48V: hold 1 s to switch, as on the FLOW 8 app. While the hub policy locks
+  // +48V, the key shows the mixer state and a tap explains the lock.
+  function phantomKey(ch) {
+    const wrap = document.createElement('div');
+    wrap.className = 'phantom-row';
+    const allowed = !!(session.lanPolicy && session.lanPolicy.phantom);
+    const state = ch.phantom == null ? 'UNKNOWN' : (ch.phantom ? 'ON' : 'OFF');
+    wrap.innerHTML = `
+      <button class="phantom-key ${ch.phantom ? 'on' : ''} ${allowed ? '' : 'locked'}" data-focus-key="insp:ch${ch.index}:48v"
+        aria-label="+48V phantom power on ${esc(chName(ch))}: ${state}. ${allowed ? 'Hold for 1 second to switch.' : 'Locked.'}">
+        <span class="phantom-led" aria-hidden="true"></span>+48V
+      </button>
+      <span class="phantom-text">${state === 'UNKNOWN' ? 'State unknown' : `Phantom ${state}`} · ${allowed ? 'hold 1 s to switch' : 'host only'}</span>`;
+    const btn = wrap.querySelector('button');
+    if (!allowed) {
+      btn.title = lockReason('phantom');
+      btn.onclick = () => showToast(lockReason('phantom'));
+    } else {
+      attachHold(btn, 1000,
+        () => postAction({ action: 'setPhantom', channel: ch.index, value: !ch.phantom }).then(scheduleReload),
+        () => showToast('Hold +48V for 1 second to switch it.'));
+    }
+    return wrap;
+  }
+
+  function renderBusInspector(body, id) {
+    const layer = LAYERS[id];
+    const m = masterOf(id);
+    const chip = document.getElementById('insp-chip');
+    chip.textContent = id.startsWith('fx') ? 'FX' : 'BUS';
+    chip.style.setProperty('--lcd', layer.color);
+    document.getElementById('insp-title').textContent = layer.label;
+    document.getElementById('insp-sub').textContent = `${layer.name} · ${provCode(m.prov)}`;
+    document.getElementById('inspector').style.setProperty('--insp-accent', layer.color);
+
+    const lvl = section(id.startsWith('fx') ? 'FX RETURN LEVEL' : 'LEVEL', provCode(m.prov));
+    lvl.body.appendChild(levelRow({
+      label: 'LEVEL', color: layer.color, value: m.fader, aria: `${layer.label} level`, focusKey: `insp:${id}:level`,
+      onCommit: m.commit,
+    }));
+    if (id === 'main') {
+      const main = session.channels.find((c) => c.index === 8);
+      const row = document.createElement('div');
+      row.className = 'knob-row';
+      row.appendChild(createRotaryKnob({
+        label: 'BALANCE', valueText: panText(main.pan), raw: main.pan, min: 0, max: 127, color: '#3FD2E0', bipolar: true,
+        focusKey: 'insp:main:balance',
+        onMove: panText,
+        onCommit: (v) => postAction({ action: 'setPan', channel: 8, value: v }),
+      }));
+      lvl.body.appendChild(row);
+    }
+    body.appendChild(lvl.el);
+
+    if (!id.startsWith('fx')) {
+      const lim = section('LIMITER', 'THRESHOLD', lockReason('limiter'));
+      const row = document.createElement('div');
+      row.className = 'knob-row';
+      row.appendChild(createRotaryKnob({ label: 'LIMIT', valueText: '—', raw: null, min: 0, max: 127, color: '#FFB020', locked: lockReason('limiter') }));
+      lim.body.appendChild(row);
+      body.appendChild(lim.el);
+
+      const geq = section('GRAPHIC EQ · 9-BAND', '±15 dB', lockReason('geq'));
+      const grid = document.createElement('div');
+      grid.className = 'geq';
+      grid.setAttribute('role', 'img');
+      grid.setAttribute('aria-label', '9-band graphic EQ. Values unknown. Locked.');
+      grid.innerHTML = GEQ_BANDS.map((f) => `
+          <div class="geq-band">
+            <div class="geq-track"><div class="geq-zero"></div><div class="geq-cap"></div></div>
+            <span class="geq-val">—</span>
+            <span class="geq-hz">${f}</span>
+          </div>`).join('');
+      geq.body.appendChild(grid);
+      body.appendChild(geq.el);
+      return;
+    }
+
+    const fx = FX_ENGINE[id];
+    const eng = section(`${layer.label} ENGINE`, '16 PRESETS', lockReason('fx'));
+    const row = document.createElement('div');
+    row.className = 'fx-top';
+    row.appendChild(createRotaryKnob({ label: fx.param, valueText: '—', raw: null, min: 0, max: 100, color: '#A78BFA', locked: lockReason('fx') }));
+    const side = document.createElement('div');
+    side.className = 'fx-side';
+    side.innerHTML = `
+      <div class="seg" role="group" aria-label="${fx.param} mode (locked)">
+        ${fx.modes.map((md) => `<button class="seg-btn" aria-disabled="true" title="${esc(lockReason('fx'))}">${md}</button>`).join('')}
+      </div>
+      <button class="tap-pad" aria-disabled="true" title="${esc(lockReason('fx'))}">TAP TEMPO</button>`;
+    side.querySelectorAll('button').forEach((b) => { b.onclick = () => showToast(lockReason('fx')); });
+    row.appendChild(side);
+    eng.body.appendChild(row);
+    const grid = document.createElement('div');
+    grid.className = 'fx-grid';
+    grid.setAttribute('role', 'group');
+    grid.setAttribute('aria-label', `${layer.label} presets (locked)`);
+    for (let i = 1; i <= 16; i++) {
+      const b = document.createElement('button');
+      b.className = 'fx-preset';
+      b.textContent = `No. ${i}`;
+      b.setAttribute('aria-disabled', 'true');
+      b.title = lockReason('fx');
+      b.onclick = () => showToast(lockReason('fx'));
+      grid.appendChild(b);
+    }
+    eng.body.appendChild(grid);
+    body.appendChild(eng.el);
+  }
+
+  // ---------- Scenes ----------
+  function renderScenes() {
+    const grid = document.getElementById('scene-grid');
+    grid.innerHTML = '';
+    for (let i = 1; i <= 8; i++) {
+      const name = `SCENE ${i}`;
+      const saved = session.scenes.includes(name);
+      const pad = document.createElement('button');
+      pad.className = 'scene-pad' + (saved ? ' saved' : '') + (session.currentScene === name ? ' current' : '');
+      pad.textContent = `S${i}`;
+      pad.dataset.focusKey = `scene:${i}`;
+      pad.setAttribute('aria-label', saved
+        ? `Scene ${i}: tap or Enter to recall, hold or Shift+Enter to overwrite`
+        : `Scene ${i}: empty, hold or Shift+Enter to save`);
+      const saveScene = async () => {
+        if (saved && !(await confirmAction(`OVERWRITE S${i}?`, `Scene S${i} already holds a saved mix. Save the current mix over it?`, 'OVERWRITE'))) return;
+        const res = await postAction({ action: 'captureScene', name });
+        if (res.ok) showToast(`Saved current mix to S${i}.`);
+        loadSession();
+      };
+      const recallScene = async () => {
+        if (!saved) { showToast(`S${i} is empty. Hold the pad (or press Shift+Enter) to save the current mix.`); return; }
+        const res = await postAction({ action: 'recallScene', name });
+        if (res.ok) showToast(`Recalled S${i}.`);
+        loadSession();
+      };
+      attachHold(pad, 550, saveScene, recallScene);
+      // Keyboard: Enter recalls, Shift+Enter saves (replaces the hold handler).
+      pad.onkeydown = (e) => {
+        if (e.key !== 'Enter' && e.key !== ' ') return;
+        e.preventDefault();
+        if (e.shiftKey) saveScene(); else recallScene();
+      };
+      grid.appendChild(pad);
+    }
+  }
 
   function renderStatusBar() {
     if (!session) return;
@@ -899,13 +1046,11 @@
   })();
 
   // ---------- Modals ----------
-  async function openPresetsModal() {
+  async function openPresetsModal(targetIdx) {
     if (!presets.length) {
       const res = await fetch('/api/presets');
       presets = (await res.json()).presets || [];
     }
-    const ch = session?.channels.find((c) => c.index === selectedCh);
-    const targetIdx = ch && ch.index <= 7 ? ch.index : 1;
     document.getElementById('preset-modal-title').textContent = `PRESETS FOR CH ${targetIdx} (LEVELS ALWAYS PRESERVED)`;
     const list = document.getElementById('preset-list');
     list.innerHTML = '';
@@ -940,17 +1085,15 @@
     openModal('preset-modal');
   }
 
-  let scribbleTarget = null;
   function openScribbleModal(ch) {
-    scribbleTarget = ch;
     const inp = document.getElementById('scribble-input');
-    inp.value = (ch.label || ch.name).slice(0, 14);
+    inp.value = chName(ch).slice(0, 14);
     const counter = document.getElementById('scribble-count');
     const count = () => { counter.textContent = `${inp.value.length}/14`; };
     inp.oninput = count;
     count();
-    document.getElementById('scribble-title').textContent = `RENAME CH ${String(ch.index).padStart(2, '0')}`;
-    let chosenColor = ch.color || '#38bdf8';
+    document.getElementById('scribble-title').textContent = `RENAME ${STRIP_TAG[ch.index]}`;
+    let chosenColor = ch.color || HUB_DEFAULT_COLOR;
     const box = document.getElementById('scribble-colors');
     box.innerHTML = '';
     SCRIBBLE_PALETTE.forEach((col) => {
@@ -1000,38 +1143,41 @@
   document.querySelectorAll('.modal-backdrop').forEach((m) => {
     m.addEventListener('click', (e) => { if (e.target === m) dismissModal(m); });
   });
+  // Escape closes the top modal first, then the Inspector.
   document.addEventListener('keydown', (e) => {
     if (e.key !== 'Escape') return;
     const open = [...document.querySelectorAll('.modal-backdrop.open')];
-    if (open.length) { e.preventDefault(); dismissModal(open[open.length - 1]); }
+    if (open.length) { e.preventDefault(); dismissModal(open[open.length - 1]); return; }
+    if (insp) { e.preventDefault(); closeInspector(); }
   });
 
-  // ---------- Event Wiring ----------
-  document.getElementById('layer-bar').querySelectorAll('.layer-btn').forEach((btn) => {
+  // ---------- Bus selector ----------
+  // Tap a mix to put it on the faders. Tap the active mix again to open its settings.
+  function setLayer(layer, render = true) {
+    activeLayer = layer;
+    document.body.dataset.layer = layer;
+    document.querySelectorAll('.bus-tab').forEach((b) => {
+      const on = b.dataset.layer === layer;
+      b.classList.toggle('active', on);
+      b.setAttribute('aria-pressed', on ? 'true' : 'false');
+    });
+    // A bus Inspector follows the selected mix.
+    if (insp && insp.kind === 'bus') insp = { kind: 'bus', id: layer };
+    if (render) { renderConsole(); renderInspector(); }
+  }
+  document.querySelectorAll('.bus-tab').forEach((btn) => {
+    btn.title = `Put the ${LAYERS[btn.dataset.layer].label} mix on the faders. Tap again for its settings.`;
     btn.onclick = () => {
-      activeLayer = btn.dataset.layer;
-      document.querySelectorAll('.layer-btn').forEach((b) => { b.classList.remove('active'); b.setAttribute('aria-pressed', 'false'); });
-      btn.classList.add('active');
-      btn.setAttribute('aria-pressed', 'true');
-      document.body.classList.toggle('layer-mon', activeLayer.startsWith('mon'));
-      document.body.classList.toggle('layer-fx', activeLayer.startsWith('fx'));
-      renderConsole();
+      const layer = btn.dataset.layer;
+      if (layer !== activeLayer) { setLayer(layer); return; }
+      if (insp && insp.kind === 'bus' && insp.id === layer) closeInspector();
+      else openInspector({ kind: 'bus', id: layer });
     };
   });
 
-  document.getElementById('mobile-nav').querySelectorAll('.mobile-tab').forEach((btn) => {
-    btn.onclick = () => {
-      mobileView = btn.dataset.view;
-      document.querySelectorAll('.mobile-tab').forEach((b) => { b.classList.remove('active'); b.setAttribute('aria-selected', 'false'); });
-      btn.classList.add('active');
-      btn.setAttribute('aria-selected', 'true');
-      // Fader layers apply to the FADERS view only.
-      document.body.dataset.view = mobileView;
-      document.getElementById('dsp-rack').classList.toggle('mobile-show', mobileView === 'dsp');
-      document.getElementById('console-bank').classList.toggle('mobile-hide', mobileView === 'dsp');
-      renderConsole();
-    };
-  });
+  document.getElementById('insp-close').onclick = closeInspector;
+  document.getElementById('insp-prev').onclick = () => stepInspector(-1);
+  document.getElementById('insp-next').onclick = () => stepInspector(1);
 
   document.getElementById('btn-mute-all').onclick = async () => {
     if (!session || !session.channels) return;
@@ -1044,13 +1190,8 @@
   };
   document.getElementById('btn-undo').onclick = () => postAction({ action: 'undo' }).then(scheduleReload);
   document.getElementById('btn-redo').onclick = () => postAction({ action: 'redo' }).then(scheduleReload);
-  document.getElementById('btn-presets').onclick = openPresetsModal;
   document.getElementById('btn-close-presets').onclick = () => closeModal('preset-modal');
   document.getElementById('btn-close-scribble').onclick = () => closeModal('scribble-modal');
-  document.getElementById('btn-eq-flat').onclick = () => {
-    const target = selectedCh <= 7 ? selectedCh : 1;
-    postAction({ action: 'resetEqFlat', channel: target }).then(loadSession);
-  };
 
   // While a finger or mouse holds a control, a re-render would drop the drag.
   // Reloads wait until the pointer is released.
@@ -1068,7 +1209,7 @@
     }, 120);
   }
   document.addEventListener('pointerdown', (e) => {
-    if (e.target.closest('.fader-well, .knob-svg, #eq-canvas, .studio-range')) pointerBusy = true;
+    if (e.target.closest('.fader-well, .knob-svg, #eq-canvas, .studio-range, .phantom-key, .scene-pad')) pointerBusy = true;
   }, true);
   const releasePointer = () => {
     if (!pointerBusy) return;
@@ -1090,7 +1231,8 @@
       return;
     }
     renderConsole();
-    renderDsp();
+    renderInspector();
+    renderScenes();
     renderStatusBar();
     if (focusKey) {
       const el = document.querySelector(`[data-focus-key="${CSS.escape(focusKey)}"]`);
@@ -1098,7 +1240,6 @@
     }
   }
 
-  setupEqCanvasInteraction();
   loadSession();
   setInterval(async () => {
     try {

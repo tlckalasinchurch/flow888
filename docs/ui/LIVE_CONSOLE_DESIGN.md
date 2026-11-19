@@ -71,7 +71,7 @@ Strip ids: `ch1`…`ch7`, `main`, `mon1`, `mon2`, `fx1`, `fx2`.
 
 ### Session fields added (`GET /api/session`)
 
-`midiOutOpen`, `midiInOpen`, `meterFeed`, `currentScene`, `sceneEdited`.
+`midiOutOpen`, `midiInOpen`, `meterFeed`, `meterStatus`, `currentScene`, `sceneEdited`. Inspector fields: section 4b.
 
 ## 4. Deep dive
 
@@ -152,15 +152,77 @@ pip install sounddevice numpy
 
 Only one program at a time may hold some WASAPI endpoints in exclusive mode. If a DAW holds "Multi In 1-10" exclusively, the meter status shows `error` with the driver message.
 
+## 4b. Layout: fader bank + Inspector
+
+The FLOW 8 app opens a full-screen page for each channel and returns with `< BACK`. This UI keeps the fader bank on screen and opens the settings in an Inspector beside it.
+
+### Fader bank
+
+| Item | Behaviour |
+|---|---|
+| Strips | `MIC 1`, `MIC 2`, `COMBO 3`, `COMBO 4`, `LINE 5/6`, `LINE 7/8`, `USB/BT` (blue LCD and blue top edge), then one master strip |
+| Master strip | Follows the bus selector: `MAIN`, `MON 1`, `MON 2`, `FX 1` or `FX 2`. Its fader sends `main.fader` or `<bus>.fader` |
+| Sends on faders | On a MON or FX mix the input faders set the sends to that bus |
+| Mix colour | The mix bar on top of each strip, the fader cap line, the fader fill and the readout use the mix colour: MAIN silver `#E6E8EB`, MON emerald `#34D399`, FX violet `#A78BFA` |
+| Meters | Unchanged (section 4a): pre-fader, only where a capture channel exists |
+
+### Opening the Inspector
+
+| Action | Result |
+|---|---|
+| Tap a strip header (LCD) | Inspector for that channel |
+| Tap the master strip header | Inspector for the selected bus |
+| Tap a bus tab | That mix goes on the faders. A bus Inspector that is open follows it |
+| Tap the active bus tab | Opens or closes that bus Inspector |
+| `‹` / `›` in the Inspector | Step CH 1 … CH 7, MAIN, MON 1, MON 2, FX 1, FX 2 |
+| Escape or `✕` | Close; focus goes back to the strip header |
+
+| Width | Inspector |
+|---|---|
+| ≥ 1000 px | Split pane (400 px, 360 px at ≤ 1180 px). All 8 strips stay visible at 1024 px |
+| 761–999 px | Slides over the right side of the bank |
+| ≤ 760 px | Bottom sheet, 54 % of the height. Strips keep name, mute and fader above it |
+
+### Inspector contents and what each control can send
+
+LIVE: the control sends a verified command. LOCKED: shown with a reason from `session.locked`, sends nothing.
+
+| Target | Control | State |
+|---|---|---|
+| CH 1–7 | MUTE, RENAME, PRESETS | LIVE |
+| CH 1–7 | SOLO | LOCKED: CC 6 is not on the allowlist |
+| CH 1–4 | GAIN | LOCKED: host-only (SR-05). Shows the value the mixer reports |
+| CH 1–2 | +48V | LOCKED: host-only. Shows the reported state. The key has hold-to-toggle (1 s); it works only when `lanPolicy.phantom` is true, and the hub keeps it false |
+| CH 1–4 | LOW CUT (20–600 Hz), COMP (0–100 %) | LIVE |
+| CH 1–7 | PAN (CH 1–4) / BALANCE (CH 5–7) | LIVE |
+| CH 1–7 | 4-band EQ: knobs + draggable curve, FLAT | LIVE. Labels 100 Hz / 500 Hz / 2 kHz / 12 kHz come from the FLOW 8 app; the curve is approximate (conflict C-04) |
+| CH 1–7 | Sends MON 1, MON 2, FX 1, FX 2 | LIVE |
+| MAIN | LEVEL, BALANCE | LIVE |
+| MAIN, MON 1, MON 2 | LEVEL | LIVE |
+| MAIN, MON 1, MON 2 | LIMITER, 9-band GEQ (63 Hz … 16 kHz) | LOCKED: CC 8 and CC 11–19 are documented but not hardware-verified |
+| FX 1, FX 2 | RETURN LEVEL | LIVE |
+| FX 1, FX 2 | DECAY / FEEDBACK, INSTRUMENT·VOCAL / DULL·BRIGHT, TAP TEMPO, presets No. 1–16 | LOCKED: conflict C-09. Tap tempo uses MIDI channel 16, which also carries the forbidden reset (Program Change 16) |
+
+To unlock a feature: verify its address on the hardware, add it to `command_boundary.ACTIVE_ALLOWLIST`, add a hub action, and remove it from `LAN_LOCKED_FEATURES`. The Inspector then needs only a change from `locked:` to `onCommit:` for that control.
+
+### Session fields added for the Inspector
+
+Per channel: `lowCutProvenance`, `compressorProvenance`, `gain` (raw or `null`), `gainProvenance`, `phantom` (`true`/`false`/`null`), `phantomProvenance`. Top level: `lanPolicy` (`{"gain": false, "phantom": false}`) and `locked` (feature → reason).
+
 ## 5. Visual system
+
+Matte dark slate. Colour carries meaning only: mix colour, LEDs, channel tags.
 
 | Token | Value | Use |
 |---|---|---|
-| Chassis | `#16181C` | page background (anodized graphite) |
-| Panel | `#1C1F24` | rack cards, strips |
-| Key | `#34383F → #2A2D33` | rubber keys |
-| LED green / amber / red / blue | `#3BE36F` / `#FFB020` / `#FF3B30` / `#4FA8FF` | lamps, readouts |
+| Chassis | `#0E1013` | page background |
+| Panel / card | `#14171C` / `#191C22` | control row, Inspector, sections |
+| Strip | `#1C1F25 → #17191E` | channel strips |
+| Key | `#30343B → #272A30` | rubber keys |
+| Mix colours | `#E6E8EB` / `#34D399` / `#A78BFA` | MAIN / MON / FX |
+| LED green / amber / red / blue | `#3BE36F` / `#FFB020` / `#FF3B30` / `#4FA8FF` | lamps, readouts; blue also marks USB/BT |
 | LCD ink | `#0D1014` | text on the backlit scribble strips |
+| LOCKED chip | amber outline | sections the remote cannot send |
 
 Type: Barlow Condensed 500/600/700 (SIL OFL 1.1, bundled in `web_ui/fonts/`). Condensed silkscreen-style legends fit narrow strips. Readouts use tabular numerals.
 
@@ -175,10 +237,14 @@ Principle: the backlit scribble strips and the LED lenses carry the identity. Th
 | Client-side panel lock | Instant, works offline | Each device locks on its own |
 | SSE, not WebSocket | Standard library only, auto-reconnect | One direction; commands use POST |
 | Bundled font | Works without internet at a venue | +~60 KB served by the hub |
+| Show locked FLOW 8 functions in the Inspector | Same layout as the FLOW 8 app; the user sees what exists and why it is locked | Sections that do nothing until verified |
+| One master strip that follows the bus selector | Same muscle memory as the FLOW 8 app; more width per strip | MON 2 level is not visible while MON 1 is selected |
 
 ## 7. Revisit as the system grows
 
 1. **Hardware check of the meter module:** confirm the PortAudio device name and channel order on the real FLOW 8, and compare the meter readings with the mixer's own LEDs. The module has only been tested with a simulated audio backend.
-2. **Incremental rendering:** update only the strips that changed, when more clients or more frequent RX events make full re-renders expensive.
-3. **Hub-wide lock:** one lock for all clients, if the venue uses several tablets.
-4. **Scene names:** user-defined scene names in the scene display.
+2. **Hardware verification of GEQ, limiter, solo and FX:** each needs a controlled test before it leaves `LAN_LOCKED_FEATURES` (see section 4b).
+3. **EQ band frequencies:** confirm 100 Hz / 500 Hz / 2 kHz / 12 kHz against an official source (conflict C-04 lists other values).
+4. **Incremental rendering:** update only the strips that changed, when more clients or more frequent RX events make full re-renders expensive.
+5. **Hub-wide lock:** one lock for all clients, if the venue uses several tablets.
+6. **Scene names:** user-defined scene names in the scene display.
