@@ -23,6 +23,7 @@
       <span class="link" title="Lit while a measured audio meter feed is running. The FLOW 8 does not send meters over MIDI."><span class="lamp lamp-link" id="lamp-meter"></span>METERS</span>
     </div>
     <div class="status-spacer"></div>
+    <div class="all-muted-chip" id="all-muted-chip" role="status" hidden>ALL MUTED</div>
     <div class="scene-display empty" id="scene-display" role="status">
       <span class="scene-label">Scene</span>
       <span class="scene-name">No scene</span>
@@ -47,38 +48,34 @@
       <button class="hw-btn icon" id="btn-undo" aria-label="Undo" title="Undo">↶ Undo</button>
       <button class="hw-btn icon" id="btn-redo" aria-label="Redo" title="Redo">↷</button>
       <button class="hw-btn" id="btn-copy" title="Copy channel EQ, Low Cut, Comp & Sends (never Gain/+48V)">Copy</button>
-      <button class="hw-btn" id="btn-paste" title="Paste copied DSP to selected channel" disabled>Paste</button>
+      <button class="hw-btn" id="btn-paste" title="Paste copied DSP to selected channel" hidden>Paste</button>
     </div>
 
-    <nav class="cue-tabs" id="cue-tabs" role="tablist" aria-label="Console views">
-      <button class="cue-tab active" data-tab="mixer" role="tab" aria-selected="true">Mixer</button>
-      <button class="cue-tab" data-tab="stage" role="tab" aria-selected="false">Stage</button>
-      <button class="cue-tab" data-tab="channel" role="tab" aria-selected="false">Channel</button>
-      <button class="cue-tab" data-tab="input" role="tab" aria-selected="false">Input</button>
-      <button class="cue-tab" data-tab="eq" role="tab" aria-selected="false">EQ</button>
-      <button class="cue-tab" data-tab="comp" role="tab" aria-selected="false">Comp</button>
-      <button class="cue-tab" data-tab="sends" role="tab" aria-selected="false">Sends</button>
-      <button class="cue-tab" data-tab="fx" role="tab" aria-selected="false">FX</button>
-      <button class="cue-tab" data-tab="presets" role="tab" aria-selected="false">Presets</button>
-      <button class="cue-tab" data-tab="setup" role="tab" aria-selected="false">Setup</button>
+    <nav class="cue-groups" id="cue-groups" role="tablist" aria-label="Console sections">
+      <button class="cue-group active" data-group="mix" role="tab" aria-selected="true">Mix</button>
+      <button class="cue-group" data-group="sound" role="tab" aria-selected="false">Sound</button>
+      <button class="cue-group" data-group="presets" role="tab" aria-selected="false">Presets</button>
+      <button class="cue-group" data-group="setup" role="tab" aria-selected="false">Setup</button>
     </nav>
 
     <div class="toolbar-actions">
-      <button class="hw-btn locked-btn" id="btn-clear-solo" aria-disabled="true" title="Solo (CC 6) is not on the verified MIDI allowlist.">Clear Solo</button>
       <button class="hw-btn ai-btn" id="btn-flowai" aria-pressed="false" title="Open FlowAi Mix Assistant">FlowAi</button>
       <button class="hw-btn lock-btn" id="btn-lock" aria-pressed="false" title="Lock all controls against stray touches."><span class="lock-text">LOCK</span></button>
-      <button class="hw-btn danger" id="btn-mute-all">MUTE ALL</button>
-    </div>
-
-    <!-- Hidden compatibility hooks for bus tabs (synced with Main LR bus selector) -->
-    <div class="bus-tabs sr-only" id="bus-tabs" aria-hidden="true">
-      <button class="bus-tab active" data-layer="main">MAIN</button>
-      <button class="bus-tab" data-layer="mon1">MON 1</button>
-      <button class="bus-tab" data-layer="mon2">MON 2</button>
-      <button class="bus-tab" data-layer="fx1">FX 1</button>
-      <button class="bus-tab" data-layer="fx2">FX 2</button>
+      <button class="hw-btn danger mute-all" id="btn-mute-all" data-hold="arm" title="Hold 0.6 s to mute all inputs.">MUTE ALL</button>
     </div>
   </header>
+
+  <!-- Views inside the active section (only Mix and Sound have more than one). -->
+  <nav class="cue-tabs" id="cue-tabs" role="tablist" aria-label="Views in this section">
+    <button class="cue-tab active" data-tab="mixer" data-group="mix" role="tab" aria-selected="true">Mixer</button>
+    <button class="cue-tab" data-tab="stage" data-group="mix" role="tab" aria-selected="false">Stage</button>
+    <button class="cue-tab" data-tab="channel" data-group="mix" role="tab" aria-selected="false">Channel</button>
+    <button class="cue-tab" data-tab="input" data-group="sound" role="tab" aria-selected="false" hidden>Input</button>
+    <button class="cue-tab" data-tab="eq" data-group="sound" role="tab" aria-selected="false" hidden>EQ</button>
+    <button class="cue-tab" data-tab="comp" data-group="sound" role="tab" aria-selected="false" hidden>Comp</button>
+    <button class="cue-tab" data-tab="sends" data-group="sound" role="tab" aria-selected="false" hidden>Sends</button>
+    <button class="cue-tab" data-tab="fx" data-group="sound" role="tab" aria-selected="false" hidden>FX</button>
+  </nav>
 
   <div class="conn-banner" id="conn-banner" role="alert" hidden></div>
   <div class="conn-banner meter-lost" id="meter-banner" role="status" hidden></div>
