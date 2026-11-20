@@ -2687,7 +2687,95 @@
     renderConsole(); // persistent bottom fader bank + connection banner
     renderFlowAiDrawer();
     renderInspector(); // the Inspector is state (insp), so every view render redraws it
+    renderChrome(); // sidebar, mix tabs and selected-channel panel (navigation only; no commands)
   }
+
+  // ---------- Chrome: sidebar, mix tabs, selected-channel panel ----------
+  // Navigation and shortcuts only. Every control here calls an existing handler
+  // (setTopTab, setLayer, selectChannel, openScribbleModal). Nothing here sends a command.
+  const LAYER_TABS = { main: 'Main Mix', mon1: 'Monitor 1', mon2: 'Monitor 2', fx1: 'FX 1', fx2: 'FX 2' };
+  const ICON = {
+    mic: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>',
+    chevron: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    input: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="7" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="12" r="2" fill="currentColor"/></svg>',
+    gate: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 19c4 0 5-1 7-6s3-7 11-7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>',
+    eq: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 13h4l2-6 3 12 3-9 2 3h6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    comp: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 20c6 0 6-14 18-14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>',
+    sends: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20 20 4M9 4h11v11" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    fx: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="6" width="18" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M7 10v4M7 10h3M7 12h2M13 10l4 4M17 10l-4 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>',
+    book: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5c3-1 6-1 9 1v14c-3-2-6-2-9-1zM21 5c-3-1-6-1-9 1v14c3-2 6-2 9-1z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>',
+    phones: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 15v-3a8 8 0 0 1 16 0v3M4 15h4v5H5a1 1 0 0 1-1-1zM20 15h-4v5h3a1 1 0 0 0 1-1z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>',
+    play: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="3" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="m10 8.5 5 3.5-5 3.5z" fill="currentColor"/></svg>',
+  };
+
+  function renderSideNav() {
+    document.querySelectorAll('#side-nav .side-item').forEach((b) => {
+      const go = b.dataset.go;
+      const on = go === 'mixer' ? (topTab === 'mixer' || topTab === 'stage') : topTab === go;
+      b.classList.toggle('active', on);
+      if (on) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
+      b.onclick = () => setTopTab(go);
+    });
+  }
+
+  function renderLayerTabs() {
+    const nav = document.getElementById('layer-tabs');
+    if (!nav) return;
+    nav.innerHTML = LAYER_ORDER.map((id) =>
+      `<button class="layer-tab${id === activeLayer ? ' active' : ''}" role="tab" aria-selected="${id === activeLayer}" data-layer="${id}">${LAYER_TABS[id]}</button>`).join('');
+    nav.querySelectorAll('.layer-tab').forEach((b) => { b.onclick = () => setLayer(b.dataset.layer); });
+  }
+
+  function renderSelPanel() {
+    const host = document.getElementById('sel-panel');
+    const ch = selectedChannelObj();
+    if (!host || !ch) return;
+    const name = chName(ch);
+    const unk = ch.faderProvenance === 'UNSYNCED';
+    const hasComp = ch.index <= 4; // the console exposes the compressor on channels 1-4 only
+    const tile = (id, icon, en, th, tab, off) => off
+      ? `<button class="sp-tile unavailable" disabled aria-disabled="true" title="${esc(off)}">${icon}<span><b>${en}</b><i>${th}</i></span><em>Not available</em></button>`
+      : `<button class="sp-tile${topTab === tab ? ' active' : ''}" data-tab="${tab}">${icon}<span><b>${en}</b><i>${th}</i></span></button>`;
+    host.innerHTML = `
+      <section class="sp-card">
+        <header class="sp-head"><h2>Selected channel <i>ช่องที่เลือก</i></h2><span class="sp-chip">CH ${String(ch.index).padStart(2, '0')}</span></header>
+        <button class="sp-name" id="sp-rename" aria-label="Rename ${esc(name)}" title="Rename channel">${ICON.mic}<span>${esc(name)}</span>${ICON.chevron}</button>
+        <div class="sp-meta"><span>${esc(STRIP_TAG[ch.index])}</span><span class="${unk ? 'unk' : ''}">${unk ? '-- (not synced)' : midiToDbStr(ch.fader)}</span>${provBadge(ch.faderProvenance, provTitle(ch.faderProvenance))}</div>
+        <div class="sp-tiles">
+          ${tile('input', ICON.input, 'Input', 'อินพุต', 'input')}
+          ${tile('gate', ICON.gate, 'Gate', 'เกท', null, lockReason('gate') === 'Not available over MIDI.' ? 'Gate: no gate parameter is documented for the FLOW 8, so this control is not offered.' : lockReason('gate'))}
+          ${tile('eq', ICON.eq, 'EQ', 'อีควอไลเซอร์', 'eq')}
+          ${tile('comp', ICON.comp, 'Comp', 'คอมเพรสเซอร์', 'comp', hasComp ? null : 'Compressor is offered on channels 1 to 4 only.')}
+          ${tile('sends', ICON.sends, 'Sends', 'ส่งสัญญาณ', 'sends')}
+          ${tile('fx', ICON.fx, 'FX', 'เอฟเฟกต์', 'fx')}
+        </div>
+        <p class="sp-note">Solo and Gate: not available. The mixer has no verified MIDI control for them.</p>
+      </section>
+      <section class="sp-card">
+        <header class="sp-head"><h2>${ICON.book} Preset <i>พรีเซ็ต</i></h2></header>
+        <button class="sp-preset" id="sp-presets">Open preset list ${ICON.chevron}</button>
+        <p class="sp-note">Presets set EQ, low cut and compressor only. They never change level, gain or +48V. A plan is shown before anything is sent.</p>
+      </section>
+      <section class="sp-card">
+        <header class="sp-head"><h2>Quick access <i>ควบคุมด่วน</i></h2></header>
+        <div class="sp-quick">
+          ${['mon1', 'mon2', 'fx1', 'fx2'].map((id) => `<button class="sp-q ${id.startsWith('fx') ? 'fx' : 'mon'}${activeLayer === id ? ' active' : ''}" data-layer="${id}" aria-pressed="${activeLayer === id}">${id.startsWith('fx') ? ICON.play : ICON.phones}<b>${LAYER_TABS[id].replace('Monitor ', 'MON ')}</b></button>`).join('')}
+        </div>
+      </section>`;
+    host.querySelector('#sp-rename').onclick = () => openScribbleModal(ch);
+    host.querySelector('#sp-presets').onclick = () => setTopTab('presets');
+    host.querySelectorAll('.sp-tile[data-tab]').forEach((b) => { b.onclick = () => setTopTab(b.dataset.tab); });
+    host.querySelectorAll('.sp-q').forEach((b) => { b.onclick = () => { setLayer(b.dataset.layer, false); setTopTab('mixer'); }; });
+  }
+
+  function renderChrome() {
+    renderSideNav();
+    renderLayerTabs();
+    renderSelPanel();
+  }
+  document.getElementById('btn-save').onclick = () => setView('setup', 'snapshots');
+  document.getElementById('btn-settings').onclick = () => setView('setup', 'prefs');
+
   function setView(v, page, syncHub = true) {
     if (v === 'setup') {
       if (page) setupPage = page;
