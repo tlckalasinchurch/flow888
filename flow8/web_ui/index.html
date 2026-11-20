@@ -3,12 +3,12 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-  <title>FLOW 8 Live Console</title>
-  <meta name="theme-color" content="#0E1013" />
+  <title>FLOW 888</title>
+  <meta name="theme-color" content="#07121B" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <meta name="apple-mobile-web-app-title" content="FLOW 8" />
+  <meta name="apple-mobile-web-app-title" content="FLOW 888" />
   <!-- Belt and braces with the hub's no-store headers, for Safari/iPad. -->
   <meta http-equiv="Cache-Control" content="no-store" />
   <meta http-equiv="Pragma" content="no-cache" />
@@ -18,7 +18,10 @@
 <div class="app-shell">
   <!-- Header: identity, link state, section navigation, scene, safety. One row. -->
   <header class="app-header" id="app-header">
-    <span class="brand-mark">FLOW 8 <small class="brand-sub">LIVE CONSOLE</small></span>
+    <span class="brand-mark" id="brand">
+      <svg class="brand-logo" viewBox="0 0 48 40" aria-hidden="true" focusable="false"><g stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M4 18v4M10 12v16M16 6v28M22 14v12M28 4v32M34 12v16M40 17v6"/></g></svg>
+      <span class="brand-text"><span class="brand-name">FLOW 888</span><small class="brand-sub">Digital Mixer Controller</small></span>
+    </span>
     <div class="status-pill" id="status-pill" role="status" tabindex="0" aria-label="Connection status. Press to open Connection settings.">
       <span class="status-dot"></span>
       <span id="status-text">CONNECTING</span>
@@ -42,6 +45,9 @@
       <span class="scene-name">No scene</span>
       <span class="scene-edited">EDITED</span>
     </div>
+    <div class="device-chip" id="device-chip" title="Target device"><span class="device-brand">Behringer</span><span class="device-model">FLOW 8</span></div>
+    <button class="icon-btn" id="btn-save" aria-label="Save: open Snapshots" title="Save: open Setup &gt; Snapshots (nothing is saved until you confirm there)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3h11l3 3v15H5z M8 3v6h8V3 M8 21v-7h8v7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg></button>
+    <button class="icon-btn" id="btn-settings" aria-label="Settings" title="Settings"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3.2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M18.7 5.3l-2.1 2.1M7.4 16.6l-2.1 2.1" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button>
     <time class="clock" id="clock" aria-label="Time"></time>
     <div class="safety-cluster" role="group" aria-label="Safety controls">
       <button class="hw-btn lock-btn" id="btn-lock" aria-pressed="false" title="Lock all controls against stray touches."><span class="lock-text">LOCK</span></button>
@@ -49,6 +55,19 @@
     </div>
   </header>
 
+  <div class="app-body">
+  <nav class="side-nav" id="side-nav" aria-label="Main navigation">
+    <button class="side-item" data-go="mixer"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4v16M12 4v16M19 4v16M3 9h4M10 15h4M17 8h4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg><span class="side-text"><b>Mixer</b><i>มิกเซอร์</i></span></button>
+    <button class="side-item" data-go="channel"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16M9 5v4M15 10v4M8 15v4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg><span class="side-text"><b>Channel</b><i>ช่องสัญญาณ</i></span></button>
+    <button class="side-item" data-go="eq"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 13h4l2-6 3 12 3-9 2 3h6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="side-text"><b>EQ</b><i>อีควอไลเซอร์</i></span></button>
+    <button class="side-item" data-go="comp"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 20c6 0 6-14 18-14M3 20h18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg><span class="side-text"><b>Dynamics</b><i>Comp · ไดนามิก</i></span></button>
+    <button class="side-item" data-go="sends"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20 20 4M9 4h11v11" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="side-text"><b>Sends</b><i>ส่งสัญญาณ</i></span></button>
+    <button class="side-item" data-go="fx"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="6" width="18" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M7 10v4M7 10h3M7 12h2M13 10l4 4M17 10l-4 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg><span class="side-text"><b>FX Rack</b><i>เอฟเฟกต์</i></span></button>
+    <button class="side-item" data-go="presets"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 9 5-9 5-9-5zM3 13l9 5 9-5M3 17.5l9 5 9-5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg><span class="side-text"><b>Presets</b><i>พรีเซ็ต</i></span></button>
+    <button class="side-item" data-go="setup"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3.2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M18.7 5.3l-2.1 2.1M7.4 16.6l-2.1 2.1" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg><span class="side-text"><b>Setup</b><i>ตั้งค่าอุปกรณ์</i></span></button>
+    <div class="side-ver" aria-label="Version"><b>FLOW 888</b><span>UI v2.0</span></div>
+  </nav>
+  <div class="main-col">
   <div class="toolbars">
   <!-- Control bar: edit tools on the left, show control on the right. Hidden in Setup. -->
   <div class="control-bar" id="control-bar">
@@ -82,6 +101,7 @@
     <button class="cue-tab" data-tab="fx" data-group="sound" role="tab" aria-selected="false" hidden>FX</button>
     <button class="cue-tab" data-tab="channel" data-group="sound" role="tab" aria-selected="false" hidden>Channel</button>
   </nav>
+  <nav class="layer-tabs" id="layer-tabs" role="tablist" aria-label="Mix view"></nav>
   </div>
 
   <div class="conn-banner" id="conn-banner" role="alert" hidden></div>
@@ -141,6 +161,9 @@
       <div class="insp-body" id="insp-body"></div>
     </aside>
   </div>
+  </div><!-- /main-col -->
+  <aside class="sel-panel" id="sel-panel" aria-label="Selected channel"></aside>
+  </div><!-- /app-body -->
 </div>
 
 <!-- Name prompt -->
