@@ -34,8 +34,9 @@ The app never presents an app-side value as a mixer reading. Every value carries
 
 ## Brand Commitments
 
-- CueAir may inform workflow but is not named in user-facing UI and is never evidence of a FLOW 8 capability (SR-10).
-- Known conflict, not yet resolved: `flow8/web_ui/index.html` still has the title "FLOW 8 Live Console — CueAir Pro". Confirm the intended product name before any copy work.
+- **Naming policy (owner decision, 2026-11-20; supersedes policy A):** the user-facing product name is "FLOW 888". App titles, brand mark, navigation, labels and documentation shown inside the app use "FLOW 888". "FLOW 8 CueAir Pro" is permitted only as an internal project/development codename. Do not expose "CueAir" in the UI or other user-facing copy. "FLOW 8" still names the Behringer hardware.
+- CueAir-related workflow ideas are not evidence of a FLOW 8 capability. SR-10 remains in force unchanged.
+- The previous title conflict is resolved: `flow8/web_ui/index.html` uses "FLOW 888" for `<title>`, the brand mark and the version label. No Safety Layer or Business Logic change is authorized by this naming decision.
 - The existing "Cyber Neon" theme tokens were NOT confirmed as binding in this interview; treat them as the incumbent look, not a commitment.
 
 ## Evidence on Hand
