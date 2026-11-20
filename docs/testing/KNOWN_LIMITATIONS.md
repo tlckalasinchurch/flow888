@@ -36,6 +36,7 @@
 6. **Mixer state can change outside this application (2026-11-20):**
    - **+48 V:** the manufacturer guide says phantom power "can be activated in the control app" (E01, printed p. 10–11), and EZ-Gain may switch it (UNCONFIRMED, C-13). The mixer does not report +48 V back. This application's +48 V state is therefore never a synchronised mixer reading.
    - **Footswitch snapshots:** in footswitch mode "SNAPSHOT", switch 1 loads the next snapshot and switch 2 the previous one (E01, printed p. 12–13). A snapshot change on the mixer can change every channel value without any message to this application.
+   - **Bus limiter / GEQ and FX engines (opened 2026-11-20):** the mixer reports none of them. The console shows `--` (UNSYNCED) until it sends a value, then the commanded value. A change made in the FLOW app, on the mixer or by a footswitch is not seen. FX mute and tap tempo stay locked because they use MIDI channel 16 with the mixer reset.
    - **Consequence:** after any external change, the values this application shows (COMMANDED) may no longer match the mixer. They should be treated as UNSYNCED. No detection exists, because the mixer sends nothing on USB MIDI (C-02); no part of the application may claim that phantom or snapshot state is synchronised.
 
 ---

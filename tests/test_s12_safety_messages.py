@@ -1,6 +1,10 @@
-"""S1.2 safety tests: message types, reset, and the 37 low-level pairs (M-xx).
+"""S1.2 safety tests: message types, reset, and the low-level pairs (M-xx).
 
 No physical port is opened; byte-level checks use a MagicMock driver.
+
+2026-11-20 (owner approval): the bus limiter / 9-band GEQ (MAIN, MON1, MON2), FX engine
+parameters 1-2 and FX preset select joined the allowlist. FX preset select is the only
+Program Change allowed: presets 1-16 on channels 13 and 14. Channel 16 stays closed.
 """
 import ast
 import unittest
@@ -15,14 +19,17 @@ from tests._safety_helpers import dword, fake_open_port
 
 ROOT = Path(__file__).resolve().parent.parent
 ALLOW = Flow8CommandBoundary.ACTIVE_ALLOWLIST
-ALLOW_PAIRS = {(s["channel"], s["cc"]) for s in ALLOW.values()}
-GAIN_PAIRS = {(s["channel"], s["cc"]) for s in ALLOW.values() if s["type"] == "gain"}
-PHANTOM_PAIRS = {(s["channel"], s["cc"]) for pid, s in ALLOW.items() if pid.endswith(".phantom")}
+CC_ALLOW = {pid: s for pid, s in ALLOW.items() if s.get("message") is None}
+PC_ALLOW = {pid: s for pid, s in ALLOW.items() if s.get("message") == "program_change"}
+ALLOW_PAIRS = {(s["channel"], s["cc"]) for s in CC_ALLOW.values()}
+GAIN_PAIRS = {(s["channel"], s["cc"]) for s in CC_ALLOW.values() if s["type"] == "gain"}
+PHANTOM_PAIRS = {(s["channel"], s["cc"]) for pid, s in CC_ALLOW.items() if pid.endswith(".phantom")}
 
-# The 37 pairs accepted by send_cc but never authorised by the boundary (S1.1 dry-run), written out.
+# Pairs accepted by send_cc before S1.2 but never authorised by the boundary (S1.1 dry-run), written out.
+# Solo stays refused. The 30 bus limiter/GEQ pairs were opened by the owner on 2026-11-20.
 SOLO = {(ch, 6) for ch in range(1, 8)}
 BUS = {(ch, cc) for ch in (8, 9, 10) for cc in (8, 11, 12, 13, 14, 15, 16, 17, 18, 19)}
-THIRTY_SEVEN = SOLO | BUS
+FX_ENGINE = {(ch, cc) for ch in (13, 14) for cc in (1, 2)}
 
 
 def accepted_pairs(value):
@@ -53,6 +60,11 @@ class MessageTypeTests(NoHardwareMixin, unittest.TestCase):
                         ok = True
                     except SafetyPolicyError:
                         ok = False
+                    if ok and status & 0xF0 == 0xC0:
+                        # The one Program Change exception: FX presets 1-16 on channels 13 / 14.
+                        self.assertIn((status & 0x0F) + 1, (13, 14), hex(status))
+                        self.assertTrue(1 <= d1 <= 16 and d2 == 0, (hex(status), d1, d2))
+                        continue
                     if ok:
                         self.assertEqual(status & 0xF0, 0xB0, hex(status))
                         pair = ((status & 0x0F) + 1, d1)
@@ -70,14 +82,16 @@ class MessageTypeTests(NoHardwareMixin, unittest.TestCase):
     def test_m02_send_cc_accepted_set_equals_policy(self):
         self.assertEqual(accepted_pairs(0), ALLOW_PAIRS - GAIN_PAIRS)
         self.assertEqual(accepted_pairs(127), ALLOW_PAIRS - GAIN_PAIRS - PHANTOM_PAIRS)
-        self.assertEqual((len(ALLOW_PAIRS), len(ALLOW_PAIRS - GAIN_PAIRS)), (97, 93))
+        self.assertEqual((len(ALLOW_PAIRS), len(ALLOW_PAIRS - GAIN_PAIRS)), (131, 127))
 
-    def test_m03_the_37_pairs_are_refused(self):
+    def test_m03_solo_is_refused_and_bus_dsp_is_open(self):
         from flow8.safety import validate_outbound, SafetyPolicyError
-        self.assertEqual(len(THIRTY_SEVEN), 37)
-        self.assertFalse(THIRTY_SEVEN & ALLOW_PAIRS)
+        self.assertEqual(len(SOLO), 7)
+        self.assertFalse(SOLO & ALLOW_PAIRS)
+        self.assertEqual(BUS & ALLOW_PAIRS, BUS)          # opened 2026-11-20
+        self.assertEqual(FX_ENGINE & ALLOW_PAIRS, FX_ENGINE)
         out, driver = fake_open_port()
-        for ch, cc in sorted(THIRTY_SEVEN):
+        for ch, cc in sorted(SOLO):
             with self.subTest(ch=ch, cc=cc):
                 with self.assertRaises(Flow8ValidationError):
                     out.send_cc(ch, cc, 64)
@@ -86,7 +100,7 @@ class MessageTypeTests(NoHardwareMixin, unittest.TestCase):
                 self.assertTrue(getattr(ctx.exception, "rule", ""))
         driver.midiOutShortMsg.assert_not_called()
         boundary = Flow8CommandBoundary(out, Flow8Service(auto_connect=False).state_store)
-        for pid in ("ch1.solo", "ch7.solo", "main.limiter", "mon1.limiter", "main.geq_1", "mon2.geq_9"):
+        for pid in ("ch1.solo", "ch7.solo", "fx1.limiter", "fx2.geq1", "fxe1.mute", "global.fx_mute"):
             with self.assertRaises(Flow8CommandRejectedError):
                 boundary.execute_command(pid, 64)
         driver.midiOutShortMsg.assert_not_called()
@@ -118,11 +132,21 @@ class MessageTypeTests(NoHardwareMixin, unittest.TestCase):
             if used & {"midiOutShortMsg", "midiOutLongMsg"} and path.name != "midi_out.py":
                 offenders.append(path.name)
         self.assertEqual(offenders, [])
-        # No outbound module builds a Program Change, Note or system status byte.
+        # No outbound module builds a Program Change, Note or system status byte, except the single
+        # FX preset sender Flow8MidiOut.send_program_change (0xC0, validated by validate_outbound).
         # (service.py is excluded: its inbound handler legitimately masks with 0xF0; it sends only through the boundary.)
         for rel in ("flow8/midi_out.py", "flow8/command_boundary.py", "flow8/parameter_engine.py"):
             tree = ast.parse((ROOT / rel).read_text(encoding="utf-8"))
+            sanctioned = {
+                id(n)
+                for fn in ast.walk(tree) if isinstance(fn, ast.FunctionDef) and fn.name == "send_program_change"
+                for n in ast.walk(fn) if isinstance(n, ast.Constant) and n.value == 0xC0
+            }
+            if rel == "flow8/midi_out.py":
+                self.assertEqual(len(sanctioned), 1, "exactly one Program Change status literal")
             for node in ast.walk(tree):
+                if id(node) in sanctioned:
+                    continue
                 if isinstance(node, ast.Constant) and isinstance(node.value, int) and not isinstance(node.value, bool):
                     self.assertFalse(0x80 <= node.value <= 0xAF or 0xC0 <= node.value <= 0xEF or 0xF0 <= node.value <= 0xFE,
                                      f"{rel}: status-like literal {hex(node.value)}")
@@ -148,7 +172,7 @@ class MessageTypeTests(NoHardwareMixin, unittest.TestCase):
         service = Flow8Service(auto_connect=False)
         service.midi_out = out
         boundary = Flow8CommandBoundary(out, service.state_store)
-        for pid, spec in sorted(ALLOW.items()):
+        for pid, spec in sorted(CC_ALLOW.items()):
             if spec["type"] == "gain" or pid.endswith(".phantom"):
                 continue
             for raw in (0, 64, 127):
@@ -160,8 +184,29 @@ class MessageTypeTests(NoHardwareMixin, unittest.TestCase):
                     out._handle, dword(spec["channel"], spec["cc"], expected))
 
     def test_m08_allowlist_unchanged(self):
-        self.assertEqual(len(ALLOW), 97)
-        self.assertEqual(len(ALLOW_PAIRS), 97)
+        # 97 (S1.2) + 3 limiters + 27 GEQ bands + 4 FX engine parameters + 2 FX preset selects.
+        self.assertEqual(len(ALLOW), 133)
+        self.assertEqual(len(ALLOW_PAIRS), 131)
+        self.assertEqual(sorted(PC_ALLOW), ["fxe1.preset", "fxe2.preset"])
+
+    def test_m09_fx_preset_program_change_bytes_and_limits(self):
+        out, driver = fake_open_port()
+        service = Flow8Service(auto_connect=False)
+        boundary = Flow8CommandBoundary(out, service.state_store)
+        for pid, ch in (("fxe1.preset", 13), ("fxe2.preset", 14)):
+            for preset in (1, 9, 16):
+                driver.midiOutShortMsg.reset_mock()
+                boundary.execute_command(pid, preset)
+                driver.midiOutShortMsg.assert_called_once_with(out._handle, (0xC0 | (ch - 1)) | (preset << 8))
+            for bad in (0, 17, 127):
+                with self.assertRaises(Flow8ValidationError):
+                    boundary.execute_command(pid, bad)
+        # The low-level sender refuses every Program Change outside the exception, reset included.
+        driver.midiOutShortMsg.reset_mock()
+        for ch, program in ((16, 16), (16, 1), (15, 1), (1, 1), (12, 1), (13, 0), (14, 17)):
+            with self.assertRaises(Flow8ValidationError):
+                out.send_program_change(ch, program)
+        driver.midiOutShortMsg.assert_not_called()
 
 
 if __name__ == "__main__":

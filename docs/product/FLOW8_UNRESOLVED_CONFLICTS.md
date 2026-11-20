@@ -36,3 +36,9 @@ The six repository documents with the old FX channel mapping carry errata blocks
 - **C-13** added from retailer evidence E18. Not resolved.
 - Retailer sources E18 and E19 are recorded as secondary evidence (`FLOW8_EVIDENCE_REGISTER.md` §5). They resolve nothing.
 - External changes to mixer state (FLOW control app, footswitch snapshot mode) are recorded in `docs/testing/KNOWN_LIMITATIONS.md`.
+
+## 2026-11-20 notes (owner decision: bus limiter / GEQ and FX opened)
+
+- **C-01**: the interim rule "no Program Change is sent" now has one owner-approved exception: FX preset select, data bytes 1–16 on channels 13 and 14 (`FLOW8_SAFETY_POLICY.md` §7). The app sends data byte N for preset N (chart: "Program Change 0 & 17–127 = ignored"). The numbering is still unverified; snapshot recall and reset on channel 16 stay disabled / forbidden.
+- **C-09**: preset names now come from the FLOW app screens supplied by the owner (E21); all 32 names match `FX_ENGINE` in `flow8/web_ui/app.js`. Parameter meanings: E02 ("FX Menu Navigation": two parameters per effect, the first continuous, the second a two-state toggle) and E21 (FX 1 = DECAY, INSTRUMENT / VOCAL; FX 2 = FEEDBACK, DULL / BRIGHT). The interim rule "FX controls DISABLED" is replaced by the owner decision; still no manufacturer preset list, and nothing is hardware-verified.
+- **C-11**: the FLOW app labels the lowest GEQ band "63Hz" (E21); the chart prints "62 Hz". The UI uses the app's "63" label. Unchanged otherwise.

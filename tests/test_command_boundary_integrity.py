@@ -44,6 +44,12 @@ class TestAllowlistStructure(unittest.TestCase):
             with self.subTest(param=param_id):
                 self.assertGreaterEqual(spec["channel"], 1)
                 self.assertLessEqual(spec["channel"], 16)
+                if spec.get("message") == "program_change":
+                    # FX preset select (2026-11-20): no CC, FX engine channels only, presets 1-16.
+                    self.assertIsNone(spec["cc"])
+                    self.assertIn(spec["channel"], (13, 14))
+                    self.assertEqual((spec["min"], spec["max"]), (1, 16))
+                    continue
                 self.assertGreaterEqual(spec["cc"], 0)
                 self.assertLessEqual(spec["cc"], 127)
 

@@ -49,7 +49,7 @@ web UI (flow8/web_ui) → LAN hub HTTP/SSE (flow8/lan_hub.py) → Flow8Service (
 
 Full text and current enforcement state: `docs/product/FLOW8_SAFETY_POLICY.md` (SR-01 to SR-12). The short version:
 
-- No Program Change, Note or SysEx sender may exist in `flow8/`. Program Change 16 on channel 16 (mixer reset) is forbidden everywhere, including tests and scripts.
+- No Note or SysEx sender may exist in `flow8/`. The only Program Change allowed is FX preset select, data bytes 1–16 on MIDI channels 13/14 (owner decision 2026-11-20, `FLOW8_SAFETY_POLICY.md` §7), sent only by `Flow8MidiOut.send_program_change`. Channel 16 stays closed: Program Change 16 on channel 16 (mixer reset) is forbidden everywhere, including tests and scripts, and FX mute / tap tempo (also channel 16) stay locked.
 - Preamp gain and +48 V are gated and never automated. +48 V needs a single-use `PhantomPowerSafetyGate` token; it is excluded from undo, scenes, presets and macros. Both are blocked over LAN.
 - Enforce safety in the boundary/service, not only in the UI.
 - No UI control for a parameter not documented in the manufacturer chart. Capability truth: `docs/product/FLOW8_CAPABILITY_MATRIX.md` and `docs/product/FLOW8_PARAMETER_MAPPING.md`.

@@ -362,6 +362,34 @@ class Flow8StateStore:
                 unit=p_unit
             )
 
+        # Bus limiter + 9-band GEQ (MAIN/MON1/MON2) and FX engine controls: documented in
+        # the manufacturer chart, opened by the owner 2026-11-20, not hardware-verified.
+        # Start values are placeholders only; provenance stays UNSYNCED until a command.
+        extra_params = []
+        for bus_id, ch_idx in (("main", 8), ("mon1", 9), ("mon2", 10)):
+            extra_params.append((f"{bus_id}.limiter", ch_idx, "limiter", 127, "raw"))
+            extra_params += [(f"{bus_id}.geq{band}", ch_idx, f"geq{band}", 64, "raw") for band in range(1, 10)]
+        for engine_id, ch_idx in (("fxe1", 13), ("fxe2", 14)):
+            extra_params += [
+                (f"{engine_id}.preset", ch_idx, "preset", 1, "raw"),
+                (f"{engine_id}.param1", ch_idx, "param1", 0, "raw"),
+                (f"{engine_id}.param2", ch_idx, "param2", False, "bool"),
+            ]
+        for pid, ch_idx, pname, init_val, p_unit in extra_params:
+            self._parameters[pid] = ParameterState(
+                param_id=pid,
+                channel_index=ch_idx,
+                parameter_name=pname,
+                commanded_value=init_val,
+                observed_value=None,
+                sync_status=SyncStatus.UNKNOWN,
+                source=EventSource.INITIALIZATION,
+                timestamp=now,
+                verification_level=VerificationLevel.PROTOCOL_VERIFIED,
+                raw_midi_value=int(init_val),
+                unit=p_unit,
+            )
+
         # Hardware Specified but unverified protocol features (HARDWARE_SPECIFIED)
         self._parameters["global.ez_gain"] = ParameterState(
             param_id="global.ez_gain",

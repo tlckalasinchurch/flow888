@@ -261,8 +261,8 @@ class Flow8MidiOut:
             raise Flow8ValidationError(f"Invalid CC value: {value} (must be 0–127)")
 
         # Safety policy (S1.2): one allow-list for every sender. Only allowlisted, non-blocked control
-        # changes pass; preamp gain, unauthorised +48V ON, channel 16 and the 37 documented-but-unimplemented
-        # pairs (solo, bus limiter, bus GEQ) are refused before the driver is touched.
+        # changes pass; preamp gain, unauthorised +48V ON, channel 16 and the documented-but-unimplemented
+        # pairs (solo) are refused before the driver is touched.
         try:
             validate_outbound(0xB0 | (channel - 1), cc, value)
         except SafetyPolicyError as policy_error:
@@ -287,6 +287,38 @@ class Flow8MidiOut:
                 raise Flow8MidiError(f"Failed to send MIDI CC (0x{msg:06X}): error code {res}")
 
             # Driver accepted the message. This is an API acknowledgement only.
+            return msg
+
+    def send_program_change(self, channel: int, program: int) -> int:
+        """
+        Submit an FX preset select (Program Change) to the Windows driver.
+
+        The safety policy admits only programs 1-16 on the FX engine channels 13 and 14
+        (owner exception to SR-01, 2026-11-20); channel 16 (mixer reset) is refused.
+        Returns the short message handed to `midiOutShortMsg`; not proof of delivery.
+        """
+        if not (1 <= channel <= 16):
+            raise Flow8ValidationError(f"Invalid MIDI channel: {channel} (must be 1–16)")
+        if not (0 <= program <= 127):
+            raise Flow8ValidationError(f"Invalid program number: {program} (must be 0–127)")
+        status_byte = 0xC0 | ((channel - 1) & 0x0F)
+        try:
+            validate_outbound(status_byte, program, 0)
+        except SafetyPolicyError as policy_error:
+            raise Flow8ValidationError(
+                f"Program Change {program} on channel {channel} is not allowed for FLOW 8. {policy_error}"
+            ) from policy_error
+
+        with self._lock:
+            if not self._is_open or not self._handle:
+                raise Flow8NotConnectedError("Cannot send MIDI: device is not connected.")
+            msg = status_byte | ((program & 0x7F) << 8)
+            res = self._winmm.midiOutShortMsg(self._handle, msg)
+            if res != WinMmError.MMSYSERR_NOERROR:
+                if res in (WinMmError.MMSYSERR_INVALHANDLE, WinMmError.MMSYSERR_NODRIVER):
+                    self.close()
+                    raise Flow8NotConnectedError(f"MIDI device disconnected during dispatch (error {res})")
+                raise Flow8MidiError(f"Failed to send MIDI Program Change (0x{msg:06X}): error code {res}")
             return msg
 
     # -----------------------------------------------------------------------

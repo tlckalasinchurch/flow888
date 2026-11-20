@@ -33,14 +33,14 @@ Legend for UI: **Yes** = a control exists in the current app; **Gated** = exists
 | **EQ (4 bands)** | CC 1–4, ±15 dB, 64 = 0 dB, channels 1–7 | Yes, Inspector | UNCONFIRMED | PROTOCOL SUPPORTED | Frequencies and Q unconfirmed (C-04); the UI's frequency labels have no source |
 | **Low cut** | CC 9, 20–600 Hz | Yes, ch 1–4 | UNCONFIRMED | PROTOCOL SUPPORTED (ch 1–4); UNCONFIRMED (ch 5/6, 7/8) | Scale unconfirmed; C-06 |
 | **Compressor** | CC 11, 0–100 %; only this one control is documented | Yes, ch 1–4 | UNCONFIRMED | PROTOCOL SUPPORTED (ch 1–4); UNCONFIRMED (ch 5/6, 7/8) | No threshold, ratio, attack, release or gate documented anywhere |
-| **FX 1 / FX 2** | Preset select (Program Change 1–16) on ch 13 / 14; Parameter 1 = CC 1 (0–100 %), Parameter 2 = CC 2 (A/B) | **No sender, no UI** | UNCONFIRMED | DOCUMENTED | Preset content unknown (C-09); Program Change disabled by policy; numbering C-01 |
+| **FX 1 / FX 2** | Preset select (Program Change 1–16) on ch 13 / 14; Parameter 1 = CC 1 (0–100 %), Parameter 2 = CC 2 (A/B) | Yes since 2026-11-20 (owner decision): Inspector and FX Rack | UNCONFIRMED | PROTOCOL SUPPORTED | Preset names from the FLOW app (E21), not a manufacturer list (C-09); numbering C-01; only this Program Change is allowed (SR-01 exception) |
 | **FX sends** | Per-channel CC 16 / CC 17 | Yes, Inspector | UNCONFIRMED | PROTOCOL SUPPORTED | Taper (C-05) |
 | **FX bus levels** | ch 11 / 12 CC 7 | No (backend allowlist only) | UNCONFIRMED | PROTOCOL SUPPORTED | none |
 | **Monitor (Aux) sends** | CC 14 (MON 1), CC 15 (MON 2) | Yes | UNCONFIRMED | PROTOCOL SUPPORTED | Taper (C-05) |
 | **Monitor bus levels** | ch 9 / 10 CC 7 | No | UNCONFIRMED | PROTOCOL SUPPORTED | Backend only |
-| **Main output** | ch 8: level CC 7, balance CC 10; limiter CC 8 (−30…0 dB); 9-band GEQ CC 11–19 (±15 dB) on Main, MON 1, MON 2 | Level and balance only | UNCONFIRMED | PROTOCOL SUPPORTED (level, balance); DOCUMENTED (limiter, GEQ) | GEQ 62 vs 62.5 Hz (C-11) |
+| **Main output** | ch 8: level CC 7, balance CC 10; limiter CC 8 (−30…0 dB); 9-band GEQ CC 11–19 (±15 dB) on Main, MON 1, MON 2 | Level, balance; limiter and GEQ since 2026-11-20 (owner decision), bus Inspector | UNCONFIRMED | PROTOCOL SUPPORTED | GEQ lowest band: chart 62 Hz, FLOW app 63 Hz (C-11); limiter curve between −30 and 0 dB unknown (C-12) |
 | **Snapshots** | Program Change 1–15 on ch 16 recalls stored snapshots; **16 = mixer reset** | **No sender, no UI** (the app's "scenes" are APP ONLY and send CCs) | UNCONFIRMED; contents cannot be read per the sources | DOCUMENTED | Numbering (C-01); recall and reset **disabled / forbidden** by policy. The mixer's footswitch in SNAPSHOT mode can step snapshots without this app (E01, printed p. 12–13) |
-| **FX mute, tap tempo** | ch 16: CC 1 mute; Note On 0 tap (FX 2 presets 1–12) | No | UNCONFIRMED | DOCUMENTED | disabled by policy |
+| **FX mute, tap tempo** | ch 16: CC 1 mute; Note On 0 tap (FX 2 presets 1–12) | No | UNCONFIRMED | DOCUMENTED | Disabled by policy: channel 16 also carries the mixer reset (SR-02, SR-04); not opened on 2026-11-20 |
 | **USB MIDI input (host → mixer)** | USB jack provides "MIDI control" (guide) | Used (send path) | n/a | DOCUMENTED | Driver acceptance only; no physical effect recorded |
 | **USB MIDI output (mixer → host)** | **No document describes it** | Listener exists; nothing received | **UNCONFIRMED; BLOCKED**: 0 bytes in three captures (2026-11-09 and 2026-11-18) | UNCONFIRMED | USB TX premise unsourced (C-02) |
 | **USB audio** | Guide: 24-bit / 48 kHz, "8 x 2". Windows lists capture endpoints Mic 1, Mic 2, Mic/Line 3, Mic/Line 4, Line 5/6, Line 7/8, Main L/R, Multi In 1-10 (Recording mode) and USB Out 1/2, 3/4 (status OK, E09) | Input meters only (`flow8/audio_meter.py`; 2026-11-20 runtime: 10-channel capture stream on `Multi In 1-10` delivers frames, E20) | n/a | DOCUMENTED (existence); device detection and input-stream activity OBSERVED (E20); capture-channel-to-input mapping, sample rate, tap point and all output channels UNCONFIRMED | Channel configuration (C-07); retailer "10 out / 2 in" is secondary (E18, E19) and not adopted |
@@ -48,9 +48,9 @@ Legend for UI: **Yes** = a control exists in the current app; **Gated** = exists
 
 ## 3. What can be controlled, read, and not done
 
-**Can be commanded (documented and implemented, not hardware verified):** fader, pan/balance, mute, EQ ×4, low cut and compressor (ch 1–4), aux and FX sends, +48 V on ch 1–2 (behind a dialog; never automated), bus levels (backend only), Main balance. Gain has a path at service level but is gated at the UI.
+**Can be commanded (documented and implemented, not hardware verified):** fader, pan/balance, mute, EQ ×4, low cut and compressor (ch 1–4), aux and FX sends, +48 V on ch 1–2 (behind a dialog; never automated), bus levels, Main balance; since 2026-11-20 also bus limiter and 9-band GEQ (MAIN, MON 1, MON 2), FX preset select and FX parameters 1–2. Gain has a path at service level but is gated at the UI.
 
-**Documented but not implemented, so not available:** solo, channel status, bus limiter, 9-band GEQ, FX preset select, FX parameters 1–2, FX mute, tap tempo, snapshot recall.
+**Documented but not implemented, so not available:** solo, channel status, FX mute, tap tempo, snapshot recall.
 
 **Never to be sent:** Program Change 16 on channel 16 (mixer reset).
 

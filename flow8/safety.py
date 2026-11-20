@@ -5,7 +5,9 @@ port and the ledger all read this module, so the rules hold on every call path a
 merely behind a UI control.
 
 Rules (docs/product/FLOW8_SAFETY_POLICY.md):
-  SR-01  only Control Change messages may leave the application
+  SR-01  only Control Change messages may leave the application, plus one exception approved by
+         the owner on 2026-11-20: Program Change 1-16 on the FX engine channels 13 and 14
+         (FX preset select). No other Program Change, no Note, no SysEx.
   SR-02  Program Change 16 on channel 16 (mixer reset) is forbidden
   SR-04  channel 16 (global/snapshot) is not available
   SR-05  preamp gain is blocked absolutely (no runtime, environment or development override)
@@ -253,8 +255,11 @@ def _tables() -> dict:
     if not _tables_cache:
         from flow8.command_boundary import Flow8CommandBoundary
 
-        allowed, blocked, phantom = set(), set(), set()
+        allowed, blocked, phantom, program_change = set(), set(), set(), set()
         for param_id, spec in Flow8CommandBoundary.ACTIVE_ALLOWLIST.items():
+            if spec.get("message") == "program_change":
+                program_change.add((spec["channel"], spec["min"], spec["max"]))
+                continue
             pair = (spec["channel"], spec["cc"])
             if spec["type"] in BLOCKED_PARAMETER_TYPES:
                 blocked.add(pair)
@@ -262,7 +267,8 @@ def _tables() -> dict:
                 allowed.add(pair)
             if param_id.endswith(".phantom"):
                 phantom.add(pair)
-        _tables_cache.update(allowed=frozenset(allowed), blocked=frozenset(blocked), phantom=frozenset(phantom))
+        _tables_cache.update(allowed=frozenset(allowed), blocked=frozenset(blocked), phantom=frozenset(phantom),
+                             program_change=frozenset(program_change))
     return _tables_cache
 
 
@@ -305,6 +311,16 @@ def validate_outbound(status: int, data1: int, data2: int) -> None:
     if status & 0xF0 != 0xB0:
         if status == 0xCF and data1 == 16:
             raise SafetyPolicyError("SR-02", "mixer reset (Program Change 16 on channel 16) is forbidden")
+        if status & 0xF0 == 0xC0:
+            pc_channel = (status & 0x0F) + 1
+            if pc_channel == 16:
+                raise SafetyPolicyError("SR-04", "channel 16 (global controls and snapshots) is not available")
+            if data2 == 0 and any(ch == pc_channel and lo <= data1 <= hi
+                                  for ch, lo, hi in _tables()["program_change"]):
+                return  # FX preset select on an FX engine channel (SR-01 exception)
+            raise SafetyPolicyError(
+                "SR-01", f"Program Change {data1} on channel {pc_channel} is not allowed; only FX presets 1-16 "
+                         "on channels 13 and 14")
         raise SafetyPolicyError(
             "SR-01", "only Control Change messages may be sent; Program Change, Note, SysEx and system messages are disabled")
     if not (0 <= data1 <= 127 and 0 <= data2 <= 127):

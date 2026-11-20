@@ -85,10 +85,13 @@ class TestBusFaders(BusTestBase):
         bus_params = sorted(
             p for p in self.boundary.allowlist if not p.startswith("ch")
         )
-        self.assertEqual(bus_params, [
-            "fx1.fader", "fx2.fader", "main.balance",
-            "main.fader", "mon1.fader", "mon2.fader",
-        ])
+        # 2026-11-20 (owner approval): bus limiter + 9-band GEQ on MAIN/MON1/MON2, FX engines 1-2.
+        expected = ["fx1.fader", "fx2.fader", "main.balance"]
+        for engine in ("fxe1", "fxe2"):
+            expected += [f"{engine}.param1", f"{engine}.param2", f"{engine}.preset"]
+        for bus in ("main", "mon1", "mon2"):
+            expected += [f"{bus}.fader", f"{bus}.limiter"] + [f"{bus}.geq{band}" for band in range(1, 10)]
+        self.assertEqual(bus_params, sorted(expected))
 
     def test_bus_values_out_of_range_rejected(self):
         for value in (-1, 128):
@@ -107,8 +110,10 @@ class TestBusInvalidAddresses(BusTestBase):
             (12, 10),
             (11, 14),  # no sends on FX master channels
             (9, 20),   # beyond the 9-band GEQ range
-            (13, 7),   # reserved channel
-            (14, 1),   # FX engine parameters are not implemented
+            (13, 7),   # FX engines have only CC 1 and 2
+            (14, 3),
+            (11, 8),   # no limiter on the FX buses
+            (12, 11),  # no GEQ on the FX buses
             (15, 1),
             (16, 7),
         )
@@ -123,7 +128,7 @@ class TestBusInvalidAddresses(BusTestBase):
         self.mock.midiOutShortMsg.assert_not_called()
 
     def test_boundary_rejects_unimplemented_bus_parameters(self):
-        for param_id in ("main.limiter", "main.geq_500", "mon1.geq_1k", "fx1.mute"):
+        for param_id in ("main.geq_500", "mon1.geq_1k", "main.geq10", "fx1.mute", "fx1.limiter", "fxe1.mute"):
             with self.subTest(param=param_id):
                 with self.assertRaises(Flow8CommandRejectedError):
                     self.boundary.execute_command(param_id, 64)
@@ -135,29 +140,24 @@ class TestBusCcCollisionProtection(BusTestBase):
     def test_same_cc_on_different_channels_encodes_differently(self):
         self.out.send_cc(1, 14, 45)
         self.mock.midiOutShortMsg.assert_called_with(self.out._handle, packed(1, 14, 45))
-        # S1.2 (G-04): ch 8 CC 14 (GEQ 500 Hz) is documented but blocked, so it is refused, not sent.
-        self.mock.midiOutShortMsg.reset_mock()
-        with self.assertRaises(Flow8ValidationError):
-            self.out.send_cc(8, 14, 45)
-        self.mock.midiOutShortMsg.assert_not_called()
+        # Since 2026-11-20 ch 8 CC 14 (GEQ 500 Hz) is allowed; it must encode on channel 8, not 1.
+        self.out.send_cc(8, 14, 45)
+        self.mock.midiOutShortMsg.assert_called_with(self.out._handle, packed(8, 14, 45))
         self.assertNotEqual(packed(1, 14, 45), packed(8, 14, 45))
 
     def test_literal_mon_send_vs_geq_500(self):
         # ch1 CC14 = Mon 1 send (0xB0), ch8 CC14 = GEQ 500 Hz (0xB7).
         self.out.send_cc(1, 14, 45)
         self.mock.midiOutShortMsg.assert_called_with(self.out._handle, 0x2D0EB0)
-        # S1.2 (G-04): the ch 8 half is refused; the independent reference encoder still shows the two differ.
-        self.mock.midiOutShortMsg.reset_mock()
-        with self.assertRaises(Flow8ValidationError):
-            self.out.send_cc(8, 14, 45)
-        self.mock.midiOutShortMsg.assert_not_called()
-        self.assertEqual(packed(8, 14, 45), 0x2D0EB7)
+        self.out.send_cc(8, 14, 45)
+        self.mock.midiOutShortMsg.assert_called_with(self.out._handle, 0x2D0EB7)
 
     def test_collision_is_resolved_by_the_boundary_too(self):
-        # Bus GEQ is unreachable through the sanctioned path...
-        with self.assertRaises(Flow8CommandRejectedError):
-            self.boundary.execute_command("main.geq_500", 45)
-        # ...while the per-channel send at the same CC is reachable.
+        # Bus GEQ 500 Hz (main.geq4) resolves to channel 8...
+        entry = self.boundary.execute_command("main.geq4", 45)
+        self.assertEqual((entry.midi_channel, entry.midi_cc), (8, 14))
+        self.mock.midiOutShortMsg.assert_called_with(self.out._handle, 0x2D0EB7)
+        # ...while the per-channel send at the same CC resolves to channel 1.
         entry = self.engine.channel(1).set_send("mon1", 45)
         self.assertTrue(entry.driver_dispatched)
         self.assertEqual(entry.raw_midi_sent, 45)
@@ -166,28 +166,25 @@ class TestBusCcCollisionProtection(BusTestBase):
     def test_cc8_gain_versus_bus_limiter(self):
         # ch1 CC8 = preamp gain (allowed), ch8 CC8 = bus limiter (gate allows,
         # boundary does not expose).
-        # S1.2: ch1 CC8 = preamp gain (blocked absolutely, D2); ch8 CC8 = bus limiter (blocked pair, G-04).
-        # Both are refused for different documented reasons and nothing reaches the driver.
+        # S1.2: ch1 CC8 = preamp gain (blocked absolutely, D2). Since 2026-11-20 ch8 CC8 = bus
+        # limiter is allowed. Gain must stay refused; the limiter must land on channel 8 only.
         with self.assertRaises(Flow8CommandRejectedError):
             self.engine.channel(1).set_gain(-20.0, unit="dB")
         with self.assertRaises(Flow8ValidationError):
-            self.out.send_cc(8, 8, 64)
+            self.out.send_cc(1, 8, 64)
         self.mock.midiOutShortMsg.assert_not_called()
         self.assertEqual(packed(1, 8, 0), 0x0008B0)
-        self.assertEqual(packed(8, 8, 64), 0x4008B7)
-        with self.assertRaises(Flow8CommandRejectedError):
-            self.boundary.execute_command("main.limiter", 64)
+        entry = self.boundary.execute_command("main.limiter", 64)
+        self.assertEqual(entry.raw_midi_sent, 64)
+        self.mock.midiOutShortMsg.assert_called_once_with(self.out._handle, 0x4008B7)
 
     def test_cc11_compressor_versus_main_geq(self):
         entry = self.engine.channel(1).set_compressor(50, unit="%")
         self.assertEqual(entry.raw_midi_sent, 50)
         self.mock.midiOutShortMsg.assert_called_with(self.out._handle, 0x320BB0)
-        # S1.2 (G-04): ch 8 CC 11 (GEQ 62 Hz) is refused; the reference encoder still shows the collision.
-        self.mock.midiOutShortMsg.reset_mock()
-        with self.assertRaises(Flow8ValidationError):
-            self.out.send_cc(8, 11, 50)
-        self.mock.midiOutShortMsg.assert_not_called()
-        self.assertEqual(packed(8, 11, 50), 0x320BB7)
+        # Since 2026-11-20 ch 8 CC 11 (GEQ 62 Hz) is allowed and encodes on channel 8.
+        self.boundary.execute_command("main.geq1", 50)
+        self.mock.midiOutShortMsg.assert_called_with(self.out._handle, 0x320BB7)
 
 
 if __name__ == '__main__':

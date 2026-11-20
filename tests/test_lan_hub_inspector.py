@@ -51,7 +51,7 @@ class InspectorSessionTests(unittest.TestCase):
         snap = self.get("/api/session")
         self.assertEqual(snap["lanPolicy"], {"gain": False, "phantom": False})
         self.assertEqual(set(snap["locked"]), {
-            "gain", "phantom", "solo", "limiter", "geq", "fx", "tap", "eqParametric",
+            "gain", "phantom", "solo", "fxMute", "tap", "eqParametric",
             "stereoLink", "routing", "outputPad", "footswitch", "hwSnapshots",
         })
 
@@ -60,8 +60,14 @@ class InspectorSessionTests(unittest.TestCase):
         # allowlist for the host app, so the LAN policy must keep them closed.
         allow = Flow8CommandBoundary.ACTIVE_ALLOWLIST
         self.assertFalse(any(k.endswith(".solo") for k in allow))
-        self.assertFalse(any(k.split(".")[0] in ("main", "mon1", "mon2") and k.split(".")[1] not in ("fader", "balance") for k in allow))
+        # Bus limiter and GEQ are open on MAIN/MON1/MON2 since 2026-11-20; nothing else on those buses.
+        bus_suffixes = {"fader", "balance", "limiter"} | {f"geq{band}" for band in range(1, 10)}
+        self.assertFalse(any(k.split(".")[0] in ("main", "mon1", "mon2") and k.split(".")[1] not in bus_suffixes for k in allow))
         self.assertFalse(any(k.startswith(("fx1.", "fx2.")) and not k.endswith(".fader") for k in allow))
+        # FX mute and tap live on channel 16 with the mixer reset: never on the allowlist.
+        self.assertFalse(any(spec["channel"] == 16 for spec in allow.values()))
+        self.assertIn("fxMute", LAN_LOCKED_FEATURES)
+        self.assertIn("tap", LAN_LOCKED_FEATURES)
         self.assertIn("gain", LAN_LOCKED_FEATURES)
         self.assertFalse(LAN_POLICY["gain"])
         self.assertFalse(LAN_POLICY["phantom"])
