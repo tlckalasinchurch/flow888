@@ -1160,7 +1160,7 @@ body { height: calc(100vh / var(--ui-zoom)); height: calc(100dvh / var(--ui-zoom
 }
 
 /* =====================================================================
-   FLOW 8 CueAir Pro theme (deep navy, neon teal).
+   FLOW 888 theme (deep navy, neon teal).
    One late layer: tokens first, then layout, then components.
    Colour still carries meaning (mix, mute, state); the glow is limited to
    the selected strip, the active tab and the meters.
