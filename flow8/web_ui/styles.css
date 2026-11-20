@@ -826,7 +826,6 @@ body.locked .app-header { box-shadow: inset 0 -2px 0 var(--led-amber); }
 .ov-send-fill { height: 100%; border-radius: 2px; }
 .ov-curves { display: grid; grid-template-columns: 1fr 34px; gap: 4px; margin-top: auto; align-items: center; }
 .ov-eq-svg { width: 100%; height: 28px; background: var(--bg-well); border-radius: 4px; border: 1px solid var(--border-dark); }
-.ov-eq-svg path { fill: none; stroke: var(--accent-cyan); stroke-width: 1.6; }
 .ov-comp-box {
   height: 28px; background: var(--bg-well); border: 1px solid var(--border-dark); border-radius: 4px;
   display: flex; flex-direction: column; align-items: center; justify-content: center;
@@ -853,12 +852,14 @@ body.locked .app-header { box-shadow: inset 0 -2px 0 var(--led-amber); }
   background: var(--bg-well); border: 1px solid var(--border-light); border-radius: 8px;
   padding: 8px; display: flex; flex-direction: column; gap: 6px; min-height: 0;
 }
-.cue-eq-canvas { width: 100%; flex: 0 0 auto; display: block; touch-action: none; cursor: crosshair; }
-/* A graph canvas keeps its aspect through CSS; the drawing buffer is fixed. */
-.eq-graph { width: 100%; height: auto; display: block; border-radius: 6px; touch-action: none; cursor: crosshair; }
-#eq-canvas.eq-graph { height: clamp(140px, 26vh, 190px); }
-#cue-eq-canvas.eq-graph { height: clamp(150px, 26vh, 300px); }
+/* The locked bus GEQ canvas keeps its aspect through CSS; the drawing buffer is fixed. */
+.eq-graph { width: 100%; height: auto; display: block; border-radius: 6px; touch-action: none; }
 #bus-geq-canvas.eq-graph { height: clamp(130px, 22vh, 170px); }
+/* Channel EQ: one row per band (spec frequency, gain). No response curve (C-04). */
+.eq-spec-list { display: flex; flex-direction: column; gap: 4px; }
+.eq-spec-row { padding: 6px 8px; border-radius: 4px; background: var(--bg-panel); }
+.eq-spec-row .num-lbl::before { content: ""; display: inline-block; width: 8px; height: 8px; margin-right: 6px; border-radius: 50%; background: var(--band-color, var(--border-light)); }
+.eq-spec-row.active { background: color-mix(in srgb, var(--band-color, var(--accent-cyan)) 14%, var(--bg-panel)); }
 .eq-legend { margin: 4px 0 0; font-size: 12px; color: var(--text-muted); line-height: 1.3; }
 .cue-eq-bands { display: flex; gap: 6px; flex-wrap: wrap; }
 .eq-band-pill {
@@ -969,6 +970,7 @@ body.locked .app-header { box-shadow: inset 0 -2px 0 var(--led-amber); }
 
 @media (max-width: 960px) {
   .cue-eq-wrap, .cue-presets-wrap, .top-grid-2, .top-grid-3 { grid-template-columns: 1fr; }
+  .cue-eq-wrap { height: auto; flex-shrink: 0; }  /* stacked: sizes to its rows; the pane scrolls */
   .mixer-overview-grid { min-width: 680px; }
 }
 

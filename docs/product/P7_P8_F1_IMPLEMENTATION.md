@@ -19,6 +19,11 @@ This stage delivered three items on the ranked list at once:
 
 ## 1. P7 / F4 — EQ curve
 
+> **Superseded 2026-11-20 (C-04, owner decision option B).** The response curve, the 100 Hz /
+> 500 Hz / 2 kHz / 12 kHz labels and the Q values below are removed from the UI. The UI now shows
+> the manufacturer-specification frequencies (20 Hz / 300 Hz / 1.5 kHz / 20 kHz), "Q ไม่ทราบ" and
+> per-band gain values only. This section is kept as a record of what was built.
+
 ### Model
 
 `flow8/web_ui/app.js` now computes each band as a standard RBJ biquad at the FLOW 8's fixed

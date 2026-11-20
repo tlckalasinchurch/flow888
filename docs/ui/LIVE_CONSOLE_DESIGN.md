@@ -195,7 +195,7 @@ LIVE: the control sends a verified command. LOCKED: shown with a reason from `se
 | CH 1–2 | +48V | LOCKED: host-only. Shows the reported state. The key has hold-to-toggle (1 s); it works only when `lanPolicy.phantom` is true, and the hub keeps it false |
 | CH 1–4 | LOW CUT (20–600 Hz), COMP (0–100 %) | LIVE |
 | CH 1–7 | PAN (CH 1–4) / BALANCE (CH 5–7) | LIVE |
-| CH 1–7 | 4-band EQ: knobs + draggable curve, FLAT | LIVE. Labels 100 Hz / 500 Hz / 2 kHz / 12 kHz come from the FLOW 8 app; the curve is approximate (conflict C-04) |
+| CH 1–7 | 4-band EQ: knobs, band sliders, FLAT | LIVE. Labels 20 Hz / 300 Hz / 1.5 kHz / 20 kHz are the manufacturer specification (E01); Q unknown; no response curve (conflict C-04, revised 2026-11-20) |
 | CH 1–7 | Sends MON 1, MON 2, FX 1, FX 2 | LIVE |
 | MAIN | LEVEL, BALANCE | LIVE |
 | MAIN, MON 1, MON 2 | LEVEL | LIVE |
@@ -305,7 +305,7 @@ Principle: the backlit scribble strips and the LED lenses carry the identity. Th
 1. **Hardware check of the meter module:** confirm the PortAudio device name and channel order on the real FLOW 8, and compare the meter readings with the mixer's own LEDs. The module has only been tested with a simulated audio backend.
 2. **Hardware verification of GEQ, limiter, solo and FX:** each needs a controlled test before it leaves `LAN_LOCKED_FEATURES` (see section 4b).
 3. **FLOW 8 snapshot memories (Program Change 1–15 on channel 16):** a controlled hardware test with the owner present, before any recall of mixer memories from the remote.
-4. **EQ band frequencies:** confirm 100 Hz / 500 Hz / 2 kHz / 12 kHz against an official source (conflict C-04 lists other values).
+4. **EQ band frequencies:** the UI uses the manufacturer figures 20 Hz / 300 Hz / 1.5 kHz / 20 kHz since 2026-11-20; what each frequency means and the Q still need an official statement or a measurement (conflict C-04).
 5. **Incremental rendering:** update only the strips that changed, when more clients or more frequent RX events make full re-renders expensive.
 6. **Hub-wide lock:** one lock for all clients, if the venue uses several tablets.
 7. **Scene names:** user-defined scene names in the scene display.
