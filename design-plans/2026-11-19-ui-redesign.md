@@ -13,7 +13,7 @@ Base commit: main @ 8f47e01 (after PR #6).
 Not measured: real touch use on a venue iPad, latency, hardware behaviour.
 
 ## Decisions needed from owner before Phase 5
-- D1 Product name. The brief says "CueAir Pro". `PRODUCT.md:37-38` says CueAir must not appear in user-facing UI (SR-10) and records the title as an unresolved conflict. This plan uses "FLOW 8" + "LIVE CONSOLE" until decided. One string each in `index.html` `<title>` and `.brand-mark`.
+- D1 Product name — **RESOLVED: owner selected policy A (2026-11-20).** "FLOW 8 CueAir Pro" may be used only as an internal project/development codename. User-facing copy must use "FLOW 8"; the console surface name is "LIVE CONSOLE". Do not show "CueAir" in the app title, brand mark, navigation, labels or other user-facing copy. This is a naming-only decision: do not change Safety Layer, command boundaries, hardware behavior or Business Logic. Use "FLOW 8" + "LIVE CONSOLE" in `index.html` `<title>` and `.brand-mark`.
 - D2 Sound view keeps a compact fader bank (level + mute only) so the engineer hears changes while tuning. Alternative: no bank, channel chips only. Plan assumes the compact bank.
 - D3 Setup merges "MIXER SNAPSHOTS" and "SNAPSHOT LIBRARY" into one "Snapshots" page with two tabs. Actions stay separate (`captureScene`/`recallScene` vs `library*`). Alternative: keep 7 pages.
 - D4 Accessibility target is undecided (`PRODUCT.md:57`). Plan keeps 44px touch targets and focus rings only.
