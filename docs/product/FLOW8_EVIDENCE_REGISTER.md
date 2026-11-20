@@ -36,6 +36,9 @@ Only L4 and L5 justify the words HARDWARE VERIFIED or "read". **No parameter has
 | **E17** | Phase 2B physical MIDI IN verification (2026-11-09): staged read-only logger, four windows (ch 1 fader, Main fader, ch 1 pan, ch 1 mute) | Repository log | `FLOW8_PHASE2B_MIDI_IN_RESULTS.md`, `FLOW8_PHASE2B_RAW_MIDI_LOG.md` ("Total Events Captured: 0") | **0 inbound events** nine days before E07 and E08: the same negative result on an earlier date | Absence of the feature (the pan stage notes no dedicated physical pan control on the hardware) | High for the observation |
 | E15 | CueAir research | Excluded | `docs/reverse-engineering/*` | Nothing about FLOW 8 | — | **Not evidence** |
 | E16 | Code reads this session: `midi_out.py` (only `send_cc`), `safety_dialogs.py` (gain and phantom gates), `service.py` (`set_gain`, `set_phantom`), `flow8_midi_harness.py` (`send_short_msg`) | Repository code | as named | Enforcement state in `FLOW8_SAFETY_POLICY.md` §3 | Runtime behaviour on hardware | Fact about the code only |
+| E18 | Retailer product page, AT Prosound (Thai), read 2026-11-20 by a web-fetch agent. The page was truncated: the first part was read verbatim (mostly site navigation), the spec table, features and FAQ only through the agent's summary | **Secondary: retailer** | `https://www.atprosound.com/product/behringer-flow-8/` (not saved; retailer copyright) | That a retailer publishes these figures and claims (§5) | Any FLOW 8 capability (SR-09); the page is internally inconsistent on USB channels, FX preset count and Bluetooth range | Low |
+| E19 | Retailer and catalogue text supplied by the owner in chat, 2026-11-20: an English spec table, a Thai spec summary, an English feature list, a Thai specification list | **Secondary: retailer / catalogue copy** | Not stored (third-party copy); key values in §5 | Same as E18 | Same as E18; the English spec table repeats manufacturer figures rounded (e.g. EQ ±15 dB) and adds figures E01 does not print | Low |
+| E20 | Runtime observation of the running console, 2026-11-20: `/api/status` `meterStatus` = `running`, device `Multi In 1-10 (BEHRINGER FLOW 8 (Recording))`, mode `recording`; `/api/events` delivered `meters` frames with per-strip values that change between frames (about −74 to −112 dBFS, no test signal) | New, 2026-11-20 | Command output, not saved (`curl /api/status`, `curl /api/events`); stream code `flow8/audio_meter.py` | Device detected; a 10-channel input stream opened and is delivering frames (the meter closes the stream after 2 s without frames) | Which physical input each capture channel carries; the signal tap point; sample rate actually negotiated; any host-to-mixer (output) channel | Medium (observation of the app's own status, no reference signal) |
 
 ## 3. Claims in earlier documents that exceed the evidence
 
@@ -60,3 +63,22 @@ These documents are not edited in S1. They are recorded as conflict C-10.
 | Fader taper and curves (C-05, C-12) | Official table or measurement |
 | Ch 5/6 and 7/8 gain/low cut/compressor (C-06) | Official statement or physical test |
 | USB audio configuration (C-07) | Captured stream (channel count, rate, signal point) |
+
+## 5. Additions 2026-11-20: retailer sources and manufacturer re-read
+
+E18 and E19 are secondary sources. They are recorded so that their claims are not used by mistake; none of them is promoted to DOCUMENTED. Where they differ from E01, E01 stands.
+
+E01 was re-read this session as text (`pdftotext -layout` of the stored copy, hash unchanged). E02 was searched the same way.
+
+| Topic | E01 (manufacturer) | E18 / E19 (retailer) | Status |
+|---|---|---|---|
+| Channel EQ gain range | Low ±14.6 dB @ 20 Hz shelving; Low mid ±14.8 dB @ 300 Hz; High mid ±14.8 dB @ 1.5 kHz; High +14.1/−14.9 dB @ 20 kHz shelving (printed p. 16–17) | ±15 dB for every band, same frequencies | Retailer rounds. Frequencies agree; their meaning and Q are still unstated (C-04) |
+| USB audio channels | "Channels 8 x 2", "24-bit / 48 kHz" | "10 out / 2 in" (spec table); the E18 page also reportedly says 10 in / 2 out and 10 in / 4 out elsewhere | Retailer contradicts E01 and itself. C-07 |
+| Bluetooth range | "30 m (without interference)" | "12 m"; E18 also reportedly says about 20 m | Retailer differs. No app feature depends on it |
+| Line input gain range | Gain range −20 to +60 dB is printed for the mic inputs | Also listed for the line inputs 5L / 7L | Not adopted. C-06 unchanged |
+| FX presets | Chart: tap tempo on FX 2 presets 1–12 | "16 presets" per engine (one Thai list says 16 in total) | Unchanged. C-09 |
+| EZ-Gain | **Not mentioned.** E01 and E02 contain no "EZ" text | E18 reportedly: EZ-Gain sets gain automatically and, when enabled, turns on +48 V by itself when it detects a condenser mic on ch 1 or 2 | **UNCONFIRMED** (C-13) |
+| +48 V control path | "Phantom power can be activated in the control app" (printed p. 10–11) | — | DOCUMENTED: +48 V can change outside this application |
+| Footswitch | Mode "FX" (default): switch 1 = FX mute, switch 2 = tap tempo. Mode "SNAPSHOT": switch 1 = snapshot up (next), switch 2 = snapshot down (previous) (printed p. 12–13) | Same functions | DOCUMENTED: a snapshot can change on the mixer without this application |
+
+E20 is a runtime observation, not a document. What it does and does not establish for USB audio is set out in C-07 (`FLOW8_UNRESOLVED_CONFLICTS.md`).

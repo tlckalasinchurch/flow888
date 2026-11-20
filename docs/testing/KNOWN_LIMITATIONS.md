@@ -31,6 +31,12 @@
 
 5. **EZ-Gain Hardware Boundary:**
    - The EZ-Gain automatic gain calibration routine is an internal firmware state machine executed locally on the hardware via the console button or through proprietary Bluetooth Low Energy (BLE) packets. It cannot be remotely triggered over standard USB MIDI CC.
+   - **2026-11-20 note:** the manufacturer documents on hand (E01, E02) do not mention EZ-Gain. A retailer page (E18) says EZ-Gain can switch +48 V on by itself for a condenser mic on ch 1 or 2. This is UNCONFIRMED (conflict C-13).
+
+6. **Mixer state can change outside this application (2026-11-20):**
+   - **+48 V:** the manufacturer guide says phantom power "can be activated in the control app" (E01, printed p. 10–11), and EZ-Gain may switch it (UNCONFIRMED, C-13). The mixer does not report +48 V back. This application's +48 V state is therefore never a synchronised mixer reading.
+   - **Footswitch snapshots:** in footswitch mode "SNAPSHOT", switch 1 loads the next snapshot and switch 2 the previous one (E01, printed p. 12–13). A snapshot change on the mixer can change every channel value without any message to this application.
+   - **Consequence:** after any external change, the values this application shows (COMMANDED) may no longer match the mixer. They should be treated as UNSYNCED. No detection exists, because the mixer sends nothing on USB MIDI (C-02); no part of the application may claim that phantom or snapshot state is synchronised.
 
 ---
 
