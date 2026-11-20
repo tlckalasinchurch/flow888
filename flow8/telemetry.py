@@ -44,6 +44,8 @@ def inbound_parameter_map() -> dict[tuple[int, int], dict[str, Any]]:
     """(MIDI channel, CC) -> parameter, taken from the verified allowlist."""
     mapping: dict[tuple[int, int], dict[str, Any]] = {}
     for param_id, spec in Flow8CommandBoundary.ACTIVE_ALLOWLIST.items():
+        if spec.get("cc") is None:
+            continue  # FX preset select is a Program Change; inbound Program Changes are counted, not applied
         mapping[(int(spec["channel"]), int(spec["cc"]))] = {
             "paramId": param_id,
             "type": str(spec["type"]),

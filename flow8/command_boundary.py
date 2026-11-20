@@ -70,6 +70,21 @@ BUS_MIDI_CHANNELS: Dict[str, int] = {
     "fx2": 12,
 }
 
+# MIDI channel of each FX engine slot (protocol chart "FX CONTROL"). The FX1/FX2
+# *buses* above carry the return level; the *engines* carry preset and parameters.
+FX_ENGINE_MIDI_CHANNELS: Dict[str, int] = {
+    "fxe1": 13,
+    "fxe2": 14,
+}
+
+# Buses with a limiter (CC 8) and a 9-band graphic EQ (CC 11-19): MAIN, MON1, MON2.
+# GEQ bands in chart order: 62 Hz, 125, 250, 500, 1k, 2k, 4k, 8k, 16 kHz -> geq1..geq9.
+LIMITER_GEQ_BUSES = ("main", "mon1", "mon2")
+GEQ_BAND_COUNT = 9
+
+#: Allowlist entries sent as a Program Change instead of a Control Change.
+PROGRAM_CHANGE = "program_change"
+
 
 @dataclass
 class CommandLogEntry:
@@ -121,6 +136,8 @@ def _expected_channel_for_param(param_id: str) -> Optional[int]:
         idx = int(prefix[2:])
         spec = LOGICAL_CHANNELS.get(idx)
         return spec.midi_channel if spec else None
+    if prefix in FX_ENGINE_MIDI_CHANNELS:
+        return FX_ENGINE_MIDI_CHANNELS[prefix]
     return BUS_MIDI_CHANNELS.get(prefix)
 
 
@@ -145,6 +162,27 @@ def _build_phase_c_allowlist() -> Dict[str, Dict[str, Any]]:
         "type": "pan", "min": 0, "max": 127,
         "channel": BUS_MIDI_CHANNELS["main"], "cc": 10,
     }
+
+    # Bus limiter and 9-band GEQ on MAIN / MON1 / MON2 (chart: NOT on FX1/2 bus).
+    # Owner approval 2026-11-20; documented (E01), not hardware-verified.
+    for bus_id in LIMITER_GEQ_BUSES:
+        midi_ch = BUS_MIDI_CHANNELS[bus_id]
+        al[f"{bus_id}.limiter"] = {"type": "limiter", "min": 0, "max": 127, "channel": midi_ch, "cc": 8}
+        for band in range(1, GEQ_BAND_COUNT + 1):
+            al[f"{bus_id}.geq{band}"] = {"type": "eq", "min": 0, "max": 127, "channel": midi_ch, "cc": 10 + band}
+
+    # FX engines (MIDI ch 13 / 14): preset select by Program Change 1-16, parameter 1
+    # (CC 1, 0-100 %) and parameter 2 (CC 2, A/B switch). FX mute and tap tempo live on
+    # channel 16 with the mixer reset and stay out of the allowlist (SR-02 / SR-04).
+    for engine_id, midi_ch in FX_ENGINE_MIDI_CHANNELS.items():
+        al[f"{engine_id}.preset"] = {
+            "type": "fx_preset", "message": PROGRAM_CHANGE, "min": 1, "max": 16,
+            "channel": midi_ch, "cc": None,
+        }
+        al[f"{engine_id}.param1"] = {"type": "fx_param", "min": 0, "max": 127, "channel": midi_ch, "cc": 1}
+        al[f"{engine_id}.param2"] = {
+            "type": "switch", "min": 0, "max": 127, "boolean": True, "channel": midi_ch, "cc": 2,
+        }
 
     # Input Channels 1-7
     for ch in range(1, 8):
@@ -203,7 +241,11 @@ def _validate_allowlist(al: Dict[str, Dict[str, Any]]) -> None:
 
         if not (1 <= ch <= 16):
             raise RuntimeError(f"Allowlist '{param_id}': MIDI channel {ch} out of range 1-16")
-        if not (0 <= cc <= 127):
+        if spec.get("message") == PROGRAM_CHANGE:
+            # Program Change only on the FX engine channels, presets 1-16 (never channel 16).
+            if ch not in FX_ENGINE_MIDI_CHANNELS.values() or cc is not None or not (1 <= lo <= hi <= 16):
+                raise RuntimeError(f"Allowlist '{param_id}': Program Change outside FX engines 1-16")
+        elif not (isinstance(cc, int) and 0 <= cc <= 127):
             raise RuntimeError(f"Allowlist '{param_id}': CC {cc} out of range 0-127")
         if not (0 <= lo <= hi <= 127):
             raise RuntimeError(f"Allowlist '{param_id}': invalid bounds min={lo} max={hi}")
@@ -217,7 +259,7 @@ def _validate_allowlist(al: Dict[str, Dict[str, Any]]) -> None:
                 f"channel {expected}, entry declares {ch}"
             )
 
-        pair = (ch, cc)
+        pair = (ch, PROGRAM_CHANGE if cc is None else cc)
         if pair in seen:
             raise RuntimeError(
                 f"Allowlist collision: '{param_id}' and '{seen[pair]}' both address "
@@ -354,7 +396,7 @@ class Flow8CommandBoundary:
                 else:
                     raw_midi = int(value)
 
-            elif ptype == "mute":
+            elif ptype in ("mute", "switch"):
                 # Boolean parameters accept only a genuine boolean or 0/1.
                 if isinstance(value, bool):
                     is_muted = value
@@ -471,7 +513,10 @@ class Flow8CommandBoundary:
                     )
             elif self._midi_out.is_connected:
                 with dispatch_scope:
-                    self._midi_out.send_cc(spec["channel"], spec["cc"], raw_midi)
+                    if spec.get("message") == PROGRAM_CHANGE:
+                        self._midi_out.send_program_change(spec["channel"], raw_midi)
+                    else:
+                        self._midi_out.send_cc(spec["channel"], spec["cc"], raw_midi)
                 driver_dispatched = True
                 transport_used = "usb_midi"
                 dispatch_status = DispatchStatus.DRIVER_DISPATCHED

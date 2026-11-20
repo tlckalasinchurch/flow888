@@ -52,6 +52,7 @@ _MIX_ACTIONS = frozenset({
     "setFader", "setPan", "setMute", "muteAll", "setBusFader", "setEqBand",
     "setLowCut", "setCompressor", "setSend", "undo", "redo", "applyPreset",
     "resetEqFlat", "libraryLoad", "pasteChannelDsp", "commitChangePlan", "runShowMode",
+    "setBusLimiter", "setBusGeq", "setFxParam", "setFxPreset",
 })
 
 
@@ -69,9 +70,7 @@ LAN_LOCKED_FEATURES = {
     "gain": "Preamp gain is host-only (safety rule SR-05). Set it on the mixer.",
     "phantom": "+48V is host-only. Use the 48V key on the mixer.",
     "solo": "Solo (CC 6) is not on the verified MIDI allowlist.",
-    "limiter": "Bus limiter (CC 8) is documented but not hardware-verified.",
-    "geq": "The 9-band GEQ (CC 11-19) is documented but not hardware-verified.",
-    "fx": "FX engine controls stay disabled until the CC meanings are confirmed (conflict C-09).",
+    "fxMute": "FX mute uses MIDI channel 16, which also carries the forbidden mixer reset. Use the mixer or a foot switch.",
     "tap": "Tap tempo uses MIDI channel 16, which also carries the forbidden mixer reset. Use the mixer or a foot switch.",
     "eqParametric": "EQ frequency and Q have no verified MIDI address. Gain only.",
     "stereoLink": "Stereo/mono link has no verified MIDI address. Set it on the mixer.",
@@ -573,6 +572,26 @@ class Flow8LanHub:
                 "fader": int(bf),
                 "faderProvenance": bf_prov,
             })
+        # Limiter + GEQ (MAIN/MON1/MON2) and FX engines: commanded values only, the
+        # mixer reports none of them, so provenance is UNSYNCED or COMMANDED.
+        bus_dsp = {}
+        for bus_id in ("main", "mon1", "mon2"):
+            lim, lim_prov = self._param_raw(f"{bus_id}.limiter", 127)
+            geq = [self._param_raw(f"{bus_id}.geq{band}", 64) for band in range(1, 10)]
+            bus_dsp[bus_id] = {
+                "limiter": int(lim), "limiterProvenance": lim_prov,
+                "geq": [int(raw) for raw, _ in geq], "geqProvenance": [prov for _, prov in geq],
+            }
+        fx_engines = {}
+        for fx_id, prefix in (("fx1", "fxe1"), ("fx2", "fxe2")):
+            preset, preset_prov = self._param_raw(f"{prefix}.preset", 1)
+            p1, p1_prov = self._param_raw(f"{prefix}.param1", 0)
+            p2, p2_prov = self._param_raw(f"{prefix}.param2", 0)
+            fx_engines[fx_id] = {
+                "preset": int(preset), "presetProvenance": preset_prov,
+                "param1": int(p1), "param1Provenance": p1_prov,
+                "param2": bool(p2), "param2Provenance": p2_prov,
+            }
         with self._scene_lock:
             current_scene, scene_edited = self._current_scene, self._scene_edited
         return {
@@ -595,6 +614,8 @@ class Flow8LanHub:
             "stateSync": self.service.state_sync_snapshot(),
             "channels": channels,
             "buses": buses,
+            "busDsp": bus_dsp,
+            "fxEngines": fx_engines,
             "scenes": list(self.service.scenes.names()),
             "sceneSlots": SCENE_CAPACITY,
             "sceneInfo": self._scene_info(),
@@ -681,6 +702,14 @@ class Flow8LanHub:
                         self.service.end_batch()
             elif action == "setBusFader":
                 self.service.set_bus_fader(str(msg["bus"]), int(msg["value"]))
+            elif action == "setBusLimiter":
+                self.service.set_bus_limiter(str(msg["bus"]), int(msg["value"]))
+            elif action == "setBusGeq":
+                self.service.set_bus_geq(str(msg["bus"]), int(msg["band"]), int(msg["value"]))
+            elif action == "setFxParam":
+                self.service.set_fx_param(str(msg["engine"]), int(msg["param"]), msg["value"])
+            elif action == "setFxPreset":
+                self.service.set_fx_preset(str(msg["engine"]), int(msg["value"]))
             elif action == "setEqBand":
                 self.service.set_eq_band(
                     int(msg["channel"]), str(msg["band"]), msg["value"],

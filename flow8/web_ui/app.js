@@ -433,62 +433,12 @@
     }).join('');
   }
 
+  // Limiter threshold: chart end points -30 dB (raw 0) to 0 dB (raw 127); linear in between is approximate.
+  const limiterText = (raw) => `≈ ${(-30 + (raw / 127) * 30).toFixed(1)} dB`;
+
   const channelGainsDb = (ch) => BANDS.map((b) => eqRawToDb(ch.eq ? (ch.eq[b.key] ?? 64) : 64));
 
-  // Log frequency axis 20 Hz .. 20 kHz, used only by the locked bus GEQ panel.
-  const freqToX = (freq, w, pad = 34) => pad + ((Math.log10(Math.max(20, freq)) - Math.log10(20)) / 3) * (w - pad - 8);
-  const dbToY = (db, h, span = 18) => h / 2 - (db / span) * (h / 2 - 10);
 
-  // The bus graphic EQ has no verified MIDI address: an empty grid with the band
-  // positions dashed, so no value is ever shown.
-  function drawGeqLocked(canvas) {
-    const ctx = canvas.getContext('2d');
-    const rect = canvas.getBoundingClientRect();
-    if (rect.width > 0 && rect.height > 0) {
-      const cw = Math.round(rect.width);
-      const chh = Math.round(rect.height);
-      if (canvas.width !== cw || canvas.height !== chh) {
-        canvas.width = cw;
-        canvas.height = chh;
-      }
-    }
-    const w = canvas.width;
-    const h = canvas.height;
-    ctx.clearRect(0, 0, w, h);
-    ctx.fillStyle = '#0A0C10';
-    ctx.fillRect(0, 0, w, h);
-    ctx.font = '600 10px "Barlow Condensed", sans-serif';
-    [-15, -10, -5, 0, 5, 10, 15].forEach((db) => {
-      const y = dbToY(db, h);
-      ctx.strokeStyle = db === 0 ? '#333B48' : '#191E26';
-      ctx.lineWidth = 1;
-      ctx.beginPath(); ctx.moveTo(30, y); ctx.lineTo(w - 6, y); ctx.stroke();
-      ctx.fillStyle = '#5A6270';
-      ctx.fillText(`${db > 0 ? '+' : ''}${db}`, 2, y + 3);
-    });
-    [[50, '50'], [100, '100'], [200, '200'], [500, '500'], [1000, '1k'], [2000, '2k'],
-      [5000, '5k'], [10000, '10k'], [20000, '20k']].forEach(([f, label]) => {
-      const x = freqToX(f, w);
-      ctx.strokeStyle = '#161B22';
-      ctx.beginPath(); ctx.moveTo(x, 8); ctx.lineTo(x, h - 16); ctx.stroke();
-      ctx.fillStyle = '#5A6270';
-      ctx.fillText(label, x - (f >= 1000 ? 6 : 8), h - 4);
-    });
-    ctx.setLineDash([3, 5]);
-    ctx.strokeStyle = 'rgba(160, 140, 220, 0.45)';
-    ctx.lineWidth = 1.2;
-    const geqY = dbToY(0, h);
-    ctx.beginPath(); ctx.moveTo(30, geqY); ctx.lineTo(w - 6, geqY); ctx.stroke();
-    ctx.setLineDash([]);
-    GEQ_BANDS.forEach((bandLabel) => {
-      const value = parseFloat(bandLabel) * (bandLabel.endsWith('k') ? 1000 : 1);
-      const x = freqToX(value, w);
-      ctx.beginPath(); ctx.arc(x, geqY, 4, 0, Math.PI * 2);
-      ctx.strokeStyle = 'rgba(160, 140, 220, 0.55)'; ctx.lineWidth = 1.2; ctx.stroke();
-    });
-    ctx.fillStyle = 'rgba(190, 170, 240, 0.8)';
-    ctx.fillText('GEQ 9-BAND · NO VERIFIED MIDI ADDRESS', 36, h - 26);
-  }
 
   // ---------- Rotary knob ----------
   // locked: show the value, refuse input, and give the reason in the title.
@@ -859,6 +809,8 @@
     const busSel = strip.querySelector('.bus-select');
     busSel.onclick = (e) => e.stopPropagation();
     busSel.onchange = () => setLayer(busSel.value);
+    // The master label opens the Inspector for the bus on the faders (limiter, GEQ, FX engine).
+    wireScribble(strip.querySelector('.master-lcd'), { kind: 'bus', id: activeLayer });
     const readout = strip.querySelector('.strip-readout');
     attachVerticalFader(strip.querySelector('.fader-well'), mUnk ? 0 : m.fader,
       (v) => { readout.textContent = midiToDbStr(v); readout.classList.remove('unk'); strip.classList.remove('fader-unk'); }, m.commit, `${layer.label} master fader`);
@@ -1125,61 +1077,105 @@
     body.appendChild(lvl.el);
 
     if (!id.startsWith('fx')) {
-      const lim = section('LIMITER', 'THRESHOLD', lockReason('limiter'));
+      // Limiter and 9-band GEQ: documented (chart CC 8, CC 11-19), sent as commanded values.
+      // The mixer reports neither, so an unsent value shows "--" (UNSYNCED).
+      const dsp = (session.busDsp && session.busDsp[id]) || null;
+      const limKnown = dsp && dsp.limiterProvenance !== 'UNSYNCED';
+      const lim = section('LIMITER', dsp ? provCode(dsp.limiterProvenance) : 'UNSYNCED');
       const row = document.createElement('div');
       row.className = 'knob-row';
-      row.appendChild(createRotaryKnob({ label: 'LIMIT', valueText: '—', raw: null, min: 0, max: 127, color: '#FFB020', locked: lockReason('limiter') }));
+      row.appendChild(createRotaryKnob({
+        label: 'LIMIT', valueText: limKnown ? limiterText(dsp.limiter) : '--', raw: limKnown ? dsp.limiter : null,
+        min: 0, max: 127, color: '#FFB020', focusKey: `insp:${id}:limiter`,
+        onMove: limiterText,
+        onCommit: (v, quiet) => sendAction({ action: 'setBusLimiter', bus: id, value: v }, quiet),
+      }));
       lim.body.appendChild(row);
+      const limNote = document.createElement('p');
+      limNote.className = 'sec-note';
+      limNote.textContent = 'Threshold −30 to 0 dB (chart end points; the curve between them is approximate).';
+      lim.body.appendChild(limNote);
       body.appendChild(lim.el);
 
-      const geq = section('GRAPHIC EQ · 9-BAND', 'VALUES UNKNOWN', lockReason('geq'));
-      const geqCanvas = document.createElement('canvas');
-      geqCanvas.id = 'bus-geq-canvas';
-      geqCanvas.className = 'eq-graph';
-      geqCanvas.width = 560;
-      geqCanvas.height = 150;
-      geqCanvas.setAttribute('role', 'img');
-      geqCanvas.setAttribute('aria-label', '9-band graphic EQ: no verified MIDI address, so no value is shown and none is sent.');
-      geq.body.appendChild(geqCanvas);
-      drawGeqLocked(geqCanvas);
+      const geq = section('GRAPHIC EQ · 9-BAND', '±15 dB');
+      const bands = document.createElement('div');
+      bands.className = 'geq geq-live';
+      GEQ_BANDS.forEach((bandLabel, i) => {
+        const band = i + 1;
+        const known = dsp && dsp.geqProvenance[i] !== 'UNSYNCED';
+        const raw = dsp ? dsp.geq[i] : 64;
+        const cell = document.createElement('div');
+        cell.className = 'geq-band' + (known ? '' : ' unk');
+        cell.innerHTML = `
+          <span class="geq-val">${known ? eqText(raw) : '--'}</span>
+          <input class="geq-slider" type="range" min="0" max="127" value="${raw}" data-focus-key="insp:${id}:geq${band}"
+            aria-label="${esc(LAYERS[id].label)} GEQ ${bandLabel} Hz" />
+          <span class="geq-hz">${bandLabel}</span>`;
+        const input = cell.querySelector('input');
+        const val = cell.querySelector('.geq-val');
+        input.oninput = () => { val.textContent = eqText(+input.value); cell.classList.remove('unk'); };
+        input.onchange = () => sendAction({ action: 'setBusGeq', bus: id, band, value: +input.value });
+        bands.appendChild(cell);
+      });
+      geq.body.appendChild(bands);
       const geqNote = document.createElement('p');
       geqNote.className = 'sec-note';
-      geqNote.textContent = 'Dashed = unknown. The GEQ has no verified MIDI address, so this console shows no value and sends none.';
+      geqNote.textContent = 'Bands 63 Hz to 16 kHz as the FLOW app labels them (the chart prints 62 Hz, C-11). Values are what this console sent; the mixer does not report them.';
       geq.body.appendChild(geqNote);
       body.appendChild(geq.el);
       return;
     }
 
+    // FX engine: preset (Program Change 1-16 on MIDI ch 13/14), parameter 1 (CC 1, 0-100 %)
+    // and parameter 2 (CC 2, A/B). FX mute and tap tempo stay locked: they use channel 16.
     const fx = FX_ENGINE[id];
-    const eng = section(`${layer.label} ENGINE`, '16 PRESETS', lockReason('fx'));
+    const st = (session.fxEngines && session.fxEngines[id]) || null;
+    const presetKnown = st && st.presetProvenance !== 'UNSYNCED';
+    const p1Known = st && st.param1Provenance !== 'UNSYNCED';
+    const p2Known = st && st.param2Provenance !== 'UNSYNCED';
+    const eng = section(`${layer.label} ENGINE`, presetKnown ? `PRESET ${st.preset} · ${provCode(st.presetProvenance)}` : 'PRESET UNSYNCED');
     const row = document.createElement('div');
     row.className = 'fx-top';
-    row.appendChild(createRotaryKnob({ label: fx.param, valueText: '—', raw: null, min: 0, max: 100, color: '#A78BFA', locked: lockReason('fx') }));
+    row.appendChild(createRotaryKnob({
+      label: fx.param, valueText: p1Known ? `${Math.min(100, st.param1)}%` : '--', raw: p1Known ? Math.min(100, st.param1) : null,
+      min: 0, max: 100, color: '#A78BFA', focusKey: `insp:${id}:param1`,
+      onMove: (v) => `${v}%`,
+      onCommit: (v, quiet) => sendAction({ action: 'setFxParam', engine: id, param: 1, value: v }, quiet),
+    }));
     const side = document.createElement('div');
     side.className = 'fx-side';
     side.innerHTML = `
-      <div class="seg" role="group" aria-label="${fx.param} mode (locked)">
-        ${fx.modes.map((md) => `<button class="seg-btn" aria-disabled="true" title="${esc(lockReason('fx'))}">${md}</button>`).join('')}
+      <div class="seg" role="group" aria-label="${fx.param} mode">
+        ${fx.modes.map((md, i) => `<button class="seg-btn live ${p2Known && (st.param2 ? 1 : 0) === i ? 'on' : ''}" data-mode="${i}" aria-pressed="${p2Known && (st.param2 ? 1 : 0) === i}">${md}</button>`).join('')}
       </div>
       ${fx.tap ? `<button class="tap-pad" aria-disabled="true" title="${esc(lockReason('tap'))}">TAP TEMPO · — BPM</button>` : ''}
-      <button class="key-btn locked fx-mute" aria-disabled="true" title="${esc(lockReason('fx'))}">FX MUTE</button>`;
-    side.querySelectorAll('button').forEach((b) => { b.onclick = () => showToast(lockReason(b.classList.contains('tap-pad') ? 'tap' : 'fx')); });
+      <button class="key-btn locked fx-mute" aria-disabled="true" title="${esc(lockReason('fxMute'))}">FX MUTE</button>`;
+    side.querySelectorAll('.seg-btn').forEach((b) => {
+      b.onclick = () => postAction({ action: 'setFxParam', engine: id, param: 2, value: b.dataset.mode === '1' }).then(scheduleReload);
+    });
+    side.querySelectorAll('.tap-pad, .fx-mute').forEach((b) => {
+      b.onclick = () => showToast(lockReason(b.classList.contains('tap-pad') ? 'tap' : 'fxMute'));
+    });
     row.appendChild(side);
     eng.body.appendChild(row);
     const grid = document.createElement('div');
     grid.className = 'fx-grid';
     grid.setAttribute('role', 'group');
-    grid.setAttribute('aria-label', `${layer.label} presets (locked)`);
+    grid.setAttribute('aria-label', `${layer.label} presets`);
     for (let i = 1; i <= 16; i++) {
       const b = document.createElement('button');
-      b.className = 'fx-preset';
+      const active = presetKnown && st.preset === i;
+      b.className = 'fx-preset live' + (active ? ' on' : '');
+      b.setAttribute('aria-pressed', active);
       b.innerHTML = `<span class="fx-name">${esc(fx.presets[i - 1])}</span><span class="fx-no">No. ${i}</span>`;
-      b.setAttribute('aria-disabled', 'true');
-      b.title = lockReason('fx');
-      b.onclick = () => showToast(lockReason('fx'));
+      b.onclick = () => postAction({ action: 'setFxPreset', engine: id, value: i }).then(scheduleReload);
       grid.appendChild(b);
     }
     eng.body.appendChild(grid);
+    const fxNote = document.createElement('p');
+    fxNote.className = 'sec-note';
+    fxNote.textContent = 'Preset names as the FLOW app shows them. The mixer does not report the active preset, so the highlight is the last one this console sent.';
+    eng.body.appendChild(fxNote);
     body.appendChild(eng.el);
   }
 
@@ -2025,13 +2021,38 @@
     ['fx1', 'fx2'].forEach((fxId) => {
       const fx = FX_ENGINE[fxId];
       const bus = session.buses.find((b) => b.id === fxId);
+      const st = (session.fxEngines && session.fxEngines[fxId]) || null;
+      const presetKnown = st && st.presetProvenance !== 'UNSYNCED';
       const card = document.createElement('section');
       card.className = 'insp-sec';
       card.innerHTML = `
-        <div class="sec-hdr"><span class="sec-title">${fxId.toUpperCase()} (${fxId === 'fx1' ? 'REVERB' : 'DELAY / MOD'})</span><span class="lock-chip" title="${esc(lockReason('fx'))}">PRESETS LOCKED</span></div>
-        <div class="fx-matrix">${fx.presets.map((name, i) => `<button class="fx-tile" title="${esc(lockReason('fx'))}">${i + 1}. ${esc(name)}</button>`).join('')}</div>
+        <div class="sec-hdr"><span class="sec-title">${fxId.toUpperCase()} (${fxId === 'fx1' ? 'REVERB' : 'DELAY / MOD'})</span><span class="sec-meta">${presetKnown ? `PRESET ${st.preset}` : 'PRESET UNSYNCED'}</span></div>
+        <div class="fx-matrix">${fx.presets.map((name, i) => `<button class="fx-tile live ${presetKnown && st.preset === i + 1 ? 'on' : ''}" data-preset="${i + 1}" aria-pressed="${presetKnown && st.preset === i + 1}">${i + 1}. ${esc(name)}</button>`).join('')}</div>
       `;
-      card.querySelectorAll('.fx-tile').forEach((b) => { b.onclick = () => showToast(lockReason('fx')); });
+      card.querySelectorAll('.fx-tile').forEach((b) => {
+        b.onclick = () => postAction({ action: 'setFxPreset', engine: fxId, value: +b.dataset.preset }).then(scheduleReload);
+      });
+      // Parameter 1 (CC 1, 0-100 %) and parameter 2 (CC 2, A/B), as on the FLOW app FX page.
+      const p1Known = st && st.param1Provenance !== 'UNSYNCED';
+      const p2Known = st && st.param2Provenance !== 'UNSYNCED';
+      const params = document.createElement('div');
+      params.className = 'fx-top';
+      params.appendChild(createRotaryKnob({
+        label: fx.param, valueText: p1Known ? `${Math.min(100, st.param1)}%` : '--', raw: p1Known ? Math.min(100, st.param1) : null,
+        min: 0, max: 100, color: '#A78BFA', focusKey: `cue-fx:${fxId}:param1`,
+        onMove: (v) => `${v}%`,
+        onCommit: (v, quiet) => sendAction({ action: 'setFxParam', engine: fxId, param: 1, value: v }, quiet),
+      }));
+      const seg = document.createElement('div');
+      seg.className = 'seg';
+      seg.setAttribute('role', 'group');
+      seg.setAttribute('aria-label', `${fxId.toUpperCase()} ${fx.param} mode`);
+      seg.innerHTML = fx.modes.map((md, i) => `<button class="seg-btn live ${p2Known && (st.param2 ? 1 : 0) === i ? 'on' : ''}" data-mode="${i}" aria-pressed="${p2Known && (st.param2 ? 1 : 0) === i}">${md}</button>`).join('');
+      seg.querySelectorAll('.seg-btn').forEach((b) => {
+        b.onclick = () => postAction({ action: 'setFxParam', engine: fxId, param: 2, value: b.dataset.mode === '1' }).then(scheduleReload);
+      });
+      params.appendChild(seg);
+      card.appendChild(params);
       card.appendChild(levelRow({
         label: `${fxId.toUpperCase()} RETURN`,
         color: '#A78BFA',

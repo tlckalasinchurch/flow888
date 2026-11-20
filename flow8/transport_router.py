@@ -49,7 +49,7 @@ BLE_FADER_STRIPS = frozenset(range(1, 7))
 TRANSPORT_FEATURES: Dict[str, Dict[str, Any]] = {
     "usb_midi": {
         "control": "USB MIDI (WinMM)",
-        "commands": "All allowlisted parameters: faders, mute, pan/balance, EQ, sends, low cut, compressor, +48V (confirmed), scenes/undo.",
+        "commands": "All allowlisted parameters: faders, mute, pan/balance, EQ, sends, low cut, compressor, bus limiter and GEQ, FX preset and parameters, +48V (confirmed), scenes/undo.",
         "observations": "USB MIDI IN telemetry + USB audio meters (WASAPI).",
         "limits": "Requires the FLOW 8 USB cable; no wireless control.",
     },
@@ -159,7 +159,11 @@ class TransportRouter:
         # send_cc re-validates through safety.validate_outbound — the boundary
         # already ran authorize_command, and the phantom ON permit context is
         # held by the caller around this call.
-        self._midi_out.send_cc(int(spec["channel"]), int(spec["cc"]), int(raw_midi))
+        if spec.get("message") == "program_change":
+            # FX preset select; send_program_change re-validates the same way.
+            self._midi_out.send_program_change(int(spec["channel"]), int(raw_midi))
+        else:
+            self._midi_out.send_cc(int(spec["channel"]), int(spec["cc"]), int(raw_midi))
         return "usb_midi"
 
     def _dispatch_ble(

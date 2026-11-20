@@ -831,6 +831,53 @@ class Flow8Service:
             if raw is not None:
                 self._record(param_type, channel_index, previous, raw)
 
+    # -- Bus limiter / GEQ and FX engines (opened 2026-11-20) -----------------
+    # Documented in the manufacturer chart, not hardware-verified. Each goes through the
+    # command boundary and is one undo step; none is part of a scene.
+
+    def _set_extra(self, prefix: str, parameter: str, value: Any, unit: str = "raw") -> None:
+        previous = self._known_value(parameter, prefix)
+        log_entry = self._dispatch_and_notify(
+            self.command_boundary.execute_command, f"{prefix}.{parameter}", value, unit=unit,
+        )
+        raw = log_entry.raw_midi_prepared if log_entry else None
+        if raw is not None:
+            self._record(parameter, prefix, previous, raw)
+
+    def set_bus_limiter(self, bus_id: str, value: Union[int, float]) -> None:
+        """Bus limiter threshold, raw 0-127 (-30 dB .. 0 dB; MAIN, MON1, MON2)."""
+        b_key = str(bus_id).lower()
+        if b_key in ("main", "mon1", "mon2"):
+            self._set_extra(b_key, "limiter", int(value))
+
+    def set_bus_geq(self, bus_id: str, band: int, value: Union[int, float], unit: str = "raw") -> None:
+        """Bus 9-band graphic EQ gain, band 1-9 (62 Hz .. 16 kHz), raw 0-127 or dB -15..+15."""
+        b_key = str(bus_id).lower()
+        band = int(band)
+        if b_key in ("main", "mon1", "mon2") and 1 <= band <= 9:
+            self._set_extra(b_key, f"geq{band}", value, unit=unit)
+
+    @staticmethod
+    def _fx_engine(engine: str) -> Optional[str]:
+        key = str(engine).lower()
+        return {"fx1": "fxe1", "fx2": "fxe2", "fxe1": "fxe1", "fxe2": "fxe2"}.get(key)
+
+    def set_fx_param(self, engine: str, param: int, value: Union[int, float, bool]) -> None:
+        """FX engine parameter 1 (raw 0-100 = 0-100 %) or parameter 2 (switch A/B)."""
+        prefix = self._fx_engine(engine)
+        if prefix is None:
+            return
+        if int(param) == 1:
+            self._set_extra(prefix, "param1", int(value))
+        elif int(param) == 2:
+            self._set_extra(prefix, "param2", bool(value))
+
+    def set_fx_preset(self, engine: str, preset: int) -> None:
+        """FX engine preset 1-16, sent as Program Change on MIDI channel 13 / 14."""
+        prefix = self._fx_engine(engine)
+        if prefix is not None:
+            self._set_extra(prefix, "preset", int(preset))
+
     # -- Presets & FX Profiles (CueAir adaptation) ----------------------------
 
     def list_channel_presets(self, category: Optional[str] = None):
@@ -950,6 +997,14 @@ class Flow8Service:
         """Ledger executor: replay through the public setters (and so the boundary)."""
         if isinstance(channel_index, str) and parameter_type == "fader":
             self.set_bus_fader(channel_index, value)
+        elif isinstance(channel_index, str) and parameter_type == "limiter":
+            self.set_bus_limiter(channel_index, value)
+        elif isinstance(channel_index, str) and parameter_type.startswith("geq"):
+            self.set_bus_geq(channel_index, int(parameter_type[3:]), value)
+        elif isinstance(channel_index, str) and parameter_type in ("param1", "param2"):
+            self.set_fx_param(channel_index, int(parameter_type[-1]), value)
+        elif isinstance(channel_index, str) and parameter_type == "preset":
+            self.set_fx_preset(channel_index, value)
         elif parameter_type == "fader":
             self.set_fader(channel_index, value)
         elif parameter_type == "pan":

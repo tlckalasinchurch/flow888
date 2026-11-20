@@ -79,3 +79,20 @@ Date: 2026-11-18. Stage S1, documentation only. This document states the rules a
 | G-06 | EQ labels are BAND 1–4 with an "unconfirmed" note; fader dB readouts still derived (C-05) | L-01, L-02 |
 
 Residual risks: an in-process caller can still reach `flow8.safety` internals or `_winmm` (Python has no private members); a script can mint its own phantom token with `issue_token` (option O1 was not approved); the original root-level `flow8_midi_harness.py` still exists unchanged and still sends arbitrary bytes if run.
+
+## 7. Owner decision 2026-11-20: bus limiter / GEQ and FX engines opened
+
+The owner approved, in this session, opening the bus limiter, the 9-band GEQ and the FX engines ("อนุมัติเปิด GEQ, Limiter และ FX"). All are DOCUMENTED in E01 (MIDI chart, printed p. 14–15) and shown in the FLOW app (E21). None is hardware-verified.
+
+| Rule | Change | Enforced by |
+|---|---|---|
+| SR-01 | **Narrow exception:** Program Change data bytes 1–16 on MIDI channels 13 and 14 (FX 1 / FX 2 preset select) may be sent. Every other Program Change, every Note, SysEx and system message is still refused. | `validate_outbound` (Program Change branch reads the allowlist's two `program_change` entries); `Flow8MidiOut.send_program_change` is the only sender | 
+| SR-02 | Unchanged. Program Change 16 on channel 16 raises SR-02. | M-06, M-09 |
+| SR-03 | **Lifted** for FX preset select within the SR-01 exception above. | M-01, M-09 |
+| SR-04 | Unchanged. Channel 16 stays closed, so FX mute (ch 16 CC 1) and tap tempo (ch 16 Note 0) are **not** opened; the UI shows them locked (`fxMute`, `tap`). | M-06, inspector tests |
+| SR-07 | The allowlist grows from 97 to 133 entries: limiter (CC 8) and GEQ bands 1–9 (CC 11–19) on MAIN, MON 1, MON 2 (ch 8–10); FX engine parameter 1 (CC 1) and parameter 2 (CC 2) on ch 13–14; FX preset select (Program Change 1–16) on ch 13–14. Limiter and GEQ are not opened on the FX buses (chart: "NOT on FX1/2 BUS"). | M-02, M-08, `test_bus_mappings`, `test_bus_dsp_fx` |
+| SR-08 / SR-11 | Unchanged. The mixer reports none of these values; the UI shows `--` / UNSYNCED until this app sends one, then COMMANDED. | `test_bus_dsp_fx` |
+
+Not changed: gain (SR-05), +48 V (SR-06), presets and change plans (SR-12; the new parameters are not in `REVERSIBLE_PARAMETERS`, so they are not part of scenes or plans). The new parameters are undoable through the ledger. Over BLE they are refused (BLE writes faders only); in hybrid mode they go over USB MIDI.
+
+Program Change numbering (C-01) for FX presets: the app sends data byte N for preset N, following the chart text "Program Change 0 & 17–127 = ignored". Whether the mixer counts from 0 or 1 is unverified; a wrong guess selects a neighbouring preset, never a reset (channel 16 is refused).

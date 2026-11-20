@@ -459,6 +459,13 @@ input[type="range"].studio-range::-moz-range-thumb { width: 16px; height: 24px; 
 .tap-pad { min-height: 44px; background: var(--bg-elevated); border: 1px solid var(--border-light); border-radius: 5px; font-size: 14px; font-weight: 700; letter-spacing: 0.08em; cursor: not-allowed; }
 .fx-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; margin-top: 10px; }
 .fx-preset { min-height: 40px; background: var(--bg-well); border: 1px solid var(--border-dark); border-radius: 4px; font-size: 13px; font-weight: 700; cursor: not-allowed; }
+/* Live FX controls (opened 2026-11-20): presets, parameter 2 and the GEQ sliders. */
+.seg-btn.live, .fx-preset.live, .fx-tile.live { cursor: pointer; color: var(--text-secondary); }
+.fx-preset.live.on, .fx-tile.live.on { background: color-mix(in srgb, var(--accent-purple) 22%, var(--bg-well)); border-color: var(--accent-purple); color: var(--text-primary); }
+.fx-tile.live { border-style: solid; }
+.geq-live .geq-band { gap: 6px; }
+.geq-live .geq-band.unk .geq-slider { opacity: 0.4; } /* UNSYNCED: the thumb position is not a mixer value */
+.geq-slider { writing-mode: vertical-lr; direction: rtl; width: 28px; height: 120px; margin: 0; accent-color: var(--accent-purple); cursor: pointer; }
 
 /* ---------- View switch (MIXER | STAGE) ---------- */
 .view-switch { display: flex; gap: 3px; padding: 3px; background: var(--bg-well); border: 1px solid var(--border-dark); border-radius: 7px; }
@@ -854,7 +861,6 @@ body.locked .app-header { box-shadow: inset 0 -2px 0 var(--led-amber); }
 }
 /* The locked bus GEQ canvas keeps its aspect through CSS; the drawing buffer is fixed. */
 .eq-graph { width: 100%; height: auto; display: block; border-radius: 6px; touch-action: none; }
-#bus-geq-canvas.eq-graph { height: clamp(130px, 22vh, 170px); }
 /* Channel EQ: one row per band (spec frequency, gain). No response curve (C-04). */
 .eq-spec-list { display: flex; flex-direction: column; gap: 4px; }
 .eq-spec-row { padding: 6px 8px; border-radius: 4px; background: var(--bg-panel); }

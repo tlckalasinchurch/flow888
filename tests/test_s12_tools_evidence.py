@@ -32,13 +32,15 @@ class HarnessTests(NoHardwareMixin, unittest.TestCase):
         harness, driver = self.make(allow_write=True)
         forbidden = [
             (0xCF, 16, 0),       # mixer reset
-            (0xCF, 15, 0), (0xC0, 1, 0),   # any Program Change
+            (0xCF, 15, 0), (0xC0, 1, 0),   # any Program Change outside the FX exception
+            (0xCC, 0, 0), (0xCD, 17, 0),   # FX preset select outside 1-16
             (0x90, 0, 100), (0x80, 0, 0),  # Note On/Off
             (0xF0, 0x7E, 0), (0xF8, 0, 0), # SysEx start, real-time
             (0xB0, 8, 10),                 # gain
             (0xB0, 12, 127), (0xB1, 12, 127),  # phantom ON
             (0xB0, 6, 0),                  # solo: not allowlisted
-            (0xB7, 8, 64), (0xB7, 14, 45), # bus limiter, GEQ
+            (0xBA, 8, 64), (0xBB, 14, 45), # limiter / GEQ on the FX buses (MAIN/MON only)
+            (0xBC, 3, 0),                  # FX engine has only CC 1 and 2
             (0xBF, 7, 64),                 # channel 16
         ]
         for status, b1, b2 in forbidden:
