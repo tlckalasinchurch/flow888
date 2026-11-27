@@ -1,25 +1,26 @@
 ---
-name: FLOW 8 Live Console
-description: Matte dark-slate live-mixing console for the Behringer FLOW 8, where colour carries meaning and nothing decorates.
+name: FLOW 888 Live Console
+description: Deep-navy live-mixing console for the Behringer FLOW 8 with a neon-teal selection accent, where colour carries meaning and nothing decorates.
 colors:
-  chassis: "#0E1013"
-  panel: "#14171C"
-  card: "#191C22"
-  well: "#0A0B0E"
-  elevated: "#22262D"
-  border-dark: "#1F232A"
-  border-light: "#2C313A"
-  text-primary: "#E7E9EE"
-  text-secondary: "#A1A7B0"
-  text-muted: "#88909D"
-  signal-cyan: "#3FD2E0"
+  chassis: "#06111A"
+  panel: "#0A1823"
+  card: "#0E2030"
+  well: "#050D14"
+  elevated: "#15303F"
+  border-dark: "#14303F"
+  border-light: "#21495C"
+  text-primary: "#E8F3F6"
+  text-secondary: "#9DB6C1"
+  text-muted: "#86A0AC"
+  signal-cyan: "#1FE0D0"
+  teal-deep: "#0E8F8A"
   signal-amber: "#FFB020"
   signal-emerald: "#34D399"
   signal-violet: "#A78BFA"
   signal-red: "#FF3B30"
   led-green: "#3BE36F"
   led-blue: "#4FA8FF"
-  mix-main: "#E6E8EB"
+  mix-main: "#E8F3F6"
 typography:
   label:
     fontFamily: "Barlow Condensed, Noto Sans Thai, Leelawadee UI, Segoe UI, system-ui, sans-serif"
@@ -65,20 +66,20 @@ components:
     height: "44px"
 ---
 
-# Design System: FLOW 8 Live Console
+# Design System: FLOW 888 Live Console
 
 ## Overview
 
-**Creative North Star: "The Matte Console"** (provisional: derived from the implemented CSS and the owner's stated direction, not yet confirmed in an interview)
+**Creative North Star: "The Night Console"** (owner decision 2026-11-26: the deep-navy / neon-teal theme is the intended look; it replaces the earlier matte-slate ladder)
 
-A live console read at a glance in a dark room, often through a touch screen. Surfaces are matte, low-glare slate in five close steps. Colour is spent only on meaning: mix identity, LED state, channel tags, provenance. Decoration earns nothing.
+A live console read at a glance in a dark room, often through a touch screen. Surfaces are low-glare deep navy in five close steps; one neon teal marks selection and focus. Colour is spent only on meaning: mix identity, LED state, channel tags, provenance. Decoration earns nothing.
 
-Density is high but orderly. Type is a condensed grotesque so eight strips and an inspector fit without shrinking targets. Depth comes from tonal layering and 1px borders, not shadows or blur.
+Density is high but orderly. Type is a condensed grotesque so eight strips and an inspector fit without shrinking targets. Depth comes from tonal layering and 1px borders, not drop shadows or blur.
 
-The owner wants this theme to stay flexible and evolve toward a refined, low-glare "Quiet Luxury" dark mode: no heavy gradients, no excessive glassmorphism. That is a direction of travel, not a present claim. The implemented system already leans that way.
+Glow is not a selection device: the 2026-11-26 audit removed the teal halos from tabs, strips and tiles. Selection is a teal border or fill; only LED lamps glow.
 
 **Key Characteristics:**
-- Five-step slate ladder from chassis to elevated; no pure black, no pure white.
+- Five-step navy ladder from well to elevated; no pure black, no pure white.
 - Colour means state. A hue never appears as ornament.
 - Zero `backdrop-filter`; shadows are inset state marks or LED glows only.
 - Touch targets of at least 44px on coarse pointers; `prefers-reduced-motion` honoured.
@@ -86,10 +87,10 @@ The owner wants this theme to stay flexible and evolve toward a refined, low-gla
 
 ## Colors
 
-A dark slate neutral ladder carries every surface; a small signal set carries meaning. Frontmatter values are normative.
+A deep-navy neutral ladder carries every surface; a small signal set carries meaning. Frontmatter values are normative.
 
 ### Primary
-- **Signal Cyan** (`#3FD2E0`): selection and focus. The focus ring, the selected strip's border, inspector accents. Not a decoration colour.
+- **Signal Teal** (`#1FE0D0`, token `--accent-cyan`; deep step `#0E8F8A` for the fader fill): selection and focus. The focus ring, the selected strip's border, inspector accents. Not a decoration colour.
 
 ### Secondary
 - **Signal Amber** (`#FFB020`): caution and degraded state (link fault, status pill, amber LED).
@@ -101,12 +102,12 @@ A dark slate neutral ladder carries every surface; a small signal set carries me
 - **LED Green** (`#3BE36F`) and **LED Blue** (`#4FA8FF`): link-up lamps; blue also marks USB strips.
 
 ### Neutral
-- **Chassis** (`#0E1013`): page background.
-- **Panel** (`#14171C`), **Card** (`#191C22`), **Elevated** (`#22262D`): ascending surface steps.
-- **Well** (`#0A0B0E`): recessed areas (fader wells, LCD-style readouts, pills).
-- **Border Dark** (`#1F232A`) and **Border Light** (`#2C313A`): 1px separators.
-- **Text Primary** (`#E7E9EE`), **Secondary** (`#A1A7B0`), **Muted** (`#88909D`, 4.72:1 on the Elevated step so it passes AA on every surface).
-- **Mix Main** (`#E6E8EB`): the MAIN mix identity (silver).
+- **Chassis** (`#06111A`): page background, under a quiet radial lift from Panel to Well.
+- **Panel** (`#0A1823`), **Card** (`#0E2030`), **Elevated** (`#15303F`): ascending surface steps.
+- **Well** (`#050D14`): recessed areas (fader wells, LCD-style readouts, pills).
+- **Border Dark** (`#14303F`) and **Border Light** (`#21495C`): 1px separators.
+- **Text Primary** (`#E8F3F6`), **Secondary** (`#9DB6C1`), **Muted** (`#86A0AC`, 5.00:1 on Elevated and 6.0 to 7.1:1 on the other steps, measured 2026-11-26).
+- **Mix Main** (`#E8F3F6`): the MAIN mix identity.
 
 ### Named Rules
 **The Colour-Is-Meaning Rule.** A saturated hue appears only when it names a state, a mix, or a selection. If removing the colour loses no information, remove it.
@@ -138,12 +139,12 @@ Responsive breakpoints in the CSS: 1180px, 999px, 960px, 760px, and a height que
 
 ## Elevation & Depth
 
-Tonal layering, not shadows. Depth is the slate ladder (well, chassis, panel, card, elevated) plus 1px borders.
+Tonal layering, not shadows. Depth is the navy ladder (well, chassis, panel, card, elevated) plus 1px borders.
 
 ### Shadow Vocabulary
 - **State bar** (`box-shadow: inset 0 3px 0 var(--mix)`): the top of a strip in its mix colour; bottom variants (`inset 0 -2px 0`) mark cyan, amber and green state.
 - **Selection ring** (`box-shadow: 0 0 0 1px var(--accent-cyan) inset`): the selected strip.
-- **LED glow** (`0 0 6px` in the LED colour): lamps only.
+- **LED glow** (`0 0 6px` in the LED colour): lamps only. No teal halo on tabs, strips or tiles.
 
 ### Named Rules
 **The Flat-At-Rest Rule.** Surfaces carry no drop shadow. Shadow-like marks are inset and mean state.
@@ -165,7 +166,7 @@ Small, hardware-like radii: 2px, 3px, 4px, 5px, 6px, 8px, with 3px the most comm
 - **Style:** `{colors.well}` fill, 1px `{colors.border-light}` border, amber label text, fully rounded.
 
 ### Navigation
-- **Four sections** (Mix, Sound, Presets, Setup) in the top bar; Mix and Sound show a second row of views (Mixer, Stage, Channel / Input, EQ, Comp, Sends, FX). Touch targets are 44px.
+- **Side nav** (Mixer, Channel, EQ, Comp, Sends, FX, Presets, Setup) is the one section navigation; it becomes a bottom bar under 760px where all eight items fit without scrolling. Mixer and Sound views show a row of sub-tabs, and the layer tabs pick the mix on the faders. One name per destination: the side nav and the sub-tabs use the same word. Touch targets are 44px.
 
 ### MUTE ALL
 - Muting needs a 0.6s hold with a visible progress bar; restoring is a single tap. At least 24px separates it from LOCK, and an ALL MUTED chip stays in the status strip while it is active.
@@ -182,17 +183,18 @@ Small, hardware-like radii: 2px, 3px, 4px, 5px, 6px, 8px, with 3px the most comm
 ## Do's and Don'ts
 
 ### Do:
-- **Do** express new surfaces as steps on the existing slate ladder, using the frontmatter tokens.
+- **Do** express new surfaces as steps on the existing navy ladder, using the frontmatter tokens.
 - **Do** keep every live number tabular and every state distinguishable without colour alone where possible.
 - **Do** keep touch targets at 44px or more on coarse pointers and respect `prefers-reduced-motion`.
 - **Do** show provenance (UNSYNCED, COMMANDED, OBSERVED) in the UI wherever a value is shown.
 
 ### Don't:
 - **Don't** add `backdrop-filter`, glassmorphism or glowing cards.
-- **Don't** add decorative gradients; the one existing master-strip gradient is the ceiling, not a precedent.
+- **Don't** add decorative gradients. The allowed set is: the page radial lift, the header band, the active side-nav item, the fader fill and the master strip. Anything else needs a reason.
 - **Don't** use a signal hue as ornament.
 - **Don't** name CueAir in user-facing copy (PRODUCT.md, SR-10).
-- **Don't** treat the "Quiet Luxury" direction as done: palette and type changes toward it need a confirmed decision first.
+- **Don't** use a coloured glow to show selection; use the teal border or fill.
+- **Don't** show the disconnected state in red: it is an amber, one-line banner. Red is for clip, fault and destructive actions.
 
 ## Layout (live-console redesign, 2026-11-19)
 

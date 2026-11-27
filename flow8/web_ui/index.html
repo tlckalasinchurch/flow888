@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="th">
+<html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
@@ -25,6 +25,7 @@
     <div class="status-pill" id="status-pill" role="status" tabindex="0" aria-label="Connection status. Press to open Connection settings.">
       <span class="status-dot"></span>
       <span id="status-text">CONNECTING</span>
+    <div class="status-detail" id="conn-detail" role="status" aria-live="polite" hidden></div>
     </div>
     <div class="link-lamps" aria-label="Link status">
       <span class="link" title="USB MIDI out: commands can reach the mixer"><span class="lamp lamp-link" id="lamp-usb"></span>USB</span>
@@ -34,12 +35,12 @@
       <span class="link" title="Lit while a measured audio meter feed is running. The FLOW 8 does not send meters over MIDI."><span class="lamp lamp-link" id="lamp-meter"></span>METERS</span>
     </div>
     <nav class="cue-groups" id="cue-groups" role="tablist" aria-label="Console sections">
-      <button class="cue-group active" data-group="mix" role="tab" aria-selected="true">Mix</button>
-      <button class="cue-group" data-group="sound" role="tab" aria-selected="false">Sound</button>
-      <button class="cue-group" data-group="presets" role="tab" aria-selected="false">Presets</button>
-      <button class="cue-group" data-group="setup" role="tab" aria-selected="false">Setup</button>
+      <button class="cue-group active" data-group="mix" role="tab" aria-selected="true">Mix<span class="cue-th" lang="th">มิกเซอร์</span></button>
+      <button class="cue-group" data-group="sound" role="tab" aria-selected="false">Sound<span class="cue-th" lang="th">เสียง</span></button>
+      <button class="cue-group" data-group="presets" role="tab" aria-selected="false">Presets<span class="cue-th" lang="th">พรีเซ็ต</span></button>
+      <button class="cue-group" data-group="setup" role="tab" aria-selected="false">Setup<span class="cue-th" lang="th">การตั้งค่า</span></button>
     </nav>
-    <div class="all-muted-chip" id="all-muted-chip" role="status" hidden>ALL MUTED</div>
+    <div class="all-muted-chip" id="all-muted-chip" role="status" hidden>ALL INPUTS MUTED</div>
     <div class="scene-display empty" id="scene-display" role="status">
       <span class="scene-label">Scene</span>
       <span class="scene-name">No scene</span>
@@ -57,14 +58,14 @@
 
   <div class="app-body">
   <nav class="side-nav" id="side-nav" aria-label="Main navigation">
-    <button class="side-item" data-go="mixer"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4v16M12 4v16M19 4v16M3 9h4M10 15h4M17 8h4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg><span class="side-text"><b>Mixer</b><i>มิกเซอร์</i></span></button>
-    <button class="side-item" data-go="channel"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16M9 5v4M15 10v4M8 15v4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg><span class="side-text"><b>Channel</b><i>ช่องสัญญาณ</i></span></button>
-    <button class="side-item" data-go="eq"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 13h4l2-6 3 12 3-9 2 3h6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="side-text"><b>EQ</b><i>อีควอไลเซอร์</i></span></button>
-    <button class="side-item" data-go="comp"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 20c6 0 6-14 18-14M3 20h18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg><span class="side-text"><b>Dynamics</b><i>Comp · ไดนามิก</i></span></button>
-    <button class="side-item" data-go="sends"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20 20 4M9 4h11v11" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="side-text"><b>Sends</b><i>ส่งสัญญาณ</i></span></button>
-    <button class="side-item" data-go="fx"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="6" width="18" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M7 10v4M7 10h3M7 12h2M13 10l4 4M17 10l-4 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg><span class="side-text"><b>FX Rack</b><i>เอฟเฟกต์</i></span></button>
-    <button class="side-item" data-go="presets"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 9 5-9 5-9-5zM3 13l9 5 9-5M3 17.5l9 5 9-5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg><span class="side-text"><b>Presets</b><i>พรีเซ็ต</i></span></button>
-    <button class="side-item" data-go="setup"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3.2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M18.7 5.3l-2.1 2.1M7.4 16.6l-2.1 2.1" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg><span class="side-text"><b>Setup</b><i>ตั้งค่าอุปกรณ์</i></span></button>
+    <button class="side-item" data-go="mixer"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4v16M12 4v16M19 4v16M3 9h4M10 15h4M17 8h4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg><span class="side-text"><b>Mixer</b><i lang="th">มิกเซอร์</i></span></button>
+    <button class="side-item" data-go="channel"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16M9 5v4M15 10v4M8 15v4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg><span class="side-text"><b>Channel</b><i lang="th">ช่องสัญญาณ</i></span></button>
+    <button class="side-item" data-go="eq"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 13h4l2-6 3 12 3-9 2 3h6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="side-text"><b>EQ</b><i lang="th">อีควอไลเซอร์</i></span></button>
+    <button class="side-item" data-go="comp"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 20c6 0 6-14 18-14M3 20h18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg><span class="side-text"><b>Comp</b><i lang="th">ไดนามิก</i></span></button>
+    <button class="side-item" data-go="sends"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20 20 4M9 4h11v11" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="side-text"><b>Sends</b><i lang="th">ส่งสัญญาณ</i></span></button>
+    <button class="side-item" data-go="fx"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="6" width="18" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M7 10v4M7 10h3M7 12h2M13 10l4 4M17 10l-4 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg><span class="side-text"><b>FX</b><i lang="th">เอฟเฟกต์</i></span></button>
+    <button class="side-item" data-go="presets"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 9 5-9 5-9-5zM3 13l9 5 9-5M3 17.5l9 5 9-5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg><span class="side-text"><b>Presets</b><i lang="th">พรีเซ็ต</i></span></button>
+    <button class="side-item" data-go="setup"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3.2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M18.7 5.3l-2.1 2.1M7.4 16.6l-2.1 2.1" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg><span class="side-text"><b>Setup</b><i lang="th">ตั้งค่าอุปกรณ์</i></span></button>
     <div class="side-ver" aria-label="Version"><b>FLOW 888</b><span>UI v2.0</span></div>
   </nav>
   <div class="main-col">
@@ -92,16 +93,16 @@
 
   <!-- Views inside the active section (Mix and Sound only). -->
   <nav class="cue-tabs" id="cue-tabs" role="tablist" aria-label="Views in this section">
-    <button class="cue-tab active" data-tab="mixer" data-group="mix" role="tab" aria-selected="true">Faders</button>
-    <button class="cue-tab" data-tab="stage" data-group="mix" role="tab" aria-selected="false">Stage</button>
-    <button class="cue-tab" data-tab="input" data-group="sound" role="tab" aria-selected="false" hidden>Input</button>
-    <button class="cue-tab" data-tab="eq" data-group="sound" role="tab" aria-selected="false" hidden>EQ</button>
-    <button class="cue-tab" data-tab="comp" data-group="sound" role="tab" aria-selected="false" hidden>Comp</button>
-    <button class="cue-tab" data-tab="sends" data-group="sound" role="tab" aria-selected="false" hidden>Sends</button>
-    <button class="cue-tab" data-tab="fx" data-group="sound" role="tab" aria-selected="false" hidden>FX</button>
-    <button class="cue-tab" data-tab="channel" data-group="sound" role="tab" aria-selected="false" hidden>Channel</button>
+    <button class="cue-tab active" data-tab="mixer" data-group="mix" role="tab" aria-controls="top-pane" aria-selected="true">Faders</button>
+    <button class="cue-tab" data-tab="stage" data-group="mix" role="tab" aria-controls="top-pane" aria-selected="false">Stage</button>
+    <button class="cue-tab" data-tab="input" data-group="sound" role="tab" aria-controls="top-pane" aria-selected="false" hidden>Input</button>
+    <button class="cue-tab" data-tab="eq" data-group="sound" role="tab" aria-controls="top-pane" aria-selected="false" hidden>EQ</button>
+    <button class="cue-tab" data-tab="comp" data-group="sound" role="tab" aria-controls="top-pane" aria-selected="false" hidden>Comp</button>
+    <button class="cue-tab" data-tab="sends" data-group="sound" role="tab" aria-controls="top-pane" aria-selected="false" hidden>Sends</button>
+    <button class="cue-tab" data-tab="fx" data-group="sound" role="tab" aria-controls="top-pane" aria-selected="false" hidden>FX</button>
+    <button class="cue-tab" data-tab="channel" data-group="sound" role="tab" aria-controls="top-pane" aria-selected="false" hidden>Channel</button>
   </nav>
-  <nav class="layer-tabs" id="layer-tabs" role="tablist" aria-label="Mix view"></nav>
+  <nav class="layer-tabs" id="layer-tabs" role="group" aria-label="Mix on the faders"></nav>
   </div>
 
   <div class="conn-banner" id="conn-banner" role="alert" hidden></div>
@@ -110,7 +111,7 @@
   <!-- Split-Screen Workspace: Dynamic Top Half + Persistent Bottom Fader Bank -->
   <div class="split-workspace" id="workspace">
     <!-- Dynamic Top Half -->
-    <section class="top-pane" id="top-pane" aria-label="Active view"></section>
+    <section class="top-pane" id="top-pane" role="tabpanel" aria-label="Active view"></section>
 
     <!-- Persistent Bottom Fader Bank (7 channels + Main LR with Bus dropdown) -->
     <main class="console-bank" id="console-bank" aria-label="Fader bank"></main>
