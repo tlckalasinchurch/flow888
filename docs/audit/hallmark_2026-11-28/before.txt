@@ -1,0 +1,174 @@
+FAIL 34 flow8\web_ui\v3\index.html:1 [320px] horizontal scroll: scrollWidth 324 > viewport 320 | fix: overflow-x: clip on html and body; find the overflowing block
+FAIL 34 flow8\web_ui\v3\v3.css:43 overflow-x: hidden on body (breaks sticky) | fix: Use overflow-x: clip on both html and body, never hidden
+FAIL 39a flow8\web_ui\v3\v3.css:290 disabled via opacity alone on .go:disabled | fix: Three disabled channels: fill, ink and cursor, plus the disabled attribute
+FAIL 48 flow8\web_ui\v3\v3.css:27 colour literal #070000 outside tokens (--well on body.night) | fix: Lift the value into the token block
+FAIL 48 flow8\web_ui\v3\v3.css:27 colour literal #0B0101 outside tokens (--chassis on body.night) | fix: Lift the value into the token block
+FAIL 48 flow8\web_ui\v3\v3.css:27 colour literal #120202 outside tokens (--panel on body.night) | fix: Lift the value into the token block
+FAIL 48 flow8\web_ui\v3\v3.css:27 colour literal #180303 outside tokens (--card on body.night) | fix: Lift the value into the token block
+FAIL 48 flow8\web_ui\v3\v3.css:27 colour literal #240505 outside tokens (--raised on body.night) | fix: Lift the value into the token block
+FAIL 48 flow8\web_ui\v3\v3.css:28 colour literal #2A0707 outside tokens (--line on body.night) | fix: Lift the value into the token block
+FAIL 48 flow8\web_ui\v3\v3.css:28 colour literal #4A0E0E outside tokens (--line-2 on body.night) | fix: Lift the value into the token block
+FAIL 48 flow8\web_ui\v3\v3.css:30 colour literal #FF7A6E outside tokens (--ink on body.night) | fix: Lift the value into the token block
+FAIL 48 flow8\web_ui\v3\v3.css:30 colour literal #E85A4E outside tokens (--ink-2 on body.night) | fix: Lift the value into the token block
+FAIL 48 flow8\web_ui\v3\v3.css:30 colour literal #D8564A outside tokens (--ink-3 on body.night) | fix: Lift the value into the token block
+FAIL 48 flow8\web_ui\v3\v3.css:31 colour literal #FF5A4E outside tokens (--sel on body.night) | fix: Lift the value into the token block
+FAIL 48 flow8\web_ui\v3\v3.css:31 colour literal #8E1B14 outside tokens (--sel-deep on body.night) | fix: Lift the value into the token block
+FAIL 48 flow8\web_ui\v3\v3.css:32 colour literal #FF7A3D outside tokens (--amber on body.night) | fix: Lift the value into the token block
+FAIL 48 flow8\web_ui\v3\v3.css:32 colour literal #FF2A1A outside tokens (--red on body.night) | fix: Lift the value into the token block
+FAIL 48 flow8\web_ui\v3\v3.css:32 colour literal #FF5A4E outside tokens (--green on body.night) | fix: Lift the value into the token block
+FAIL 48 flow8\web_ui\v3\v3.css:33 colour literal #FF7A6E outside tokens (--mix-main on body.night) | fix: Lift the value into the token block
+FAIL 48 flow8\web_ui\v3\v3.css:33 colour literal #E0463B outside tokens (--mix-mon on body.night) | fix: Lift the value into the token block
+FAIL 48 flow8\web_ui\v3\v3.css:33 colour literal #E0483C outside tokens (--mix-fx on body.night) | fix: Lift the value into the token block
+FAIL 48 flow8\web_ui\v3\v3.css:34 colour literal #2A0605 outside tokens (--sel-tint on body.night) | fix: Lift the value into the token block
+FAIL 48 flow8\web_ui\v3\v3.css:34 colour literal #FF5A4E outside tokens (--eq on body.night) | fix: Lift the value into the token block
+FAIL 48 flow8\web_ui\v3\v3.css:34 colour literal #FF7A6E outside tokens (--band-1 on body.night) | fix: Lift the value into the token block
+FAIL 48 flow8\web_ui\v3\v3.css:34 colour literal #FF7A6E outside tokens (--band-2 on body.night) | fix: Lift the value into the token block
+FAIL 48 flow8\web_ui\v3\v3.css:34 colour literal #FF7A6E outside tokens (--band-3 on body.night) | fix: Lift the value into the token block
+FAIL 48 flow8\web_ui\v3\v3.css:34 colour literal #FF7A6E outside tokens (--band-4 on body.night) | fix: Lift the value into the token block
+FAIL 48 flow8\web_ui\v3\v3.css:34 colour literal #C2392F outside tokens (--meter on body.night) | fix: Lift the value into the token block
+FAIL 48 flow8\web_ui\v3\v3.css:34 colour literal #FF2A1A outside tokens (--meter-hot on body.night) | fix: Lift the value into the token block
+FAIL 48 flow8\web_ui\v3\v3.css:35 colour literal #120202 outside tokens (--ok-tint on body.night) | fix: Lift the value into the token block
+FAIL 48 flow8\web_ui\v3\v3.css:35 colour literal #4A0E0E outside tokens (--ok-line on body.night) | fix: Lift the value into the token block
+FAIL 48 flow8\web_ui\v3\v3.css:35 colour literal #1A0402 outside tokens (--warn-tint on body.night) | fix: Lift the value into the token block
+FAIL 48 flow8\web_ui\v3\v3.css:35 colour literal #6B1A0E outside tokens (--warn-line on body.night) | fix: Lift the value into the token block
+FAIL 48 flow8\web_ui\v3\v3.css:35 colour literal #1E0303 outside tokens (--bad-tint on body.night) | fix: Lift the value into the token block
+FAIL 48 flow8\web_ui\v3\v3.css:35 colour literal #7A1010 outside tokens (--bad-line on body.night) | fix: Lift the value into the token block
+FAIL 48 flow8\web_ui\v3\v3.css:36 colour literal #3A0505 outside tokens (--mute-tint on body.night) | fix: Lift the value into the token block
+FAIL 48 flow8\web_ui\v3\v3.css:36 colour literal #FF8A80 outside tokens (--mute-ink on body.night) | fix: Lift the value into the token block
+FAIL 48 flow8\web_ui\v3\v3.css:36 colour literal #2A0404 outside tokens (--muteall-tint on body.night) | fix: Lift the value into the token block
+FAIL 48 flow8\web_ui\v3\v3.css:36 colour literal #7A1010 outside tokens (--muteall-line on body.night) | fix: Lift the value into the token block
+FAIL 48 flow8\web_ui\v3\v3.css:36 colour literal #FF8A80 outside tokens (--muteall-ink on body.night) | fix: Lift the value into the token block
+FAIL 48 flow8\web_ui\v3\v3.css:37 colour literal #070000 outside tokens (--on-amber on body.night) | fix: Lift the value into the token block
+FAIL 48 flow8\web_ui\v3\v3.css:37 colour literal #070000 outside tokens (--on-sel on body.night) | fix: Lift the value into the token block
+FAIL 48 flow8\web_ui\v3\v3.css:37 colour literal #1A0303 outside tokens (--sel-strip on body.night) | fix: Lift the value into the token block
+FAIL 48 flow8\web_ui\v3\v3.css:38 colour literal #5A0B07 outside tokens (--cap on body.night) | fix: Lift the value into the token block
+FAIL 48 flow8\web_ui\v3\v3.css:38 colour literal #FF5A4E outside tokens (--cap-line on body.night) | fix: Lift the value into the token block
+FAIL 48 flow8\web_ui\v3\v3.css:38 colour literal #FF5A4E outside tokens (--cap-mark on body.night) | fix: Lift the value into the token block
+FAIL 48 flow8\web_ui\v3\v3.css:38 colour literal #2A0707 outside tokens (--meter-off on body.night) | fix: Lift the value into the token block
+FAIL 48 flow8\web_ui\v3\v3.css:77 colour literal rgba(0, 0, 0, 0.5) outside tokens (box-shadow on .setmenu) | fix: Lift the value into the token block
+FAIL 48 flow8\web_ui\v3\v3.css:131 colour literal rgba(0,0,0,0.25) outside tokens (box-shadow on .cap) | fix: Lift the value into the token block
+FAIL 48 flow8\web_ui\v3\v3.css:137 colour literal #000 outside tokens (-webkit-mask on .meter .lvl) | fix: Lift the value into the token block
+FAIL 48 flow8\web_ui\v3\v3.css:137 colour literal #000 outside tokens (mask on .meter .lvl) | fix: Lift the value into the token block
+FAIL 48 flow8\web_ui\v3\v3.css:142 colour literal #fff outside tokens (color on .s-mute[aria-pressed="true"]) | fix: Lift the value into the token block
+FAIL 49a flow8\web_ui\v3\index.html:1 [375px] control "MUTE ALL" wraps to 2 lines (button.safety.mute) | fix: Shorten the label or set nowrap
+FAIL 49a http://127.0.0.1:8855/v3/:1 [320px] control "MY MON" wraps to 2 lines (button) | fix: Shorten the label or set nowrap
+FAIL 49a http://127.0.0.1:8855/v3/:1 [320px] control "MON SEND" wraps to 2 lines (button.item) | fix: Shorten the label or set nowrap
+FAIL 62 flow8\web_ui\v3\v3.css:497 input[type="range"].unk-range::-webkit-slider-thumb is hidden at rest (visibility: hidden) and depends on a script to a… | fix: Visible by default: scope the hidden state under a .js class the script adds, or animate from visible with @starting-style
+FAIL 67 flow8\web_ui\v3\index.html:38 "LIVE CONSOLE" typed in capitals at 15px (<small>) | fix: Sentence case in the body face; capitals survive only as a wordmark or as the display voice
+FAIL 67 flow8\web_ui\v3\index.html:39 "CONNECTING" typed in capitals at 14px (<button class="state">) | fix: Sentence case in the body face; capitals survive only as a wordmark or as the display voice
+FAIL 67 flow8\web_ui\v3\index.html:39 "CONNECTING" typed in capitals at 18px tracked 0.08em (<span class="tx">) | fix: Sentence case in the body face; capitals survive only as a wordmark or as the display voice
+FAIL 67 flow8\web_ui\v3\v3.css:56 .brand small: letter-spaced tracked 0.14em at 12px in a label role | fix: Labels, captions, table heads, nav links and meta are the body face (or the theme's label face), a step smaller, sentence case, untracked
+FAIL 67 flow8\web_ui\v3\v3.css:57 .state: letter-spaced tracked 0.04em at 15px in a label role | fix: Labels, captions, table heads, nav links and meta are the body face (or the theme's label face), a step smaller, sentence case, untracked
+FAIL 67 flow8\web_ui\v3\v3.css:67 .tool: letter-spaced tracked 0.06em at 15px in a label role | fix: Labels, captions, table heads, nav links and meta are the body face (or the theme's label face), a step smaller, sentence case, untracked
+FAIL 67 flow8\web_ui\v3\v3.css:103 .groups > span: letter-spaced tracked 0.08em at 12px in a label role | fix: Labels, captions, table heads, nav links and meta are the body face (or the theme's label face), a step smaller, sentence case, untracked
+FAIL 67 flow8\web_ui\v3\v3.css:115 .s-head .num: letter-spaced tracked 0.06em at 12px in a label role | fix: Labels, captions, table heads, nav links and meta are the body face (or the theme's label face), a step smaller, sentence case, untracked
+FAIL 67 flow8\web_ui\v3\v3.css:117 .prov: letter-spaced tracked 0.04em at 12px in a label role | fix: Labels, captions, table heads, nav links and meta are the body face (or the theme's label face), a step smaller, sentence case, untracked
+FAIL 67 flow8\web_ui\v3\v3.css:141 .s-mute: letter-spaced tracked 0.08em at 14px in a label role | fix: Labels, captions, table heads, nav links and meta are the body face (or the theme's label face), a step smaller, sentence case, untracked
+FAIL 67 flow8\web_ui\v3\v3.css:149 .matrix th: letter-spaced tracked 0.04em at 13px in a label role | fix: Labels, captions, table heads, nav links and meta are the body face (or the theme's label face), a step smaller, sentence case, untracked
+FAIL 67 flow8\web_ui\v3\v3.css:173 .row label, .row .k: letter-spaced tracked 0.04em at 13px in a label role | fix: Labels, captions, table heads, nav links and meta are the body face (or the theme's label face), a step smaller, sentence case, untracked
+FAIL 67 flow8\web_ui\v3\v3.css:280 .mini: letter-spaced tracked 0.06em at 13px in a label role | fix: Labels, captions, table heads, nav links and meta are the body face (or the theme's label face), a step smaller, sentence case, untracked
+FAIL 67 flow8\web_ui\v3\v3.css:287 .preset .cat: letter-spaced tracked 0.06em at 12px in a label role | fix: Labels, captions, table heads, nav links and meta are the body face (or the theme's label face), a step smaller, sentence case, untracked
+FAIL 67 flow8\web_ui\v3\v3.css:411 .s-read .prov: letter-spaced tracked 0.04em at 12px in a label role | fix: Labels, captions, table heads, nav links and meta are the body face (or the theme's label face), a step smaller, sentence case, untracked
+FAIL 67 flow8\web_ui\v3\v3.css:427 .cue-tag: letter-spaced tracked 0.08em at 12px in a label role | fix: Labels, captions, table heads, nav links and meta are the body face (or the theme's label face), a step smaller, sentence case, untracked
+FAIL 67 flow8\web_ui\v3\v3.css:491 .ws .grp[aria-pressed="true"]::after: letter-spaced tracked 0.04em at 12px in a label role | fix: Labels, captions, table heads, nav links and meta are the body face (or the theme's label face), a step smaller, sentence case, untracked
+FAIL 73 http://127.0.0.1:8855/v3/:1 [1440px] text painted under another element: span.cap over "Channel 1"; span.cap over "Channel 2"; span.cap over "Chann… | fix: Give the text its own space, or put it above what covers it on a surface of its own
+REFLEX 24b flow8\web_ui\v3\v3.css:53 gap: 10px (off the 4px scale) on .bar | fix: Use the 4px spacing scale
+REFLEX 24b flow8\web_ui\v3\v3.css:56 margin-top: 3px (off the 4px scale) on .brand small | fix: Use the 4px spacing scale
+REFLEX 24b flow8\web_ui\v3\v3.css:57 padding: 0 14px (off the 4px scale) on .state | fix: Use the 4px spacing scale
+REFLEX 24b flow8\web_ui\v3\v3.css:67 padding: 0 14px (off the 4px scale) on .tool | fix: Use the 4px spacing scale
+REFLEX 24b flow8\web_ui\v3\v3.css:77 gap: 6px (off the 4px scale) on .setmenu | fix: Use the 4px spacing scale
+REFLEX 24b flow8\web_ui\v3\v3.css:82 gap: 10px (off the 4px scale) on .tabs button | fix: Use the 4px spacing scale
+REFLEX 24b flow8\web_ui\v3\v3.css:90 padding: 12px 16px 10px (off the 4px scale) on .page-head | fix: Use the 4px spacing scale
+REFLEX 24b flow8\web_ui\v3\v3.css:98 padding: 0 14px (off the 4px scale) on .mixes button | fix: Use the 4px spacing scale
+REFLEX 24b flow8\web_ui\v3\v3.css:102 gap: 6px (off the 4px scale) on .groups | fix: Use the 4px spacing scale
+REFLEX 24b flow8\web_ui\v3\v3.css:110 gap: 6px (off the 4px scale) on .bank | fix: Use the 4px spacing scale
+REFLEX 24b flow8\web_ui\v3\v3.css:110 padding: 10px 12px 12px (off the 4px scale) on .bank | fix: Use the 4px spacing scale
+REFLEX 24b flow8\web_ui\v3\v3.css:113 margin-left: 10px (off the 4px scale) on .strip.master | fix: Use the 4px spacing scale
+REFLEX 24b flow8\web_ui\v3\v3.css:114 padding: 9px 8px 6px (off the 4px scale) on .s-head | fix: Use the 4px spacing scale
+REFLEX 24b flow8\web_ui\v3\v3.css:116 margin-top: 3px (off the 4px scale) on .s-head .nm | fix: Use the 4px spacing scale
+REFLEX 24b flow8\web_ui\v3\v3.css:121 gap: 3px (off the 4px scale) on .s-chips | fix: Use the 4px spacing scale
+REFLEX 24b flow8\web_ui\v3\v3.css:121 padding: 6px 8px (off the 4px scale) on .s-chips | fix: Use the 4px spacing scale
+REFLEX 24b flow8\web_ui\v3\v3.css:122 padding: 1px 5px (off the 4px scale) on .chip | fix: Use the 4px spacing scale
+REFLEX 24b flow8\web_ui\v3\v3.css:125 gap: 6px (off the 4px scale) on .s-fader | fix: Use the 4px spacing scale
+REFLEX 24b flow8\web_ui\v3\v3.css:125 padding: 6px 8px (off the 4px scale) on .s-fader | fix: Use the 4px spacing scale
+REFLEX 24b flow8\web_ui\v3\v3.css:139 column-gap: 6px (off the 4px scale) on .s-read | fix: Use the 4px spacing scale
+REFLEX 24b flow8\web_ui\v3\v3.css:139 padding: 5px 4px (off the 4px scale) on .s-read | fix: Use the 4px spacing scale
+REFLEX 24b flow8\web_ui\v3\v3.css:141 margin: 6px 8px 8px (off the 4px scale) on .s-mute | fix: Use the 4px spacing scale
+REFLEX 24b flow8\web_ui\v3\v3.css:148 margin: 14px 16px (off the 4px scale) on .matrix | fix: Use the 4px spacing scale
+REFLEX 24b flow8\web_ui\v3\v3.css:150 padding-bottom: 6px (off the 4px scale) on .matrix thead th | fix: Use the 4px spacing scale
+REFLEX 24b flow8\web_ui\v3\v3.css:160 margin: 0 0 10px (off the 4px scale) on .panel h2 | fix: Use the 4px spacing scale
+REFLEX 24b flow8\web_ui\v3\v3.css:164 margin: -22px 0 0 -22px (off the 4px scale) on .eq-node | fix: Use the 4px spacing scale
+REFLEX 24b flow8\web_ui\v3\v3.css:167 gap: 6px (off the 4px scale) on .eq-legend | fix: Use the 4px spacing scale
+REFLEX 24b flow8\web_ui\v3\v3.css:167 margin-top: 10px (off the 4px scale) on .eq-legend | fix: Use the 4px spacing scale
+REFLEX 24b flow8\web_ui\v3\v3.css:168 padding: 6px 10px (off the 4px scale) on .eq-legend div | fix: Use the 4px spacing scale
+REFLEX 24b flow8\web_ui\v3\v3.css:171 gap: 10px (off the 4px scale) on .row | fix: Use the 4px spacing scale
+REFLEX 24b flow8\web_ui\v3\v3.css:181 padding: 10px 12px (off the 4px scale) on .preset | fix: Use the 4px spacing scale
+REFLEX 24b flow8\web_ui\v3\v3.css:188 gap: 6px (off the 4px scale) on .geq | fix: Use the 4px spacing scale
+REFLEX 24b flow8\web_ui\v3\v3.css:193 padding: 0 10px (off the 4px scale) on .calc input[type="number"] | fix: Use the 4px spacing scale
+REFLEX 24b flow8\web_ui\v3\v3.css:194 margin-top: 10px (off the 4px scale) on .calc .result | fix: Use the 4px spacing scale
+REFLEX 24b flow8\web_ui\v3\v3.css:200 padding: 4px 6px (off the 4px scale) on .presets16 button | fix: Use the 4px spacing scale
+REFLEX 24b flow8\web_ui\v3\v3.css:204 padding: 0 14px (off the 4px scale) on .seg button | fix: Use the 4px spacing scale
+REFLEX 24b flow8\web_ui\v3\v3.css:209 gap: 6px (off the 4px scale) on .cues | fix: Use the 4px spacing scale
+REFLEX 24b flow8\web_ui\v3\v3.css:210 gap: 10px (off the 4px scale) on .cuecard | fix: Use the 4px spacing scale
+REFLEX 24b flow8\web_ui\v3\v3.css:219 gap: 6px (off the 4px scale) on .scope | fix: Use the 4px spacing scale
+REFLEX 24b flow8\web_ui\v3\v3.css:225 gap: 10px (off the 4px scale) on .me | fix: Use the 4px spacing scale
+REFLEX 24b flow8\web_ui\v3\v3.css:228 gap: 6px (off the 4px scale) on .others | fix: Use the 4px spacing scale
+REFLEX 24b flow8\web_ui\v3\v3.css:240 padding: 10px 16px (off the 4px scale) on .toast | fix: Use the 4px spacing scale
+REFLEX 24b flow8\web_ui\v3\v3.css:250 gap: 6px (off the 4px scale) on .shell | fix: Use the 4px spacing scale
+REFLEX 24b flow8\web_ui\v3\v3.css:250 padding: 6px (off the 4px scale) on .shell | fix: Use the 4px spacing scale
+REFLEX 24b flow8\web_ui\v3\v3.css:251 gap: 6px (off the 4px scale) on .bar | fix: Use the 4px spacing scale
+REFLEX 24b flow8\web_ui\v3\v3.css:253 padding: 0 10px (off the 4px scale) on .state | fix: Use the 4px spacing scale
+REFLEX 24b flow8\web_ui\v3\v3.css:275 margin: 10px 16px 0 (off the 4px scale) on .offline-note | fix: Use the 4px spacing scale
+REFLEX 24b flow8\web_ui\v3\v3.css:275 padding: 10px 14px (off the 4px scale) on .offline-note | fix: Use the 4px spacing scale
+REFLEX 24b flow8\web_ui\v3\v3.css:281 gap: 6px (off the 4px scale) on .grp-edit | fix: Use the 4px spacing scale
+REFLEX 24b flow8\web_ui\v3\v3.css:282 padding: 0 10px (off the 4px scale) on .grp-name | fix: Use the 4px spacing scale
+REFLEX 24b flow8\web_ui\v3\v3.css:283 padding: 0 10px (off the 4px scale) on .grp-ch | fix: Use the 4px spacing scale
+REFLEX 24b flow8\web_ui\v3\v3.css:293 gap: 6px (off the 4px scale) on .cue-save | fix: Use the 4px spacing scale
+REFLEX 24b flow8\web_ui\v3\v3.css:293 margin-top: 6px (off the 4px scale) on .cue-save | fix: Use the 4px spacing scale
+REFLEX 24b flow8\web_ui\v3\v3.css:294 padding: 0 10px (off the 4px scale) on .cue-save input | fix: Use the 4px spacing scale
+REFLEX 24b flow8\web_ui\v3\v3.css:306 gap: 5px (off the 4px scale) on .ws .proc | fix: Use the 4px spacing scale
+REFLEX 24b flow8\web_ui\v3\v3.css:306 padding: 10px (off the 4px scale) on .ws .proc | fix: Use the 4px spacing scale
+REFLEX 24b flow8\web_ui\v3\v3.css:307 gap: 10px (off the 4px scale) on .chsel | fix: Use the 4px spacing scale
+REFLEX 24b flow8\web_ui\v3\v3.css:315 gap: 6px (off the 4px scale) on .proc .foot | fix: Use the 4px spacing scale
+REFLEX 24b flow8\web_ui\v3\v3.css:316 margin: 6px 2px 0 (off the 4px scale) on .proc h3 | fix: Use the 4px spacing scale
+REFLEX 24b flow8\web_ui\v3\v3.css:317 gap: 5px (off the 4px scale) on .grps | fix: Use the 4px spacing scale
+REFLEX 24b flow8\web_ui\v3\v3.css:321 gap: 10px (off the 4px scale) on .pv | fix: Use the 4px spacing scale
+REFLEX 24b flow8\web_ui\v3\v3.css:325 gap: 6px (off the 4px scale) on .pv-h .mini | fix: Use the 4px spacing scale
+REFLEX 24b flow8\web_ui\v3\v3.css:328 padding: 6px 12px (off the 4px scale) on .band | fix: Use the 4px spacing scale
+REFLEX 24b flow8\web_ui\v3\v3.css:342 gap: 14px (off the 4px scale) on .sends1 .row | fix: Use the 4px spacing scale
+REFLEX 24b flow8\web_ui\v3\v3.css:346 padding: 10px (off the 4px scale) on .ws .bank | fix: Use the 4px spacing scale
+REFLEX 24b flow8\web_ui\v3\v3.css:349 padding: 8px 4px 6px (off the 4px scale) on .ws .s-head | fix: Use the 4px spacing scale
+REFLEX 24b flow8\web_ui\v3\v3.css:356 margin: 6px (off the 4px scale) on .ws .s-mute | fix: Use the 4px spacing scale
+REFLEX 24b flow8\web_ui\v3\v3.css:361 padding: 10px (off the 4px scale) on .mstrip | fix: Use the 4px spacing scale
+REFLEX 24b flow8\web_ui\v3\v3.css:365 gap: 6px (off the 4px scale) on .buses | fix: Use the 4px spacing scale
+REFLEX 24b flow8\web_ui\v3\v3.css:384 gap: 6px (off the 4px scale) on .ws | fix: Use the 4px spacing scale
+REFLEX 24b flow8\web_ui\v3\v3.css:385 gap: 6px (off the 4px scale) on .chrow | fix: Use the 4px spacing scale
+REFLEX 24b flow8\web_ui\v3\v3.css:392 padding: 6px 8px (off the 4px scale) on .bus | fix: Use the 4px spacing scale
+REFLEX 24b flow8\web_ui\v3\v3.css:394 padding: 6px (off the 4px scale) on .ws .bank | fix: Use the 4px spacing scale
+REFLEX 24b flow8\web_ui\v3\v3.css:397 padding: 6px (off the 4px scale) on .mstrip | fix: Use the 4px spacing scale
+REFLEX 24b flow8\web_ui\v3\v3.css:399 padding: 6px (off the 4px scale) on .ws .proc | fix: Use the 4px spacing scale
+REFLEX 24b flow8\web_ui\v3\v3.css:401 gap: 6px (off the 4px scale) on .ws .proc .item | fix: Use the 4px spacing scale
+REFLEX 24b flow8\web_ui\v3\v3.css:412 padding: 5px 2px (off the 4px scale) on .ws .s-read | fix: Use the 4px spacing scale
+REFLEX 24b flow8\web_ui\v3\v3.css:453 gap: 6px (off the 4px scale) on .shell | fix: Use the 4px spacing scale
+REFLEX 24b flow8\web_ui\v3\v3.css:455 padding: 0 10px (off the 4px scale) on .bus | fix: Use the 4px spacing scale
+REFLEX 24b flow8\web_ui\v3\v3.css:459 gap: 5px (off the 4px scale) on .buses | fix: Use the 4px spacing scale
+REFLEX 24b flow8\web_ui\v3\v3.css:460 padding: 6px 4px 4px (off the 4px scale) on .ws .s-head | fix: Use the 4px spacing scale
+REFLEX 24b flow8\web_ui\v3\v3.css:472 padding: 6px 8px (off the 4px scale) on .bus | fix: Use the 4px spacing scale
+REFLEX 24b flow8\web_ui\v3\v3.css:477 padding: 0 10px (off the 4px scale) on .proc .item | fix: Use the 4px spacing scale
+REFLEX 24b flow8\web_ui\v3\v3.css:478 padding: 6px 4px (off the 4px scale) on .ws .s-fader | fix: Use the 4px spacing scale
+REFLEX 24b flow8\web_ui\v3\v3.css:489 margin-left: 10px (off the 4px scale) on .brand | fix: Use the 4px spacing scale
+REFLEX 38iii flow8\web_ui\v3\v3.css:92 accented word inside a heading (.page-head h1 i) | fix: Set the whole head one way: a line break, a second line at a second size, or the whole head in the accent. Guard: the theme names the coloured word as its signature and it appears once on the page, in the hero
+REFLEX 39b http://127.0.0.1:8855/v3/:1 [1440px] control height outside 32 to 52px: div.s-head 57px, div.s-head 57px, div.s-head 57px | fix: Marketing controls stand 44 to 52px; app UI 32 to 40px with a 44px hit target
+REFLEX 72 flow8\web_ui\v3\index.html:1 [1440px] text crowds the edge of its box: button.btn right 6px, bottom 1px; button.btn right 6px, bottom 1px; button.sa… | fix: Pad the box: max(8px, 0.5em) at the sides, max(4px, 0.3em) above and below
+WARN 40 flow8\web_ui\v3\v3.css:142 3.92:1 < 4.5:1 on .s-mute[aria-pressed="true"] | fix: Raise the contrast to threshold
+WARN 41 flow8\web_ui\v3\v3.css:159 dark surface (L 23%) on .panel sets no text colour | fix: Swap text to paper in the same rule
+WARN 41 flow8\web_ui\v3\v3.css:210 dark surface (L 23%) on .cuecard sets no text colour | fix: Swap text to paper in the same rule
+WARN 41 flow8\web_ui\v3\v3.css:234 dark surface (L 23%) on .lockcard sets no text colour | fix: Swap text to paper in the same rule
+WARN 41 flow8\web_ui\v3\v3.css:305 dark surface (L 21%) on .ws .panel sets no text colour | fix: Swap text to paper in the same rule
+WARN 41 flow8\web_ui\v3\v3.css:328 dark surface (L 23%) on .band sets no text colour | fix: Swap text to paper in the same rule
+WARN F3 flow8\web_ui\v3\v3.css:91 no text-wrap: balance on any display head (6 head rule(s), e.g. .page-head h1) | fix: Add text-wrap: balance to h1/h2-level heads
+WARN F7 flow8\web_ui\v3\v3.css:181 same container recipe on 7 selectors (.preset, .calc input[type="number"], .calc .res…...) | fix: Vary weight, radius, or fill by role; not every box is the same box
+WARN F19 http://127.0.0.1:8855/v3/:1 [1440px] 4 font weights in running use (400, 600, 700, 800) | fix: Three weights at most, display and body together, picked as extremes
+WARN F23 flow8\web_ui\v3\index.html:1 the document lacks a meta description | fix: Name the language, title the page in its own words, and describe it in one sentence for link previews
+WARN F24 flow8\web_ui\v3\v3.css:77 a hairline border under a wide soft shadow on .setmenu | fix: Commit to one: a defined edge, or elevation by shadow
+WARN render flow8\web_ui\v3\index.html:1 the shots show a fallback: fonts or stylesheets did not load (v3.css) | fix: Recapture when the host answers or the path is right; never review or sign off a fallback face

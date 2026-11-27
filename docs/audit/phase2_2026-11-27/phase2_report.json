@@ -1,0 +1,7488 @@
+{
+  "physicalMidiCalls": [],
+  "physicalMidiCallCount": 0,
+  "reports": [
+    {
+      "viewport": "desktop",
+      "size": {
+        "width": 1366,
+        "height": 768
+      },
+      "payloads": [
+        {
+          "control": "MIX bank fader CH1 (MAIN)",
+          "action": "setFader",
+          "requests": 9,
+          "payload": {
+            "action": "setFader",
+            "channel": 1,
+            "value": 68
+          },
+          "code": 200,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 7,
+              "d2": 68
+            }
+          ],
+          "status": "VERIFIED PASS"
+        },
+        {
+          "control": "MIX strip MUTE CH2",
+          "action": "setMute",
+          "requests": 1,
+          "payload": {
+            "action": "setMute",
+            "channel": 2,
+            "value": false
+          },
+          "code": 200,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 2,
+              "d1": 5,
+              "d2": 0
+            }
+          ],
+          "status": "VERIFIED PASS"
+        },
+        {
+          "control": "MIX master fader MAIN",
+          "action": "setFader",
+          "requests": 9,
+          "payload": {
+            "action": "setFader",
+            "channel": 8,
+            "value": 77
+          },
+          "code": 200,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 8,
+              "d1": 7,
+              "d2": 77
+            }
+          ],
+          "status": "VERIFIED PASS"
+        },
+        {
+          "control": "MIX EQ node LOW CH1",
+          "action": "setEqBand",
+          "requests": 9,
+          "payload": {
+            "action": "setEqBand",
+            "channel": 1,
+            "band": "low",
+            "value": 110,
+            "unit": "raw"
+          },
+          "code": 200,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 1,
+              "d2": 110
+            }
+          ],
+          "status": "VERIFIED PASS"
+        },
+        {
+          "control": "MIX EQ FLAT (two taps)",
+          "action": "resetEqFlat",
+          "requests": 1,
+          "payload": {
+            "action": "resetEqFlat",
+            "channel": 1
+          },
+          "code": 200,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 1,
+              "d2": 64
+            },
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 2,
+              "d2": 64
+            },
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 3,
+              "d2": 64
+            },
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 4,
+              "d2": 64
+            }
+          ],
+          "status": "VERIFIED PASS"
+        },
+        {
+          "control": "MIX MON SEND cell CH1\u2192MON1",
+          "action": "setSend",
+          "requests": 9,
+          "payload": {
+            "action": "setSend",
+            "channel": 1,
+            "target": "mon1",
+            "value": 12,
+            "unit": "raw"
+          },
+          "code": 200,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 14,
+              "d2": 12
+            }
+          ],
+          "status": "VERIFIED PASS"
+        },
+        {
+          "control": "MIX master fader MON1",
+          "action": "setBusFader",
+          "requests": 9,
+          "payload": {
+            "action": "setBusFader",
+            "bus": "mon1",
+            "value": 62
+          },
+          "code": 200,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 9,
+              "d1": 7,
+              "d2": 62
+            }
+          ],
+          "status": "VERIFIED PASS"
+        },
+        {
+          "control": "MIX bank fader CH1 on MON1 (send)",
+          "action": "setSend",
+          "requests": 9,
+          "payload": {
+            "action": "setSend",
+            "channel": 1,
+            "target": "mon1",
+            "value": 52,
+            "unit": "raw"
+          },
+          "code": 200,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 14,
+              "d2": 52
+            }
+          ],
+          "status": "VERIFIED PASS"
+        },
+        {
+          "control": "SOURCE LOW CUT CH1 (keyboard)",
+          "action": "setLowCut",
+          "requests": 1,
+          "payload": {
+            "action": "setLowCut",
+            "channel": 1,
+            "value": 73,
+            "unit": "raw"
+          },
+          "code": 200,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 9,
+              "d2": 73
+            }
+          ],
+          "status": "VERIFIED PASS"
+        },
+        {
+          "control": "COMP CH1 (keyboard)",
+          "action": "setCompressor",
+          "requests": 1,
+          "payload": {
+            "action": "setCompressor",
+            "channel": 1,
+            "value": 1,
+            "unit": "raw"
+          },
+          "code": 200,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 11,
+              "d2": 1
+            }
+          ],
+          "status": "VERIFIED PASS"
+        },
+        {
+          "control": "OUTPUT GEQ band 1 MAIN",
+          "action": "setBusGeq",
+          "requests": 10,
+          "payload": {
+            "action": "setBusGeq",
+            "bus": "main",
+            "band": 1,
+            "value": 89
+          },
+          "code": 200,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 8,
+              "d1": 11,
+              "d2": 89
+            }
+          ],
+          "status": "VERIFIED PASS"
+        },
+        {
+          "control": "OUTPUT LIMITER MAIN (keyboard)",
+          "action": "setBusLimiter",
+          "requests": 1,
+          "payload": {
+            "action": "setBusLimiter",
+            "bus": "main",
+            "value": 126
+          },
+          "code": 200,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 8,
+              "d1": 8,
+              "d2": 126
+            }
+          ],
+          "status": "VERIFIED PASS"
+        },
+        {
+          "control": "OUTPUT GEQ band 9 MON2",
+          "action": "setBusGeq",
+          "requests": 9,
+          "payload": {
+            "action": "setBusGeq",
+            "bus": "mon2",
+            "band": 9,
+            "value": 89
+          },
+          "code": 200,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 10,
+              "d1": 19,
+              "d2": 89
+            }
+          ],
+          "status": "VERIFIED PASS"
+        },
+        {
+          "control": "FX1 preset 3",
+          "action": "setFxPreset",
+          "requests": 1,
+          "payload": {
+            "action": "setFxPreset",
+            "engine": "fx1",
+            "value": 3
+          },
+          "code": 200,
+          "midi": [
+            {
+              "kind": "PC",
+              "ch": 13,
+              "d1": 3,
+              "d2": 0
+            }
+          ],
+          "status": "VERIFIED PASS"
+        },
+        {
+          "control": "FX2 PARAM1 (keyboard)",
+          "action": "setFxParam",
+          "requests": 1,
+          "payload": {
+            "action": "setFxParam",
+            "engine": "fx2",
+            "param": 1,
+            "value": 1
+          },
+          "code": 200,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 14,
+              "d1": 1,
+              "d2": 1
+            }
+          ],
+          "status": "VERIFIED PASS"
+        },
+        {
+          "control": "FX1 VARIANT B",
+          "action": "setFxParam",
+          "requests": 1,
+          "payload": {
+            "action": "setFxParam",
+            "engine": "fx1",
+            "param": 2,
+            "value": true
+          },
+          "code": 200,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 13,
+              "d1": 2,
+              "d2": 127
+            }
+          ],
+          "status": "VERIFIED PASS"
+        },
+        {
+          "control": "MY MON CH1\u2192MON1 strip",
+          "action": "setSend",
+          "requests": 9,
+          "payload": {
+            "action": "setSend",
+            "channel": 1,
+            "target": "mon1",
+            "value": 68,
+            "unit": "raw"
+          },
+          "code": 200,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 14,
+              "d2": 68
+            }
+          ],
+          "status": "VERIFIED PASS"
+        },
+        {
+          "control": "MY MON master MON1",
+          "action": "setBusFader",
+          "requests": 9,
+          "payload": {
+            "action": "setBusFader",
+            "bus": "mon1",
+            "value": 78
+          },
+          "code": 200,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 9,
+              "d1": 7,
+              "d2": 78
+            }
+          ],
+          "status": "VERIFIED PASS"
+        },
+        {
+          "control": "MUTE ALL (hold 0.7 s)",
+          "action": "muteAll",
+          "requests": 1,
+          "payload": {
+            "action": "muteAll",
+            "value": true
+          },
+          "code": 200,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 5,
+              "d2": 127
+            },
+            {
+              "kind": "CC",
+              "ch": 2,
+              "d1": 5,
+              "d2": 127
+            },
+            {
+              "kind": "CC",
+              "ch": 3,
+              "d1": 5,
+              "d2": 127
+            },
+            {
+              "kind": "CC",
+              "ch": 4,
+              "d1": 5,
+              "d2": 127
+            },
+            {
+              "kind": "CC",
+              "ch": 5,
+              "d1": 5,
+              "d2": 127
+            },
+            {
+              "kind": "CC",
+              "ch": 6,
+              "d1": 5,
+              "d2": 127
+            },
+            {
+              "kind": "CC",
+              "ch": 7,
+              "d1": 5,
+              "d2": 127
+            }
+          ],
+          "status": "VERIFIED PASS"
+        },
+        {
+          "control": "MUTE ALL again (unmute)",
+          "action": "muteAll",
+          "requests": 1,
+          "payload": {
+            "action": "muteAll",
+            "value": false
+          },
+          "code": 200,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 5,
+              "d2": 0
+            },
+            {
+              "kind": "CC",
+              "ch": 2,
+              "d1": 5,
+              "d2": 0
+            },
+            {
+              "kind": "CC",
+              "ch": 3,
+              "d1": 5,
+              "d2": 0
+            },
+            {
+              "kind": "CC",
+              "ch": 4,
+              "d1": 5,
+              "d2": 0
+            },
+            {
+              "kind": "CC",
+              "ch": 5,
+              "d1": 5,
+              "d2": 0
+            },
+            {
+              "kind": "CC",
+              "ch": 6,
+              "d1": 5,
+              "d2": 0
+            },
+            {
+              "kind": "CC",
+              "ch": 7,
+              "d1": 5,
+              "d2": 0
+            }
+          ],
+          "status": "VERIFIED PASS"
+        },
+        {
+          "control": "UNDO",
+          "action": "undo",
+          "requests": 1,
+          "payload": {
+            "action": "undo"
+          },
+          "code": 200,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 7,
+              "d1": 5,
+              "d2": 127
+            },
+            {
+              "kind": "CC",
+              "ch": 6,
+              "d1": 5,
+              "d2": 127
+            },
+            {
+              "kind": "CC",
+              "ch": 5,
+              "d1": 5,
+              "d2": 127
+            },
+            {
+              "kind": "CC",
+              "ch": 4,
+              "d1": 5,
+              "d2": 127
+            },
+            {
+              "kind": "CC",
+              "ch": 3,
+              "d1": 5,
+              "d2": 127
+            },
+            {
+              "kind": "CC",
+              "ch": 2,
+              "d1": 5,
+              "d2": 127
+            },
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 5,
+              "d2": 127
+            }
+          ],
+          "status": "VERIFIED PASS"
+        },
+        {
+          "control": "REDO",
+          "action": "redo",
+          "requests": 1,
+          "payload": {
+            "action": "redo"
+          },
+          "code": 200,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 5,
+              "d2": 0
+            },
+            {
+              "kind": "CC",
+              "ch": 2,
+              "d1": 5,
+              "d2": 0
+            },
+            {
+              "kind": "CC",
+              "ch": 3,
+              "d1": 5,
+              "d2": 0
+            },
+            {
+              "kind": "CC",
+              "ch": 4,
+              "d1": 5,
+              "d2": 0
+            },
+            {
+              "kind": "CC",
+              "ch": 5,
+              "d1": 5,
+              "d2": 0
+            },
+            {
+              "kind": "CC",
+              "ch": 6,
+              "d1": 5,
+              "d2": 0
+            },
+            {
+              "kind": "CC",
+              "ch": 7,
+              "d1": 5,
+              "d2": 0
+            }
+          ],
+          "status": "VERIFIED PASS"
+        },
+        {
+          "control": "CHANNEL preset (two taps)",
+          "action": "applyPreset",
+          "requests": 1,
+          "payload": {
+            "action": "applyPreset",
+            "channel": 1,
+            "presetId": "speech-mc-handheld"
+          },
+          "code": 200,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 1,
+              "d2": 51
+            },
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 2,
+              "d2": 55
+            },
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 3,
+              "d2": 70
+            },
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 4,
+              "d2": 68
+            },
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 9,
+              "d2": 22
+            },
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 11,
+              "d2": 30
+            }
+          ],
+          "status": "VERIFIED PASS"
+        }
+      ],
+      "midiSummary": {
+        "midiMessages": 142,
+        "outsideMapOrForbidden": []
+      },
+      "regression": [
+        {
+          "check": "Hardware fader move (ch1 CC7=90) shows as LIV with the new value",
+          "status": "VERIFIED PASS",
+          "actual": "provenance='LIV', readout='-7.6'"
+        },
+        {
+          "check": "Meter shows a frame, then falls to zero 2 s after the feed stops",
+          "status": "VERIFIED PASS",
+          "actual": "--clip live='9.999999999999998%', after 3 s='100%'",
+          "note": "rendering only; synthetic levels, no audio"
+        },
+        {
+          "check": "Mixer disconnect shows NO MIXER + offline note; reconnect shows CONNECTED",
+          "status": "VERIFIED PASS",
+          "actual": "off='NO MIXER' note=True on='CONNECTED'",
+          "evidence": [
+            "C:\\Users\\Administrator\\AppData\\Local\\Temp\\claude\\d4caf651d3ff5768\\a53c143a-65da-49ed-ae52-44eaf0182737\\scratchpad\\phase2\\evidence\\desktop\\REG_offline.png"
+          ]
+        },
+        {
+          "check": "Host PC unreachable shows NO HOST PC; recovers when reachable",
+          "status": "VERIFIED PASS",
+          "actual": "blocked='NO HOST PC', restored='CONNECTED'",
+          "note": "SSE already open is not cut by route(); the 5 s session poll is"
+        },
+        {
+          "check": "Gain and +48V POSTed directly are refused by the hub (403) and send no MIDI",
+          "status": "VERIFIED PASS",
+          "actual": "HTTP [403, 403]"
+        },
+        {
+          "check": "Strip MUTE fully reachable on the Mix page",
+          "status": "VERIFIED PASS",
+          "actual": "stage {'sh': 664, 'ch': 622, 'oy': 'auto', 'muteBottom': 775, 'vh': 768}; after scroll fully visible=True",
+          "evidence": [
+            "C:\\Users\\Administrator\\AppData\\Local\\Temp\\claude\\d4caf651d3ff5768\\a53c143a-65da-49ed-ae52-44eaf0182737\\scratchpad\\phase2\\evidence\\desktop\\REG_mute_reach.png"
+          ]
+        },
+        {
+          "check": "Page mix renders without horizontal overflow",
+          "status": "VERIFIED PASS",
+          "actual": "scrollWidth=1366 clientWidth=1366",
+          "evidence": [
+            "C:\\Users\\Administrator\\AppData\\Local\\Temp\\claude\\d4caf651d3ff5768\\a53c143a-65da-49ed-ae52-44eaf0182737\\scratchpad\\phase2\\evidence\\desktop\\PAGE_mix.png"
+          ]
+        },
+        {
+          "check": "Page fx renders without horizontal overflow",
+          "status": "VERIFIED PASS",
+          "actual": "scrollWidth=1366 clientWidth=1366",
+          "evidence": [
+            "C:\\Users\\Administrator\\AppData\\Local\\Temp\\claude\\d4caf651d3ff5768\\a53c143a-65da-49ed-ae52-44eaf0182737\\scratchpad\\phase2\\evidence\\desktop\\PAGE_fx.png"
+          ]
+        },
+        {
+          "check": "Page stage renders without horizontal overflow",
+          "status": "VERIFIED PASS",
+          "actual": "scrollWidth=1366 clientWidth=1366",
+          "evidence": [
+            "C:\\Users\\Administrator\\AppData\\Local\\Temp\\claude\\d4caf651d3ff5768\\a53c143a-65da-49ed-ae52-44eaf0182737\\scratchpad\\phase2\\evidence\\desktop\\PAGE_stage.png"
+          ]
+        },
+        {
+          "check": "Page show renders without horizontal overflow",
+          "status": "VERIFIED PASS",
+          "actual": "scrollWidth=1366 clientWidth=1366",
+          "evidence": [
+            "C:\\Users\\Administrator\\AppData\\Local\\Temp\\claude\\d4caf651d3ff5768\\a53c143a-65da-49ed-ae52-44eaf0182737\\scratchpad\\phase2\\evidence\\desktop\\PAGE_show.png"
+          ]
+        },
+        {
+          "check": "Page output renders without horizontal overflow",
+          "status": "VERIFIED PASS",
+          "actual": "scrollWidth=1366 clientWidth=1366",
+          "evidence": [
+            "C:\\Users\\Administrator\\AppData\\Local\\Temp\\claude\\d4caf651d3ff5768\\a53c143a-65da-49ed-ae52-44eaf0182737\\scratchpad\\phase2\\evidence\\desktop\\PAGE_output.png"
+          ]
+        },
+        {
+          "check": "Page safety renders without horizontal overflow",
+          "status": "VERIFIED PASS",
+          "actual": "scrollWidth=1366 clientWidth=1366",
+          "evidence": [
+            "C:\\Users\\Administrator\\AppData\\Local\\Temp\\claude\\d4caf651d3ff5768\\a53c143a-65da-49ed-ae52-44eaf0182737\\scratchpad\\phase2\\evidence\\desktop\\PAGE_safety.png"
+          ]
+        },
+        {
+          "check": "Secondary page sends renders without horizontal overflow",
+          "status": "VERIFIED PASS",
+          "actual": "scrollWidth=1366 clientWidth=1366",
+          "evidence": [
+            "C:\\Users\\Administrator\\AppData\\Local\\Temp\\claude\\d4caf651d3ff5768\\a53c143a-65da-49ed-ae52-44eaf0182737\\scratchpad\\phase2\\evidence\\desktop\\PAGE_sends.png"
+          ]
+        },
+        {
+          "check": "Secondary page channel renders without horizontal overflow",
+          "status": "VERIFIED PASS",
+          "actual": "scrollWidth=1366 clientWidth=1366",
+          "evidence": [
+            "C:\\Users\\Administrator\\AppData\\Local\\Temp\\claude\\d4caf651d3ff5768\\a53c143a-65da-49ed-ae52-44eaf0182737\\scratchpad\\phase2\\evidence\\desktop\\PAGE_channel.png"
+          ]
+        }
+      ],
+      "sTests": [
+        {
+          "id": "S1",
+          "viewport": "desktop",
+          "title": "Range slider (LOW CUT) dragged while the page re-renders",
+          "status": "VERIFIED PASS",
+          "expected": "setLowCut sent on release in all three drags",
+          "actual": "plain drag sent 1; drag with other-client re-render sent 1; drag held 6 s (5 s reload) sent 1; slider now shows 72",
+          "evidence": [
+            "C:\\Users\\Administrator\\AppData\\Local\\Temp\\claude\\d4caf651d3ff5768\\a53c143a-65da-49ed-ae52-44eaf0182737\\scratchpad\\phase2\\evidence\\desktop\\S1_mid_drag_after_rerender.png"
+          ],
+          "payloads": {
+            "control": [
+              {
+                "t": 39599.21,
+                "msg": {
+                  "action": "setLowCut",
+                  "channel": 1,
+                  "value": 84,
+                  "unit": "raw"
+                },
+                "code": 200,
+                "ok": true,
+                "error": null,
+                "midi": [
+                  {
+                    "kind": "CC",
+                    "ch": 1,
+                    "d1": 9,
+                    "d2": 84
+                  }
+                ]
+              }
+            ],
+            "otherClient": [
+              {
+                "t": 39600.179,
+                "msg": {
+                  "action": "setLowCut",
+                  "channel": 1,
+                  "value": 57,
+                  "unit": "raw"
+                },
+                "code": 200,
+                "ok": true,
+                "error": null,
+                "midi": [
+                  {
+                    "kind": "CC",
+                    "ch": 1,
+                    "d1": 9,
+                    "d2": 57
+                  }
+                ]
+              }
+            ],
+            "periodic": [
+              {
+                "t": 39606.214,
+                "msg": {
+                  "action": "setLowCut",
+                  "channel": 1,
+                  "value": 72,
+                  "unit": "raw"
+                },
+                "code": 200,
+                "ok": true,
+                "error": null,
+                "midi": [
+                  {
+                    "kind": "CC",
+                    "ch": 1,
+                    "d1": 9,
+                    "d2": 72
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "id": "S2",
+          "viewport": "desktop",
+          "title": "Cue name being typed survives a re-render",
+          "status": "VERIFIED FAIL",
+          "expected": "the typed text stays",
+          "actual": "after other-client event: ''; after 5.6 s idle: ''",
+          "evidence": [
+            "C:\\Users\\Administrator\\AppData\\Local\\Temp\\claude\\d4caf651d3ff5768\\a53c143a-65da-49ed-ae52-44eaf0182737\\scratchpad\\phase2\\evidence\\desktop\\S2_cue_name_after_reload.png"
+          ]
+        },
+        {
+          "id": "S3",
+          "viewport": "desktop",
+          "title": "Group-name input keeps focus across a re-render",
+          "status": "VERIFIED FAIL",
+          "expected": "focus stays in the name field",
+          "actual": "focus before: 'grp-name', after: ''; field value after: 'GROUP AX'",
+          "evidence": [
+            "C:\\Users\\Administrator\\AppData\\Local\\Temp\\claude\\d4caf651d3ff5768\\a53c143a-65da-49ed-ae52-44eaf0182737\\scratchpad\\phase2\\evidence\\desktop\\S3_group_name_focus.png"
+          ]
+        },
+        {
+          "id": "S4",
+          "viewport": "desktop",
+          "title": "Mute group state: persistence, sharing, hub rejection",
+          "status": "VERIFIED FAIL",
+          "expected": "group state matches the mixer: survives reload, rejected mutes do not leave the group ON",
+          "actual": "tap A sent [('beginGesture', None, 200), ('setMute', 1, 200), ('setMute', 2, 200), ('endGesture', None, 200)]; A pressed=true; after reload A pressed=false; ch1.mute in store={'param_id': 'ch1.mute', 'channel_index': 1, 'parameter_name': 'mute', 'commanded_value': True, 'observed_value': None, 'sync_status': 'PENDING_DISPATCH', 'source': 'LOCAL_HOST', 'timestamp': 1795793100.3312385, 'verification_level': 'UNKNOWN', 'raw_midi_value': 127, 'unit': 'bool', 'commanded_raw_midi': 127, 'observed_raw_midi': None, 'provenance': 'COMMANDED'}; tap B while hub down -> [('beginGesture', 200), ('setMute', 503), ('endGesture', 200)]; B pressed=true; after reconnect B pressed=true -> state lost on reload; group B shows ON although every mute was rejected",
+          "evidence": [
+            "C:\\Users\\Administrator\\AppData\\Local\\Temp\\claude\\d4caf651d3ff5768\\a53c143a-65da-49ed-ae52-44eaf0182737\\scratchpad\\phase2\\evidence\\desktop\\S4_group_B_after_rejection.png",
+            "C:\\Users\\Administrator\\AppData\\Local\\Temp\\claude\\d4caf651d3ff5768\\a53c143a-65da-49ed-ae52-44eaf0182737\\scratchpad\\phase2\\evidence\\desktop\\S4_group_B_after_reconnect.png"
+          ]
+        },
+        {
+          "id": "S5",
+          "viewport": "desktop",
+          "title": "GEQ band operable from the keyboard",
+          "status": "VERIFIED FAIL",
+          "expected": "ArrowUp on a focused GEQ band (role=slider) sends setBusGeq, as the EQ nodes do",
+          "actual": "GEQ role='slider', 3x ArrowUp sent 0 setBusGeq; control EQ node ArrowUp sent 1 setEqBand",
+          "evidence": [
+            "C:\\Users\\Administrator\\AppData\\Local\\Temp\\claude\\d4caf651d3ff5768\\a53c143a-65da-49ed-ae52-44eaf0182737\\scratchpad\\phase2\\evidence\\desktop\\S5_eq_keyboard_control.png"
+          ]
+        },
+        {
+          "id": "S6",
+          "viewport": "desktop",
+          "title": "SAVE CURRENT MIX while the device is LOCKED",
+          "status": "VERIFIED FAIL",
+          "expected": "LOCK blocks every control on the device, including saving a cue",
+          "actual": "lock aria-pressed=true; librarySave sent 1 (code [200]); control fader drag while locked sent 0",
+          "evidence": [
+            "C:\\Users\\Administrator\\AppData\\Local\\Temp\\claude\\d4caf651d3ff5768\\a53c143a-65da-49ed-ae52-44eaf0182737\\scratchpad\\phase2\\evidence\\desktop\\S6_save_while_locked.png"
+          ]
+        },
+        {
+          "id": "S7",
+          "viewport": "desktop",
+          "title": "Strip MUTE while the mixer is not connected",
+          "status": "VERIFIED FAIL",
+          "expected": "like every other control, MUTE sends nothing while the UI shows NO MIXER",
+          "actual": "link='NO MIXER'; MUTE sent [('setMute', 503)] with 0 MIDI messages; toast='Mixer control transport is not connected/authenticated. The command was not sent.'; control fader drag sent 0",
+          "evidence": [
+            "C:\\Users\\Administrator\\AppData\\Local\\Temp\\claude\\d4caf651d3ff5768\\a53c143a-65da-49ed-ae52-44eaf0182737\\scratchpad\\phase2\\evidence\\desktop\\S7_mute_while_no_mixer.png"
+          ],
+          "severity_note": "hub rejects with 503 and no MIDI leaves; impact is a confusing error toast"
+        },
+        {
+          "id": "S8",
+          "viewport": "desktop",
+          "title": "LOCK survives a page reload",
+          "status": "VERIFIED FAIL",
+          "expected": "a locked device stays locked after reload",
+          "actual": "before reload aria-pressed=true; after reload=false",
+          "evidence": [
+            "C:\\Users\\Administrator\\AppData\\Local\\Temp\\claude\\d4caf651d3ff5768\\a53c143a-65da-49ed-ae52-44eaf0182737\\scratchpad\\phase2\\evidence\\desktop\\S8_lock_after_reload.png"
+          ]
+        },
+        {
+          "id": "S9",
+          "viewport": "desktop",
+          "title": "Browser Back after changing page",
+          "status": "VERIFIED FAIL",
+          "expected": "Back returns to the previous console page",
+          "actual": "URL after Back: 'about:blank'",
+          "evidence": []
+        }
+      ],
+      "console": [
+        {
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+        },
+        {
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+        },
+        {
+          "type": "error",
+          "text": "Failed to load resource: net::ERR_FAILED"
+        }
+      ],
+      "pageErrors": [],
+      "requestFailed": [
+        {
+          "url": "http://127.0.0.1:60171/api/events?clientId=vwwwl7eafto",
+          "err": "net::ERR_ABORTED"
+        },
+        {
+          "url": "http://127.0.0.1:60171/api/events?clientId=hwqj7vv2yrk",
+          "err": "net::ERR_ABORTED"
+        },
+        {
+          "url": "http://127.0.0.1:60171/api/events?clientId=s6uvcpvhg2",
+          "err": "net::ERR_ABORTED"
+        },
+        {
+          "url": "http://127.0.0.1:60171/api/events?clientId=71uu0654uee",
+          "err": "net::ERR_ABORTED"
+        },
+        {
+          "url": "http://127.0.0.1:60171/api/events?clientId=hz6d0r0x6y4",
+          "err": "net::ERR_ABORTED"
+        },
+        {
+          "url": "http://127.0.0.1:60171/api/events?clientId=0p2o0p28hb6",
+          "err": "net::ERR_ABORTED"
+        },
+        {
+          "url": "http://127.0.0.1:60171/api/events?clientId=66qa9hcnlmg",
+          "err": "net::ERR_ABORTED"
+        },
+        {
+          "url": "http://127.0.0.1:60171/api/events?clientId=hwrfx1n6ho5",
+          "err": "net::ERR_ABORTED"
+        },
+        {
+          "url": "http://127.0.0.1:60171/api/session",
+          "err": "net::ERR_FAILED"
+        }
+      ],
+      "httpErrors": [
+        {
+          "url": "/api/action",
+          "status": 503,
+          "method": "POST",
+          "body": "{\"action\":\"setMute\",\"channel\":3,\"value\":true,\"clientId\":\"hz6d0r0x6y4\"}"
+        },
+        {
+          "url": "/api/action",
+          "status": 503,
+          "method": "POST",
+          "body": "{\"action\":\"setMute\",\"channel\":1,\"value\":false,\"clientId\":\"hz6d0r0x6y4\"}"
+        }
+      ],
+      "requests": {
+        "total": 288,
+        "byMethod": {
+          "POST": 142,
+          "GET": 146
+        }
+      },
+      "hubLog": [
+        {
+          "t": 39599.21,
+          "msg": {
+            "action": "setLowCut",
+            "channel": 1,
+            "value": 84,
+            "unit": "raw"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 9,
+              "d2": 84
+            }
+          ]
+        },
+        {
+          "t": 39600.179,
+          "msg": {
+            "action": "setLowCut",
+            "channel": 1,
+            "value": 57,
+            "unit": "raw"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 9,
+              "d2": 57
+            }
+          ]
+        },
+        {
+          "t": 39606.214,
+          "msg": {
+            "action": "setLowCut",
+            "channel": 1,
+            "value": 72,
+            "unit": "raw"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 9,
+              "d2": 72
+            }
+          ]
+        },
+        {
+          "t": 39618.057,
+          "msg": {
+            "action": "beginGesture"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": []
+        },
+        {
+          "t": 39618.066,
+          "msg": {
+            "action": "setMute",
+            "channel": 1,
+            "value": true
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 5,
+              "d2": 127
+            }
+          ]
+        },
+        {
+          "t": 39618.072,
+          "msg": {
+            "action": "setMute",
+            "channel": 2,
+            "value": true
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 2,
+              "d1": 5,
+              "d2": 127
+            }
+          ]
+        },
+        {
+          "t": 39618.08,
+          "msg": {
+            "action": "endGesture"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": []
+        },
+        {
+          "t": 39621.558,
+          "msg": {
+            "action": "beginGesture"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": []
+        },
+        {
+          "t": 39621.569,
+          "msg": {
+            "action": "setMute",
+            "channel": 3,
+            "value": true
+          },
+          "code": 503,
+          "ok": false,
+          "error": "Mixer control transport is not connected/authenticated. The command was not sent.",
+          "midi": []
+        },
+        {
+          "t": 39621.573,
+          "msg": {
+            "action": "endGesture"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": []
+        },
+        {
+          "t": 39624.939,
+          "msg": {
+            "action": "setEqBand",
+            "channel": 1,
+            "band": "low",
+            "value": 66,
+            "unit": "raw"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 1,
+              "d2": 66
+            }
+          ]
+        },
+        {
+          "t": 39627.167,
+          "msg": {
+            "action": "librarySave",
+            "name": "Locked save"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": []
+        },
+        {
+          "t": 39630.908,
+          "msg": {
+            "action": "setActiveBus",
+            "bus": "main"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": []
+        },
+        {
+          "t": 39631.781,
+          "msg": {
+            "action": "setMute",
+            "channel": 1,
+            "value": false
+          },
+          "code": 503,
+          "ok": false,
+          "error": "Mixer control transport is not connected/authenticated. The command was not sent.",
+          "midi": []
+        },
+        {
+          "t": 39638.111,
+          "msg": {
+            "action": "setActiveBus",
+            "bus": "main"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": []
+        },
+        {
+          "t": 39638.409,
+          "msg": {
+            "action": "beginGesture"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": []
+        },
+        {
+          "t": 39638.497,
+          "msg": {
+            "action": "setFader",
+            "channel": 1,
+            "value": 9
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 7,
+              "d2": 9
+            }
+          ]
+        },
+        {
+          "t": 39638.592,
+          "msg": {
+            "action": "setFader",
+            "channel": 1,
+            "value": 17
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 7,
+              "d2": 17
+            }
+          ]
+        },
+        {
+          "t": 39638.688,
+          "msg": {
+            "action": "setFader",
+            "channel": 1,
+            "value": 26
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 7,
+              "d2": 26
+            }
+          ]
+        },
+        {
+          "t": 39638.799,
+          "msg": {
+            "action": "setFader",
+            "channel": 1,
+            "value": 34
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 7,
+              "d2": 34
+            }
+          ]
+        },
+        {
+          "t": 39638.894,
+          "msg": {
+            "action": "setFader",
+            "channel": 1,
+            "value": 43
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 7,
+              "d2": 43
+            }
+          ]
+        },
+        {
+          "t": 39638.991,
+          "msg": {
+            "action": "setFader",
+            "channel": 1,
+            "value": 51
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 7,
+              "d2": 51
+            }
+          ]
+        },
+        {
+          "t": 39639.095,
+          "msg": {
+            "action": "setFader",
+            "channel": 1,
+            "value": 60
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 7,
+              "d2": 60
+            }
+          ]
+        },
+        {
+          "t": 39639.198,
+          "msg": {
+            "action": "setFader",
+            "channel": 1,
+            "value": 64
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 7,
+              "d2": 64
+            }
+          ]
+        },
+        {
+          "t": 39639.247,
+          "msg": {
+            "action": "setFader",
+            "channel": 1,
+            "value": 68
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 7,
+              "d2": 68
+            }
+          ]
+        },
+        {
+          "t": 39639.252,
+          "msg": {
+            "action": "endGesture"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": []
+        },
+        {
+          "t": 39640.094,
+          "msg": {
+            "action": "setMute",
+            "channel": 2,
+            "value": false
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 2,
+              "d1": 5,
+              "d2": 0
+            }
+          ]
+        },
+        {
+          "t": 39640.492,
+          "msg": {
+            "action": "beginGesture"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": []
+        },
+        {
+          "t": 39640.606,
+          "msg": {
+            "action": "setFader",
+            "channel": 8,
+            "value": 10
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 8,
+              "d1": 7,
+              "d2": 10
+            }
+          ]
+        },
+        {
+          "t": 39640.71,
+          "msg": {
+            "action": "setFader",
+            "channel": 8,
+            "value": 15
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 8,
+              "d1": 7,
+              "d2": 15
+            }
+          ]
+        },
+        {
+          "t": 39640.779,
+          "msg": {
+            "action": "setFader",
+            "channel": 8,
+            "value": 24
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 8,
+              "d1": 7,
+              "d2": 24
+            }
+          ]
+        },
+        {
+          "t": 39640.876,
+          "msg": {
+            "action": "setFader",
+            "channel": 8,
+            "value": 34
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 8,
+              "d1": 7,
+              "d2": 34
+            }
+          ]
+        },
+        {
+          "t": 39640.971,
+          "msg": {
+            "action": "setFader",
+            "channel": 8,
+            "value": 44
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 8,
+              "d1": 7,
+              "d2": 44
+            }
+          ]
+        },
+        {
+          "t": 39641.073,
+          "msg": {
+            "action": "setFader",
+            "channel": 8,
+            "value": 53
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 8,
+              "d1": 7,
+              "d2": 53
+            }
+          ]
+        },
+        {
+          "t": 39641.184,
+          "msg": {
+            "action": "setFader",
+            "channel": 8,
+            "value": 63
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 8,
+              "d1": 7,
+              "d2": 63
+            }
+          ]
+        },
+        {
+          "t": 39641.278,
+          "msg": {
+            "action": "setFader",
+            "channel": 8,
+            "value": 73
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 8,
+              "d1": 7,
+              "d2": 73
+            }
+          ]
+        },
+        {
+          "t": 39641.343,
+          "msg": {
+            "action": "setFader",
+            "channel": 8,
+            "value": 77
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 8,
+              "d1": 7,
+              "d2": 77
+            }
+          ]
+        },
+        {
+          "t": 39641.346,
+          "msg": {
+            "action": "endGesture"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": []
+        },
+        {
+          "t": 39642.372,
+          "msg": {
+            "action": "beginGesture"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": []
+        },
+        {
+          "t": 39642.466,
+          "msg": {
+            "action": "setEqBand",
+            "channel": 1,
+            "band": "low",
+            "value": 72,
+            "unit": "raw"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 1,
+              "d2": 72
+            }
+          ]
+        },
+        {
+          "t": 39642.555,
+          "msg": {
+            "action": "setEqBand",
+            "channel": 1,
+            "band": "low",
+            "value": 77,
+            "unit": "raw"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 1,
+              "d2": 77
+            }
+          ]
+        },
+        {
+          "t": 39642.656,
+          "msg": {
+            "action": "setEqBand",
+            "channel": 1,
+            "band": "low",
+            "value": 83,
+            "unit": "raw"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 1,
+              "d2": 83
+            }
+          ]
+        },
+        {
+          "t": 39642.757,
+          "msg": {
+            "action": "setEqBand",
+            "channel": 1,
+            "band": "low",
+            "value": 89,
+            "unit": "raw"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 1,
+              "d2": 89
+            }
+          ]
+        },
+        {
+          "t": 39642.869,
+          "msg": {
+            "action": "setEqBand",
+            "channel": 1,
+            "band": "low",
+            "value": 93,
+            "unit": "raw"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 1,
+              "d2": 93
+            }
+          ]
+        },
+        {
+          "t": 39642.954,
+          "msg": {
+            "action": "setEqBand",
+            "channel": 1,
+            "band": "low",
+            "value": 100,
+            "unit": "raw"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 1,
+              "d2": 100
+            }
+          ]
+        },
+        {
+          "t": 39643.055,
+          "msg": {
+            "action": "setEqBand",
+            "channel": 1,
+            "band": "low",
+            "value": 104,
+            "unit": "raw"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 1,
+              "d2": 104
+            }
+          ]
+        },
+        {
+          "t": 39643.165,
+          "msg": {
+            "action": "setEqBand",
+            "channel": 1,
+            "band": "low",
+            "value": 110,
+            "unit": "raw"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 1,
+              "d2": 110
+            }
+          ]
+        },
+        {
+          "t": 39643.183,
+          "msg": {
+            "action": "setEqBand",
+            "channel": 1,
+            "band": "low",
+            "value": 110,
+            "unit": "raw"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 1,
+              "d2": 110
+            }
+          ]
+        },
+        {
+          "t": 39643.187,
+          "msg": {
+            "action": "endGesture"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": []
+        },
+        {
+          "t": 39644.174,
+          "msg": {
+            "action": "resetEqFlat",
+            "channel": 1
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 1,
+              "d2": 64
+            },
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 2,
+              "d2": 64
+            },
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 3,
+              "d2": 64
+            },
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 4,
+              "d2": 64
+            }
+          ]
+        },
+        {
+          "t": 39644.86,
+          "msg": {
+            "action": "beginGesture"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": []
+        },
+        {
+          "t": 39644.973,
+          "msg": {
+            "action": "setSend",
+            "channel": 1,
+            "target": "mon1",
+            "value": 2,
+            "unit": "raw"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 14,
+              "d2": 2
+            }
+          ]
+        },
+        {
+          "t": 39645.066,
+          "msg": {
+            "action": "setSend",
+            "channel": 1,
+            "target": "mon1",
+            "value": 3,
+            "unit": "raw"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 14,
+              "d2": 3
+            }
+          ]
+        },
+        {
+          "t": 39645.33,
+          "msg": {
+            "action": "setSend",
+            "channel": 1,
+            "target": "mon1",
+            "value": 4,
+            "unit": "raw"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 14,
+              "d2": 4
+            }
+          ]
+        },
+        {
+          "t": 39645.398,
+          "msg": {
+            "action": "setSend",
+            "channel": 1,
+            "target": "mon1",
+            "value": 5,
+            "unit": "raw"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 14,
+              "d2": 5
+            }
+          ]
+        },
+        {
+          "t": 39645.494,
+          "msg": {
+            "action": "setSend",
+            "channel": 1,
+            "target": "mon1",
+            "value": 7,
+            "unit": "raw"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 14,
+              "d2": 7
+            }
+          ]
+        },
+        {
+          "t": 39645.588,
+          "msg": {
+            "action": "setSend",
+            "channel": 1,
+            "target": "mon1",
+            "value": 8,
+            "unit": "raw"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 14,
+              "d2": 8
+            }
+          ]
+        },
+        {
+          "t": 39645.681,
+          "msg": {
+            "action": "setSend",
+            "channel": 1,
+            "target": "mon1",
+            "value": 10,
+            "unit": "raw"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 14,
+              "d2": 10
+            }
+          ]
+        },
+        {
+          "t": 39645.79,
+          "msg": {
+            "action": "setSend",
+            "channel": 1,
+            "target": "mon1",
+            "value": 11,
+            "unit": "raw"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 14,
+              "d2": 11
+            }
+          ]
+        },
+        {
+          "t": 39645.844,
+          "msg": {
+            "action": "setSend",
+            "channel": 1,
+            "target": "mon1",
+            "value": 12,
+            "unit": "raw"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 14,
+              "d2": 12
+            }
+          ]
+        },
+        {
+          "t": 39645.848,
+          "msg": {
+            "action": "endGesture"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": []
+        },
+        {
+          "t": 39646.64,
+          "msg": {
+            "action": "setActiveBus",
+            "bus": "mon1"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": []
+        },
+        {
+          "t": 39646.962,
+          "msg": {
+            "action": "beginGesture"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": []
+        },
+        {
+          "t": 39647.046,
+          "msg": {
+            "action": "setBusFader",
+            "bus": "mon1",
+            "value": 8
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 9,
+              "d1": 7,
+              "d2": 8
+            }
+          ]
+        },
+        {
+          "t": 39647.145,
+          "msg": {
+            "action": "setBusFader",
+            "bus": "mon1",
+            "value": 15
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 9,
+              "d1": 7,
+              "d2": 15
+            }
+          ]
+        },
+        {
+          "t": 39647.25,
+          "msg": {
+            "action": "setBusFader",
+            "bus": "mon1",
+            "value": 23
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 9,
+              "d1": 7,
+              "d2": 23
+            }
+          ]
+        },
+        {
+          "t": 39647.341,
+          "msg": {
+            "action": "setBusFader",
+            "bus": "mon1",
+            "value": 31
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 9,
+              "d1": 7,
+              "d2": 31
+            }
+          ]
+        },
+        {
+          "t": 39647.44,
+          "msg": {
+            "action": "setBusFader",
+            "bus": "mon1",
+            "value": 39
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 9,
+              "d1": 7,
+              "d2": 39
+            }
+          ]
+        },
+        {
+          "t": 39647.547,
+          "msg": {
+            "action": "setBusFader",
+            "bus": "mon1",
+            "value": 46
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 9,
+              "d1": 7,
+              "d2": 46
+            }
+          ]
+        },
+        {
+          "t": 39647.637,
+          "msg": {
+            "action": "setBusFader",
+            "bus": "mon1",
+            "value": 54
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 9,
+              "d1": 7,
+              "d2": 54
+            }
+          ]
+        },
+        {
+          "t": 39647.755,
+          "msg": {
+            "action": "setBusFader",
+            "bus": "mon1",
+            "value": 62
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 9,
+              "d1": 7,
+              "d2": 62
+            }
+          ]
+        },
+        {
+          "t": 39647.757,
+          "msg": {
+            "action": "setBusFader",
+            "bus": "mon1",
+            "value": 62
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 9,
+              "d1": 7,
+              "d2": 62
+            }
+          ]
+        },
+        {
+          "t": 39647.761,
+          "msg": {
+            "action": "endGesture"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": []
+        },
+        {
+          "t": 39648.731,
+          "msg": {
+            "action": "beginGesture"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": []
+        },
+        {
+          "t": 39648.809,
+          "msg": {
+            "action": "setSend",
+            "channel": 1,
+            "target": "mon1",
+            "value": 17,
+            "unit": "raw"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 14,
+              "d2": 17
+            }
+          ]
+        },
+        {
+          "t": 39648.932,
+          "msg": {
+            "action": "setSend",
+            "channel": 1,
+            "target": "mon1",
+            "value": 22,
+            "unit": "raw"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 14,
+              "d2": 22
+            }
+          ]
+        },
+        {
+          "t": 39649.022,
+          "msg": {
+            "action": "setSend",
+            "channel": 1,
+            "target": "mon1",
+            "value": 27,
+            "unit": "raw"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 14,
+              "d2": 27
+            }
+          ]
+        },
+        {
+          "t": 39649.125,
+          "msg": {
+            "action": "setSend",
+            "channel": 1,
+            "target": "mon1",
+            "value": 32,
+            "unit": "raw"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 14,
+              "d2": 32
+            }
+          ]
+        },
+        {
+          "t": 39649.235,
+          "msg": {
+            "action": "setSend",
+            "channel": 1,
+            "target": "mon1",
+            "value": 37,
+            "unit": "raw"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 14,
+              "d2": 37
+            }
+          ]
+        },
+        {
+          "t": 39649.33,
+          "msg": {
+            "action": "setSend",
+            "channel": 1,
+            "target": "mon1",
+            "value": 42,
+            "unit": "raw"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 14,
+              "d2": 42
+            }
+          ]
+        },
+        {
+          "t": 39649.425,
+          "msg": {
+            "action": "setSend",
+            "channel": 1,
+            "target": "mon1",
+            "value": 47,
+            "unit": "raw"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 14,
+              "d2": 47
+            }
+          ]
+        },
+        {
+          "t": 39649.522,
+          "msg": {
+            "action": "setSend",
+            "channel": 1,
+            "target": "mon1",
+            "value": 52,
+            "unit": "raw"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 14,
+              "d2": 52
+            }
+          ]
+        },
+        {
+          "t": 39649.538,
+          "msg": {
+            "action": "setSend",
+            "channel": 1,
+            "target": "mon1",
+            "value": 52,
+            "unit": "raw"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 14,
+              "d2": 52
+            }
+          ]
+        },
+        {
+          "t": 39649.542,
+          "msg": {
+            "action": "endGesture"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": []
+        },
+        {
+          "t": 39650.325,
+          "msg": {
+            "action": "setActiveBus",
+            "bus": "main"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": []
+        },
+        {
+          "t": 39650.806,
+          "msg": {
+            "action": "setLowCut",
+            "channel": 1,
+            "value": 73,
+            "unit": "raw"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 9,
+              "d2": 73
+            }
+          ]
+        },
+        {
+          "t": 39651.434,
+          "msg": {
+            "action": "setCompressor",
+            "channel": 1,
+            "value": 1,
+            "unit": "raw"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 11,
+              "d2": 1
+            }
+          ]
+        },
+        {
+          "t": 39652.093,
+          "msg": {
+            "action": "beginGesture"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": []
+        },
+        {
+          "t": 39652.174,
+          "msg": {
+            "action": "setBusGeq",
+            "bus": "main",
+            "band": 1,
+            "value": 68
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 8,
+              "d1": 11,
+              "d2": 68
+            }
+          ]
+        },
+        {
+          "t": 39652.375,
+          "msg": {
+            "action": "setBusGeq",
+            "bus": "main",
+            "band": 1,
+            "value": 70
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 8,
+              "d1": 11,
+              "d2": 70
+            }
+          ]
+        },
+        {
+          "t": 39652.405,
+          "msg": {
+            "action": "setBusGeq",
+            "bus": "main",
+            "band": 1,
+            "value": 75
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 8,
+              "d1": 11,
+              "d2": 75
+            }
+          ]
+        },
+        {
+          "t": 39652.53,
+          "msg": {
+            "action": "setBusGeq",
+            "bus": "main",
+            "band": 1,
+            "value": 77
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 8,
+              "d1": 11,
+              "d2": 77
+            }
+          ]
+        },
+        {
+          "t": 39652.659,
+          "msg": {
+            "action": "setBusGeq",
+            "bus": "main",
+            "band": 1,
+            "value": 81
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 8,
+              "d1": 11,
+              "d2": 81
+            }
+          ]
+        },
+        {
+          "t": 39652.833,
+          "msg": {
+            "action": "setBusGeq",
+            "bus": "main",
+            "band": 1,
+            "value": 81
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 8,
+              "d1": 11,
+              "d2": 81
+            }
+          ]
+        },
+        {
+          "t": 39652.896,
+          "msg": {
+            "action": "setBusGeq",
+            "bus": "main",
+            "band": 1,
+            "value": 83
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 8,
+              "d1": 11,
+              "d2": 83
+            }
+          ]
+        },
+        {
+          "t": 39652.987,
+          "msg": {
+            "action": "setBusGeq",
+            "bus": "main",
+            "band": 1,
+            "value": 87
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 8,
+              "d1": 11,
+              "d2": 87
+            }
+          ]
+        },
+        {
+          "t": 39653.077,
+          "msg": {
+            "action": "setBusGeq",
+            "bus": "main",
+            "band": 1,
+            "value": 89
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 8,
+              "d1": 11,
+              "d2": 89
+            }
+          ]
+        },
+        {
+          "t": 39653.105,
+          "msg": {
+            "action": "setBusGeq",
+            "bus": "main",
+            "band": 1,
+            "value": 89
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 8,
+              "d1": 11,
+              "d2": 89
+            }
+          ]
+        },
+        {
+          "t": 39653.109,
+          "msg": {
+            "action": "endGesture"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": []
+        },
+        {
+          "t": 39653.881,
+          "msg": {
+            "action": "setBusLimiter",
+            "bus": "main",
+            "value": 126
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 8,
+              "d1": 8,
+              "d2": 126
+            }
+          ]
+        },
+        {
+          "t": 39654.491,
+          "msg": {
+            "action": "beginGesture"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": []
+        },
+        {
+          "t": 39654.586,
+          "msg": {
+            "action": "setBusGeq",
+            "bus": "mon2",
+            "band": 9,
+            "value": 68
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 10,
+              "d1": 19,
+              "d2": 68
+            }
+          ]
+        },
+        {
+          "t": 39654.683,
+          "msg": {
+            "action": "setBusGeq",
+            "bus": "mon2",
+            "band": 9,
+            "value": 70
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 10,
+              "d1": 19,
+              "d2": 70
+            }
+          ]
+        },
+        {
+          "t": 39654.775,
+          "msg": {
+            "action": "setBusGeq",
+            "bus": "mon2",
+            "band": 9,
+            "value": 75
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 10,
+              "d1": 19,
+              "d2": 75
+            }
+          ]
+        },
+        {
+          "t": 39654.886,
+          "msg": {
+            "action": "setBusGeq",
+            "bus": "mon2",
+            "band": 9,
+            "value": 77
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 10,
+              "d1": 19,
+              "d2": 77
+            }
+          ]
+        },
+        {
+          "t": 39654.979,
+          "msg": {
+            "action": "setBusGeq",
+            "bus": "mon2",
+            "band": 9,
+            "value": 81
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 10,
+              "d1": 19,
+              "d2": 81
+            }
+          ]
+        },
+        {
+          "t": 39655.076,
+          "msg": {
+            "action": "setBusGeq",
+            "bus": "mon2",
+            "band": 9,
+            "value": 83
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 10,
+              "d1": 19,
+              "d2": 83
+            }
+          ]
+        },
+        {
+          "t": 39655.187,
+          "msg": {
+            "action": "setBusGeq",
+            "bus": "mon2",
+            "band": 9,
+            "value": 87
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 10,
+              "d1": 19,
+              "d2": 87
+            }
+          ]
+        },
+        {
+          "t": 39655.282,
+          "msg": {
+            "action": "setBusGeq",
+            "bus": "mon2",
+            "band": 9,
+            "value": 89
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 10,
+              "d1": 19,
+              "d2": 89
+            }
+          ]
+        },
+        {
+          "t": 39655.301,
+          "msg": {
+            "action": "setBusGeq",
+            "bus": "mon2",
+            "band": 9,
+            "value": 89
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 10,
+              "d1": 19,
+              "d2": 89
+            }
+          ]
+        },
+        {
+          "t": 39655.31,
+          "msg": {
+            "action": "endGesture"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": []
+        },
+        {
+          "t": 39656.405,
+          "msg": {
+            "action": "setFxPreset",
+            "engine": "fx1",
+            "value": 3
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "PC",
+              "ch": 13,
+              "d1": 3,
+              "d2": 0
+            }
+          ]
+        },
+        {
+          "t": 39656.774,
+          "msg": {
+            "action": "setFxParam",
+            "engine": "fx2",
+            "param": 1,
+            "value": 1
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 14,
+              "d1": 1,
+              "d2": 1
+            }
+          ]
+        },
+        {
+          "t": 39657.155,
+          "msg": {
+            "action": "setFxParam",
+            "engine": "fx1",
+            "param": 2,
+            "value": true
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 13,
+              "d1": 2,
+              "d2": 127
+            }
+          ]
+        },
+        {
+          "t": 39657.836,
+          "msg": {
+            "action": "beginGesture"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": []
+        },
+        {
+          "t": 39657.922,
+          "msg": {
+            "action": "setSend",
+            "channel": 1,
+            "target": "mon1",
+            "value": 54,
+            "unit": "raw"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 14,
+              "d2": 54
+            }
+          ]
+        },
+        {
+          "t": 39658.02,
+          "msg": {
+            "action": "setSend",
+            "channel": 1,
+            "target": "mon1",
+            "value": 56,
+            "unit": "raw"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 14,
+              "d2": 56
+            }
+          ]
+        },
+        {
+          "t": 39658.121,
+          "msg": {
+            "action": "setSend",
+            "channel": 1,
+            "target": "mon1",
+            "value": 58,
+            "unit": "raw"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 14,
+              "d2": 58
+            }
+          ]
+        },
+        {
+          "t": 39658.234,
+          "msg": {
+            "action": "setSend",
+            "channel": 1,
+            "target": "mon1",
+            "value": 60,
+            "unit": "raw"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 14,
+              "d2": 60
+            }
+          ]
+        },
+        {
+          "t": 39658.321,
+          "msg": {
+            "action": "setSend",
+            "channel": 1,
+            "target": "mon1",
+            "value": 62,
+            "unit": "raw"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 14,
+              "d2": 62
+            }
+          ]
+        },
+        {
+          "t": 39658.42,
+          "msg": {
+            "action": "setSend",
+            "channel": 1,
+            "target": "mon1",
+            "value": 64,
+            "unit": "raw"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 14,
+              "d2": 64
+            }
+          ]
+        },
+        {
+          "t": 39658.521,
+          "msg": {
+            "action": "setSend",
+            "channel": 1,
+            "target": "mon1",
+            "value": 66,
+            "unit": "raw"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 14,
+              "d2": 66
+            }
+          ]
+        },
+        {
+          "t": 39658.629,
+          "msg": {
+            "action": "setSend",
+            "channel": 1,
+            "target": "mon1",
+            "value": 68,
+            "unit": "raw"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 14,
+              "d2": 68
+            }
+          ]
+        },
+        {
+          "t": 39658.636,
+          "msg": {
+            "action": "setSend",
+            "channel": 1,
+            "target": "mon1",
+            "value": 68,
+            "unit": "raw"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 14,
+              "d2": 68
+            }
+          ]
+        },
+        {
+          "t": 39658.641,
+          "msg": {
+            "action": "endGesture"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": []
+        },
+        {
+          "t": 39659.409,
+          "msg": {
+            "action": "beginGesture"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": []
+        },
+        {
+          "t": 39659.489,
+          "msg": {
+            "action": "setBusFader",
+            "bus": "mon1",
+            "value": 64
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 9,
+              "d1": 7,
+              "d2": 64
+            }
+          ]
+        },
+        {
+          "t": 39659.59,
+          "msg": {
+            "action": "setBusFader",
+            "bus": "mon1",
+            "value": 66
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 9,
+              "d1": 7,
+              "d2": 66
+            }
+          ]
+        },
+        {
+          "t": 39659.701,
+          "msg": {
+            "action": "setBusFader",
+            "bus": "mon1",
+            "value": 68
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 9,
+              "d1": 7,
+              "d2": 68
+            }
+          ]
+        },
+        {
+          "t": 39659.818,
+          "msg": {
+            "action": "setBusFader",
+            "bus": "mon1",
+            "value": 70
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 9,
+              "d1": 7,
+              "d2": 70
+            }
+          ]
+        },
+        {
+          "t": 39659.932,
+          "msg": {
+            "action": "setBusFader",
+            "bus": "mon1",
+            "value": 72
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 9,
+              "d1": 7,
+              "d2": 72
+            }
+          ]
+        },
+        {
+          "t": 39660.026,
+          "msg": {
+            "action": "setBusFader",
+            "bus": "mon1",
+            "value": 74
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 9,
+              "d1": 7,
+              "d2": 74
+            }
+          ]
+        },
+        {
+          "t": 39660.126,
+          "msg": {
+            "action": "setBusFader",
+            "bus": "mon1",
+            "value": 76
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 9,
+              "d1": 7,
+              "d2": 76
+            }
+          ]
+        },
+        {
+          "t": 39660.235,
+          "msg": {
+            "action": "setBusFader",
+            "bus": "mon1",
+            "value": 78
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 9,
+              "d1": 7,
+              "d2": 78
+            }
+          ]
+        },
+        {
+          "t": 39660.239,
+          "msg": {
+            "action": "setBusFader",
+            "bus": "mon1",
+            "value": 78
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 9,
+              "d1": 7,
+              "d2": 78
+            }
+          ]
+        },
+        {
+          "t": 39660.243,
+          "msg": {
+            "action": "endGesture"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": []
+        },
+        {
+          "t": 39661.915,
+          "msg": {
+            "action": "muteAll",
+            "value": true
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 5,
+              "d2": 127
+            },
+            {
+              "kind": "CC",
+              "ch": 2,
+              "d1": 5,
+              "d2": 127
+            },
+            {
+              "kind": "CC",
+              "ch": 3,
+              "d1": 5,
+              "d2": 127
+            },
+            {
+              "kind": "CC",
+              "ch": 4,
+              "d1": 5,
+              "d2": 127
+            },
+            {
+              "kind": "CC",
+              "ch": 5,
+              "d1": 5,
+              "d2": 127
+            },
+            {
+              "kind": "CC",
+              "ch": 6,
+              "d1": 5,
+              "d2": 127
+            },
+            {
+              "kind": "CC",
+              "ch": 7,
+              "d1": 5,
+              "d2": 127
+            }
+          ]
+        },
+        {
+          "t": 39663.323,
+          "msg": {
+            "action": "muteAll",
+            "value": false
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 5,
+              "d2": 0
+            },
+            {
+              "kind": "CC",
+              "ch": 2,
+              "d1": 5,
+              "d2": 0
+            },
+            {
+              "kind": "CC",
+              "ch": 3,
+              "d1": 5,
+              "d2": 0
+            },
+            {
+              "kind": "CC",
+              "ch": 4,
+              "d1": 5,
+              "d2": 0
+            },
+            {
+              "kind": "CC",
+              "ch": 5,
+              "d1": 5,
+              "d2": 0
+            },
+            {
+              "kind": "CC",
+              "ch": 6,
+              "d1": 5,
+              "d2": 0
+            },
+            {
+              "kind": "CC",
+              "ch": 7,
+              "d1": 5,
+              "d2": 0
+            }
+          ]
+        },
+        {
+          "t": 39664.138,
+          "msg": {
+            "action": "undo"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 7,
+              "d1": 5,
+              "d2": 127
+            },
+            {
+              "kind": "CC",
+              "ch": 6,
+              "d1": 5,
+              "d2": 127
+            },
+            {
+              "kind": "CC",
+              "ch": 5,
+              "d1": 5,
+              "d2": 127
+            },
+            {
+              "kind": "CC",
+              "ch": 4,
+              "d1": 5,
+              "d2": 127
+            },
+            {
+              "kind": "CC",
+              "ch": 3,
+              "d1": 5,
+              "d2": 127
+            },
+            {
+              "kind": "CC",
+              "ch": 2,
+              "d1": 5,
+              "d2": 127
+            },
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 5,
+              "d2": 127
+            }
+          ]
+        },
+        {
+          "t": 39664.54,
+          "msg": {
+            "action": "redo"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 5,
+              "d2": 0
+            },
+            {
+              "kind": "CC",
+              "ch": 2,
+              "d1": 5,
+              "d2": 0
+            },
+            {
+              "kind": "CC",
+              "ch": 3,
+              "d1": 5,
+              "d2": 0
+            },
+            {
+              "kind": "CC",
+              "ch": 4,
+              "d1": 5,
+              "d2": 0
+            },
+            {
+              "kind": "CC",
+              "ch": 5,
+              "d1": 5,
+              "d2": 0
+            },
+            {
+              "kind": "CC",
+              "ch": 6,
+              "d1": 5,
+              "d2": 0
+            },
+            {
+              "kind": "CC",
+              "ch": 7,
+              "d1": 5,
+              "d2": 0
+            }
+          ]
+        },
+        {
+          "t": 39665.538,
+          "msg": {
+            "action": "applyPreset",
+            "channel": 1,
+            "presetId": "speech-mc-handheld"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 1,
+              "d2": 51
+            },
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 2,
+              "d2": 55
+            },
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 3,
+              "d2": 70
+            },
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 4,
+              "d2": 68
+            },
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 9,
+              "d2": 22
+            },
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 11,
+              "d2": 30
+            }
+          ]
+        },
+        {
+          "t": 39666.342,
+          "msg": {
+            "action": "setActiveBus",
+            "bus": "main"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": []
+        },
+        {
+          "t": 39683.23,
+          "msg": {
+            "action": "setGain",
+            "channel": 1,
+            "value": 64
+          },
+          "code": 403,
+          "ok": false,
+          "error": "Preamp gain is blocked by safety policy (SR-05).",
+          "midi": []
+        },
+        {
+          "t": 39683.24,
+          "msg": {
+            "action": "setPhantom",
+            "channel": 1,
+            "value": true
+          },
+          "code": 403,
+          "ok": false,
+          "error": "+48V phantom power requires explicit host confirmation dialog.",
+          "midi": []
+        }
+      ],
+      "fakeDriverCalls": 145
+    },
+    {
+      "viewport": "ipad",
+      "size": {
+        "width": 1024,
+        "height": 768
+      },
+      "payloads": [
+        {
+          "control": "MIX bank fader CH1 (MAIN)",
+          "action": "setFader",
+          "requests": 9,
+          "payload": {
+            "action": "setFader",
+            "channel": 1,
+            "value": 68
+          },
+          "code": 200,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 7,
+              "d2": 68
+            }
+          ],
+          "status": "VERIFIED PASS"
+        },
+        {
+          "control": "MIX strip MUTE CH2",
+          "action": "setMute",
+          "requests": 1,
+          "payload": {
+            "action": "setMute",
+            "channel": 2,
+            "value": false
+          },
+          "code": 200,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 2,
+              "d1": 5,
+              "d2": 0
+            }
+          ],
+          "status": "VERIFIED PASS"
+        },
+        {
+          "control": "MIX master fader MAIN",
+          "action": "setFader",
+          "requests": 9,
+          "payload": {
+            "action": "setFader",
+            "channel": 8,
+            "value": 77
+          },
+          "code": 200,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 8,
+              "d1": 7,
+              "d2": 77
+            }
+          ],
+          "status": "VERIFIED PASS"
+        },
+        {
+          "control": "MIX EQ node LOW CH1",
+          "action": "setEqBand",
+          "requests": 9,
+          "payload": {
+            "action": "setEqBand",
+            "channel": 1,
+            "band": "low",
+            "value": 110,
+            "unit": "raw"
+          },
+          "code": 200,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 1,
+              "d2": 110
+            }
+          ],
+          "status": "VERIFIED PASS"
+        },
+        {
+          "control": "MIX EQ FLAT (two taps)",
+          "action": "resetEqFlat",
+          "requests": 1,
+          "payload": {
+            "action": "resetEqFlat",
+            "channel": 1
+          },
+          "code": 200,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 1,
+              "d2": 64
+            },
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 2,
+              "d2": 64
+            },
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 3,
+              "d2": 64
+            },
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 4,
+              "d2": 64
+            }
+          ],
+          "status": "VERIFIED PASS"
+        },
+        {
+          "control": "MIX MON SEND cell CH1\u2192MON1",
+          "action": "setSend",
+          "requests": 9,
+          "payload": {
+            "action": "setSend",
+            "channel": 1,
+            "target": "mon1",
+            "value": 21,
+            "unit": "raw"
+          },
+          "code": 200,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 14,
+              "d2": 21
+            }
+          ],
+          "status": "VERIFIED PASS"
+        },
+        {
+          "control": "MIX master fader MON1",
+          "action": "setBusFader",
+          "requests": 9,
+          "payload": {
+            "action": "setBusFader",
+            "bus": "mon1",
+            "value": 62
+          },
+          "code": 200,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 9,
+              "d1": 7,
+              "d2": 62
+            }
+          ],
+          "status": "VERIFIED PASS"
+        },
+        {
+          "control": "MIX bank fader CH1 on MON1 (send)",
+          "action": "setSend",
+          "requests": 9,
+          "payload": {
+            "action": "setSend",
+            "channel": 1,
+            "target": "mon1",
+            "value": 61,
+            "unit": "raw"
+          },
+          "code": 200,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 14,
+              "d2": 61
+            }
+          ],
+          "status": "VERIFIED PASS"
+        },
+        {
+          "control": "SOURCE LOW CUT CH1 (keyboard)",
+          "action": "setLowCut",
+          "requests": 1,
+          "payload": {
+            "action": "setLowCut",
+            "channel": 1,
+            "value": 80,
+            "unit": "raw"
+          },
+          "code": 200,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 9,
+              "d2": 80
+            }
+          ],
+          "status": "VERIFIED PASS"
+        },
+        {
+          "control": "COMP CH1 (keyboard)",
+          "action": "setCompressor",
+          "requests": 1,
+          "payload": {
+            "action": "setCompressor",
+            "channel": 1,
+            "value": 1,
+            "unit": "raw"
+          },
+          "code": 200,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 11,
+              "d2": 1
+            }
+          ],
+          "status": "VERIFIED PASS"
+        },
+        {
+          "control": "OUTPUT GEQ band 1 MAIN",
+          "action": "setBusGeq",
+          "requests": 9,
+          "payload": {
+            "action": "setBusGeq",
+            "bus": "main",
+            "band": 1,
+            "value": 89
+          },
+          "code": 200,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 8,
+              "d1": 11,
+              "d2": 89
+            }
+          ],
+          "status": "VERIFIED PASS"
+        },
+        {
+          "control": "OUTPUT LIMITER MAIN (keyboard)",
+          "action": "setBusLimiter",
+          "requests": 1,
+          "payload": {
+            "action": "setBusLimiter",
+            "bus": "main",
+            "value": 126
+          },
+          "code": 200,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 8,
+              "d1": 8,
+              "d2": 126
+            }
+          ],
+          "status": "VERIFIED PASS"
+        },
+        {
+          "control": "OUTPUT GEQ band 9 MON2",
+          "action": "setBusGeq",
+          "requests": 9,
+          "payload": {
+            "action": "setBusGeq",
+            "bus": "mon2",
+            "band": 9,
+            "value": 89
+          },
+          "code": 200,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 10,
+              "d1": 19,
+              "d2": 89
+            }
+          ],
+          "status": "VERIFIED PASS"
+        },
+        {
+          "control": "FX1 preset 3",
+          "action": "setFxPreset",
+          "requests": 1,
+          "payload": {
+            "action": "setFxPreset",
+            "engine": "fx1",
+            "value": 3
+          },
+          "code": 200,
+          "midi": [
+            {
+              "kind": "PC",
+              "ch": 13,
+              "d1": 3,
+              "d2": 0
+            }
+          ],
+          "status": "VERIFIED PASS"
+        },
+        {
+          "control": "FX2 PARAM1 (keyboard)",
+          "action": "setFxParam",
+          "requests": 1,
+          "payload": {
+            "action": "setFxParam",
+            "engine": "fx2",
+            "param": 1,
+            "value": 1
+          },
+          "code": 200,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 14,
+              "d1": 1,
+              "d2": 1
+            }
+          ],
+          "status": "VERIFIED PASS"
+        },
+        {
+          "control": "FX1 VARIANT B",
+          "action": "setFxParam",
+          "requests": 1,
+          "payload": {
+            "action": "setFxParam",
+            "engine": "fx1",
+            "param": 2,
+            "value": true
+          },
+          "code": 200,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 13,
+              "d1": 2,
+              "d2": 127
+            }
+          ],
+          "status": "VERIFIED PASS"
+        },
+        {
+          "control": "MY MON CH1\u2192MON1 strip",
+          "action": "setSend",
+          "requests": 9,
+          "payload": {
+            "action": "setSend",
+            "channel": 1,
+            "target": "mon1",
+            "value": 77,
+            "unit": "raw"
+          },
+          "code": 200,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 14,
+              "d2": 77
+            }
+          ],
+          "status": "VERIFIED PASS"
+        },
+        {
+          "control": "MY MON master MON1",
+          "action": "setBusFader",
+          "requests": 9,
+          "payload": {
+            "action": "setBusFader",
+            "bus": "mon1",
+            "value": 78
+          },
+          "code": 200,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 9,
+              "d1": 7,
+              "d2": 78
+            }
+          ],
+          "status": "VERIFIED PASS"
+        },
+        {
+          "control": "MUTE ALL (hold 0.7 s)",
+          "action": "muteAll",
+          "requests": 1,
+          "payload": {
+            "action": "muteAll",
+            "value": true
+          },
+          "code": 200,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 5,
+              "d2": 127
+            },
+            {
+              "kind": "CC",
+              "ch": 2,
+              "d1": 5,
+              "d2": 127
+            },
+            {
+              "kind": "CC",
+              "ch": 3,
+              "d1": 5,
+              "d2": 127
+            },
+            {
+              "kind": "CC",
+              "ch": 4,
+              "d1": 5,
+              "d2": 127
+            },
+            {
+              "kind": "CC",
+              "ch": 5,
+              "d1": 5,
+              "d2": 127
+            },
+            {
+              "kind": "CC",
+              "ch": 6,
+              "d1": 5,
+              "d2": 127
+            },
+            {
+              "kind": "CC",
+              "ch": 7,
+              "d1": 5,
+              "d2": 127
+            }
+          ],
+          "status": "VERIFIED PASS"
+        },
+        {
+          "control": "MUTE ALL again (unmute)",
+          "action": "muteAll",
+          "requests": 1,
+          "payload": {
+            "action": "muteAll",
+            "value": false
+          },
+          "code": 200,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 5,
+              "d2": 0
+            },
+            {
+              "kind": "CC",
+              "ch": 2,
+              "d1": 5,
+              "d2": 0
+            },
+            {
+              "kind": "CC",
+              "ch": 3,
+              "d1": 5,
+              "d2": 0
+            },
+            {
+              "kind": "CC",
+              "ch": 4,
+              "d1": 5,
+              "d2": 0
+            },
+            {
+              "kind": "CC",
+              "ch": 5,
+              "d1": 5,
+              "d2": 0
+            },
+            {
+              "kind": "CC",
+              "ch": 6,
+              "d1": 5,
+              "d2": 0
+            },
+            {
+              "kind": "CC",
+              "ch": 7,
+              "d1": 5,
+              "d2": 0
+            }
+          ],
+          "status": "VERIFIED PASS"
+        },
+        {
+          "control": "UNDO",
+          "action": "undo",
+          "requests": 1,
+          "payload": {
+            "action": "undo"
+          },
+          "code": 200,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 7,
+              "d1": 5,
+              "d2": 127
+            },
+            {
+              "kind": "CC",
+              "ch": 6,
+              "d1": 5,
+              "d2": 127
+            },
+            {
+              "kind": "CC",
+              "ch": 5,
+              "d1": 5,
+              "d2": 127
+            },
+            {
+              "kind": "CC",
+              "ch": 4,
+              "d1": 5,
+              "d2": 127
+            },
+            {
+              "kind": "CC",
+              "ch": 3,
+              "d1": 5,
+              "d2": 127
+            },
+            {
+              "kind": "CC",
+              "ch": 2,
+              "d1": 5,
+              "d2": 127
+            },
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 5,
+              "d2": 127
+            }
+          ],
+          "status": "VERIFIED PASS"
+        },
+        {
+          "control": "REDO",
+          "action": "redo",
+          "requests": 1,
+          "payload": {
+            "action": "redo"
+          },
+          "code": 200,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 5,
+              "d2": 0
+            },
+            {
+              "kind": "CC",
+              "ch": 2,
+              "d1": 5,
+              "d2": 0
+            },
+            {
+              "kind": "CC",
+              "ch": 3,
+              "d1": 5,
+              "d2": 0
+            },
+            {
+              "kind": "CC",
+              "ch": 4,
+              "d1": 5,
+              "d2": 0
+            },
+            {
+              "kind": "CC",
+              "ch": 5,
+              "d1": 5,
+              "d2": 0
+            },
+            {
+              "kind": "CC",
+              "ch": 6,
+              "d1": 5,
+              "d2": 0
+            },
+            {
+              "kind": "CC",
+              "ch": 7,
+              "d1": 5,
+              "d2": 0
+            }
+          ],
+          "status": "VERIFIED PASS"
+        },
+        {
+          "control": "CHANNEL preset (two taps)",
+          "action": "applyPreset",
+          "requests": 1,
+          "payload": {
+            "action": "applyPreset",
+            "channel": 1,
+            "presetId": "speech-mc-handheld"
+          },
+          "code": 200,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 1,
+              "d2": 51
+            },
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 2,
+              "d2": 55
+            },
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 3,
+              "d2": 70
+            },
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 4,
+              "d2": 68
+            },
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 9,
+              "d2": 22
+            },
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 11,
+              "d2": 30
+            }
+          ],
+          "status": "VERIFIED PASS"
+        }
+      ],
+      "midiSummary": {
+        "midiMessages": 141,
+        "outsideMapOrForbidden": []
+      },
+      "regression": [
+        {
+          "check": "Hardware fader move (ch1 CC7=90) shows as LIV with the new value",
+          "status": "VERIFIED PASS",
+          "actual": "provenance='LIV', readout='-7.6'"
+        },
+        {
+          "check": "Meter shows a frame, then falls to zero 2 s after the feed stops",
+          "status": "VERIFIED PASS",
+          "actual": "--clip live='9.999999999999998%', after 3 s='100%'",
+          "note": "rendering only; synthetic levels, no audio"
+        },
+        {
+          "check": "Mixer disconnect shows NO MIXER + offline note; reconnect shows CONNECTED",
+          "status": "VERIFIED PASS",
+          "actual": "off='NO MIXER' note=True on='CONNECTED'",
+          "evidence": [
+            "C:\\Users\\Administrator\\AppData\\Local\\Temp\\claude\\d4caf651d3ff5768\\a53c143a-65da-49ed-ae52-44eaf0182737\\scratchpad\\phase2\\evidence\\ipad\\REG_offline.png"
+          ]
+        },
+        {
+          "check": "Host PC unreachable shows NO HOST PC; recovers when reachable",
+          "status": "VERIFIED PASS",
+          "actual": "blocked='NO HOST PC', restored='CONNECTED'",
+          "note": "SSE already open is not cut by route(); the 5 s session poll is"
+        },
+        {
+          "check": "Gain and +48V POSTed directly are refused by the hub (403) and send no MIDI",
+          "status": "VERIFIED PASS",
+          "actual": "HTTP [403, 403]"
+        },
+        {
+          "check": "Strip MUTE fully reachable on the Mix page",
+          "status": "VERIFIED PASS",
+          "actual": "stage {'sh': 664, 'ch': 622, 'oy': 'auto', 'muteBottom': 775, 'vh': 768}; after scroll fully visible=True",
+          "evidence": [
+            "C:\\Users\\Administrator\\AppData\\Local\\Temp\\claude\\d4caf651d3ff5768\\a53c143a-65da-49ed-ae52-44eaf0182737\\scratchpad\\phase2\\evidence\\ipad\\REG_mute_reach.png"
+          ]
+        },
+        {
+          "check": "Page mix renders without horizontal overflow",
+          "status": "VERIFIED PASS",
+          "actual": "scrollWidth=1024 clientWidth=1024",
+          "evidence": [
+            "C:\\Users\\Administrator\\AppData\\Local\\Temp\\claude\\d4caf651d3ff5768\\a53c143a-65da-49ed-ae52-44eaf0182737\\scratchpad\\phase2\\evidence\\ipad\\PAGE_mix.png"
+          ]
+        },
+        {
+          "check": "Page fx renders without horizontal overflow",
+          "status": "VERIFIED PASS",
+          "actual": "scrollWidth=1024 clientWidth=1024",
+          "evidence": [
+            "C:\\Users\\Administrator\\AppData\\Local\\Temp\\claude\\d4caf651d3ff5768\\a53c143a-65da-49ed-ae52-44eaf0182737\\scratchpad\\phase2\\evidence\\ipad\\PAGE_fx.png"
+          ]
+        },
+        {
+          "check": "Page stage renders without horizontal overflow",
+          "status": "VERIFIED PASS",
+          "actual": "scrollWidth=1024 clientWidth=1024",
+          "evidence": [
+            "C:\\Users\\Administrator\\AppData\\Local\\Temp\\claude\\d4caf651d3ff5768\\a53c143a-65da-49ed-ae52-44eaf0182737\\scratchpad\\phase2\\evidence\\ipad\\PAGE_stage.png"
+          ]
+        },
+        {
+          "check": "Page show renders without horizontal overflow",
+          "status": "VERIFIED PASS",
+          "actual": "scrollWidth=1024 clientWidth=1024",
+          "evidence": [
+            "C:\\Users\\Administrator\\AppData\\Local\\Temp\\claude\\d4caf651d3ff5768\\a53c143a-65da-49ed-ae52-44eaf0182737\\scratchpad\\phase2\\evidence\\ipad\\PAGE_show.png"
+          ]
+        },
+        {
+          "check": "Page output renders without horizontal overflow",
+          "status": "VERIFIED PASS",
+          "actual": "scrollWidth=1024 clientWidth=1024",
+          "evidence": [
+            "C:\\Users\\Administrator\\AppData\\Local\\Temp\\claude\\d4caf651d3ff5768\\a53c143a-65da-49ed-ae52-44eaf0182737\\scratchpad\\phase2\\evidence\\ipad\\PAGE_output.png"
+          ]
+        },
+        {
+          "check": "Page safety renders without horizontal overflow",
+          "status": "VERIFIED PASS",
+          "actual": "scrollWidth=1024 clientWidth=1024",
+          "evidence": [
+            "C:\\Users\\Administrator\\AppData\\Local\\Temp\\claude\\d4caf651d3ff5768\\a53c143a-65da-49ed-ae52-44eaf0182737\\scratchpad\\phase2\\evidence\\ipad\\PAGE_safety.png"
+          ]
+        },
+        {
+          "check": "Secondary page sends renders without horizontal overflow",
+          "status": "VERIFIED PASS",
+          "actual": "scrollWidth=1024 clientWidth=1024",
+          "evidence": [
+            "C:\\Users\\Administrator\\AppData\\Local\\Temp\\claude\\d4caf651d3ff5768\\a53c143a-65da-49ed-ae52-44eaf0182737\\scratchpad\\phase2\\evidence\\ipad\\PAGE_sends.png"
+          ]
+        },
+        {
+          "check": "Secondary page channel renders without horizontal overflow",
+          "status": "VERIFIED PASS",
+          "actual": "scrollWidth=1024 clientWidth=1024",
+          "evidence": [
+            "C:\\Users\\Administrator\\AppData\\Local\\Temp\\claude\\d4caf651d3ff5768\\a53c143a-65da-49ed-ae52-44eaf0182737\\scratchpad\\phase2\\evidence\\ipad\\PAGE_channel.png"
+          ]
+        }
+      ],
+      "sTests": [
+        {
+          "id": "S1",
+          "viewport": "ipad",
+          "title": "Range slider (LOW CUT) dragged while the page re-renders",
+          "status": "VERIFIED PASS",
+          "expected": "setLowCut sent on release in all three drags",
+          "actual": "plain drag sent 1; drag with other-client re-render sent 1; drag held 6 s (5 s reload) sent 1; slider now shows 79",
+          "evidence": [
+            "C:\\Users\\Administrator\\AppData\\Local\\Temp\\claude\\d4caf651d3ff5768\\a53c143a-65da-49ed-ae52-44eaf0182737\\scratchpad\\phase2\\evidence\\ipad\\S1_mid_drag_after_rerender.png"
+          ],
+          "payloads": {
+            "control": [
+              {
+                "t": 39692.334,
+                "msg": {
+                  "action": "setLowCut",
+                  "channel": 1,
+                  "value": 102,
+                  "unit": "raw"
+                },
+                "code": 200,
+                "ok": true,
+                "error": null,
+                "midi": [
+                  {
+                    "kind": "CC",
+                    "ch": 1,
+                    "d1": 9,
+                    "d2": 102
+                  }
+                ]
+              }
+            ],
+            "otherClient": [
+              {
+                "t": 39693.307,
+                "msg": {
+                  "action": "setLowCut",
+                  "channel": 1,
+                  "value": 51,
+                  "unit": "raw"
+                },
+                "code": 200,
+                "ok": true,
+                "error": null,
+                "midi": [
+                  {
+                    "kind": "CC",
+                    "ch": 1,
+                    "d1": 9,
+                    "d2": 51
+                  }
+                ]
+              }
+            ],
+            "periodic": [
+              {
+                "t": 39695.554,
+                "msg": {
+                  "action": "setLowCut",
+                  "channel": 1,
+                  "value": 79,
+                  "unit": "raw"
+                },
+                "code": 200,
+                "ok": true,
+                "error": null,
+                "midi": [
+                  {
+                    "kind": "CC",
+                    "ch": 1,
+                    "d1": 9,
+                    "d2": 79
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "id": "S2",
+          "viewport": "ipad",
+          "title": "Cue name being typed survives a re-render",
+          "status": "VERIFIED FAIL",
+          "expected": "the typed text stays",
+          "actual": "after other-client event: ''; after 5.6 s idle: ''",
+          "evidence": [
+            "C:\\Users\\Administrator\\AppData\\Local\\Temp\\claude\\d4caf651d3ff5768\\a53c143a-65da-49ed-ae52-44eaf0182737\\scratchpad\\phase2\\evidence\\ipad\\S2_cue_name_after_reload.png"
+          ]
+        },
+        {
+          "id": "S3",
+          "viewport": "ipad",
+          "title": "Group-name input keeps focus across a re-render",
+          "status": "VERIFIED FAIL",
+          "expected": "focus stays in the name field",
+          "actual": "focus before: 'grp-name', after: ''; field value after: 'GROUP AX'",
+          "evidence": [
+            "C:\\Users\\Administrator\\AppData\\Local\\Temp\\claude\\d4caf651d3ff5768\\a53c143a-65da-49ed-ae52-44eaf0182737\\scratchpad\\phase2\\evidence\\ipad\\S3_group_name_focus.png"
+          ]
+        },
+        {
+          "id": "S4",
+          "viewport": "ipad",
+          "title": "Mute group state: persistence, sharing, hub rejection",
+          "status": "VERIFIED FAIL",
+          "expected": "group state matches the mixer: survives reload, rejected mutes do not leave the group ON",
+          "actual": "tap A sent [('beginGesture', None, 200), ('setMute', 1, 200), ('setMute', 2, 200), ('endGesture', None, 200)]; A pressed=true; after reload A pressed=false; ch1.mute in store={'param_id': 'ch1.mute', 'channel_index': 1, 'parameter_name': 'mute', 'commanded_value': True, 'observed_value': None, 'sync_status': 'PENDING_DISPATCH', 'source': 'LOCAL_HOST', 'timestamp': 1795793193.6091704, 'verification_level': 'UNKNOWN', 'raw_midi_value': 127, 'unit': 'bool', 'commanded_raw_midi': 127, 'observed_raw_midi': None, 'provenance': 'COMMANDED'}; tap B while hub down -> [('beginGesture', 200), ('setMute', 503), ('endGesture', 200)]; B pressed=true; after reconnect B pressed=true -> state lost on reload; group B shows ON although every mute was rejected",
+          "evidence": [
+            "C:\\Users\\Administrator\\AppData\\Local\\Temp\\claude\\d4caf651d3ff5768\\a53c143a-65da-49ed-ae52-44eaf0182737\\scratchpad\\phase2\\evidence\\ipad\\S4_group_B_after_rejection.png",
+            "C:\\Users\\Administrator\\AppData\\Local\\Temp\\claude\\d4caf651d3ff5768\\a53c143a-65da-49ed-ae52-44eaf0182737\\scratchpad\\phase2\\evidence\\ipad\\S4_group_B_after_reconnect.png"
+          ]
+        },
+        {
+          "id": "S5",
+          "viewport": "ipad",
+          "title": "GEQ band operable from the keyboard",
+          "status": "VERIFIED FAIL",
+          "expected": "ArrowUp on a focused GEQ band (role=slider) sends setBusGeq, as the EQ nodes do",
+          "actual": "GEQ role='slider', 3x ArrowUp sent 0 setBusGeq; control EQ node ArrowUp sent 1 setEqBand",
+          "evidence": [
+            "C:\\Users\\Administrator\\AppData\\Local\\Temp\\claude\\d4caf651d3ff5768\\a53c143a-65da-49ed-ae52-44eaf0182737\\scratchpad\\phase2\\evidence\\ipad\\S5_eq_keyboard_control.png"
+          ]
+        },
+        {
+          "id": "S6",
+          "viewport": "ipad",
+          "title": "SAVE CURRENT MIX while the device is LOCKED",
+          "status": "VERIFIED FAIL",
+          "expected": "LOCK blocks every control on the device, including saving a cue",
+          "actual": "lock aria-pressed=true; librarySave sent 1 (code [200]); control fader drag while locked sent 0",
+          "evidence": [
+            "C:\\Users\\Administrator\\AppData\\Local\\Temp\\claude\\d4caf651d3ff5768\\a53c143a-65da-49ed-ae52-44eaf0182737\\scratchpad\\phase2\\evidence\\ipad\\S6_save_while_locked.png"
+          ]
+        },
+        {
+          "id": "S7",
+          "viewport": "ipad",
+          "title": "Strip MUTE while the mixer is not connected",
+          "status": "VERIFIED FAIL",
+          "expected": "like every other control, MUTE sends nothing while the UI shows NO MIXER",
+          "actual": "link='NO MIXER'; MUTE sent [('setMute', 503)] with 0 MIDI messages; toast='Mixer control transport is not connected/authenticated. The command was not sent.'; control fader drag sent 0",
+          "evidence": [
+            "C:\\Users\\Administrator\\AppData\\Local\\Temp\\claude\\d4caf651d3ff5768\\a53c143a-65da-49ed-ae52-44eaf0182737\\scratchpad\\phase2\\evidence\\ipad\\S7_mute_while_no_mixer.png"
+          ],
+          "severity_note": "hub rejects with 503 and no MIDI leaves; impact is a confusing error toast"
+        },
+        {
+          "id": "S8",
+          "viewport": "ipad",
+          "title": "LOCK survives a page reload",
+          "status": "VERIFIED FAIL",
+          "expected": "a locked device stays locked after reload",
+          "actual": "before reload aria-pressed=true; after reload=false",
+          "evidence": [
+            "C:\\Users\\Administrator\\AppData\\Local\\Temp\\claude\\d4caf651d3ff5768\\a53c143a-65da-49ed-ae52-44eaf0182737\\scratchpad\\phase2\\evidence\\ipad\\S8_lock_after_reload.png"
+          ]
+        },
+        {
+          "id": "S9",
+          "viewport": "ipad",
+          "title": "Browser Back after changing page",
+          "status": "VERIFIED FAIL",
+          "expected": "Back returns to the previous console page",
+          "actual": "URL after Back: 'about:blank'",
+          "evidence": []
+        }
+      ],
+      "console": [
+        {
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+        },
+        {
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 503 (Service Unavailable)"
+        },
+        {
+          "type": "error",
+          "text": "Failed to load resource: net::ERR_FAILED"
+        }
+      ],
+      "pageErrors": [],
+      "requestFailed": [
+        {
+          "url": "http://127.0.0.1:60495/api/events?clientId=n5851vnultp",
+          "err": "net::ERR_ABORTED"
+        },
+        {
+          "url": "http://127.0.0.1:60495/api/events?clientId=ioz1wdr6zj8",
+          "err": "net::ERR_ABORTED"
+        },
+        {
+          "url": "http://127.0.0.1:60495/api/events?clientId=36k0feinqg2",
+          "err": "net::ERR_ABORTED"
+        },
+        {
+          "url": "http://127.0.0.1:60495/api/events?clientId=0jv34dtwmmc",
+          "err": "net::ERR_ABORTED"
+        },
+        {
+          "url": "http://127.0.0.1:60495/api/events?clientId=6t95he79z43",
+          "err": "net::ERR_ABORTED"
+        },
+        {
+          "url": "http://127.0.0.1:60495/api/events?clientId=dhi8l34yq4v",
+          "err": "net::ERR_ABORTED"
+        },
+        {
+          "url": "http://127.0.0.1:60495/api/events?clientId=p9lt7b398nq",
+          "err": "net::ERR_ABORTED"
+        },
+        {
+          "url": "http://127.0.0.1:60495/api/events?clientId=sib4qduh6om",
+          "err": "net::ERR_ABORTED"
+        },
+        {
+          "url": "http://127.0.0.1:60495/api/session",
+          "err": "net::ERR_FAILED"
+        }
+      ],
+      "httpErrors": [
+        {
+          "url": "/api/action",
+          "status": 503,
+          "method": "POST",
+          "body": "{\"action\":\"setMute\",\"channel\":3,\"value\":true,\"clientId\":\"6t95he79z43\"}"
+        },
+        {
+          "url": "/api/action",
+          "status": 503,
+          "method": "POST",
+          "body": "{\"action\":\"setMute\",\"channel\":1,\"value\":false,\"clientId\":\"6t95he79z43\"}"
+        }
+      ],
+      "requests": {
+        "total": 287,
+        "byMethod": {
+          "POST": 141,
+          "GET": 146
+        }
+      },
+      "hubLog": [
+        {
+          "t": 39692.334,
+          "msg": {
+            "action": "setLowCut",
+            "channel": 1,
+            "value": 102,
+            "unit": "raw"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 9,
+              "d2": 102
+            }
+          ]
+        },
+        {
+          "t": 39693.307,
+          "msg": {
+            "action": "setLowCut",
+            "channel": 1,
+            "value": 51,
+            "unit": "raw"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 9,
+              "d2": 51
+            }
+          ]
+        },
+        {
+          "t": 39695.554,
+          "msg": {
+            "action": "setLowCut",
+            "channel": 1,
+            "value": 79,
+            "unit": "raw"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 9,
+              "d2": 79
+            }
+          ]
+        },
+        {
+          "t": 39711.328,
+          "msg": {
+            "action": "beginGesture"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": []
+        },
+        {
+          "t": 39711.334,
+          "msg": {
+            "action": "setMute",
+            "channel": 1,
+            "value": true
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 5,
+              "d2": 127
+            }
+          ]
+        },
+        {
+          "t": 39711.34,
+          "msg": {
+            "action": "setMute",
+            "channel": 2,
+            "value": true
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 2,
+              "d1": 5,
+              "d2": 127
+            }
+          ]
+        },
+        {
+          "t": 39711.344,
+          "msg": {
+            "action": "endGesture"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": []
+        },
+        {
+          "t": 39715.294,
+          "msg": {
+            "action": "beginGesture"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": []
+        },
+        {
+          "t": 39715.307,
+          "msg": {
+            "action": "setMute",
+            "channel": 3,
+            "value": true
+          },
+          "code": 503,
+          "ok": false,
+          "error": "Mixer control transport is not connected/authenticated. The command was not sent.",
+          "midi": []
+        },
+        {
+          "t": 39715.32,
+          "msg": {
+            "action": "endGesture"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": []
+        },
+        {
+          "t": 39718.834,
+          "msg": {
+            "action": "setEqBand",
+            "channel": 1,
+            "band": "low",
+            "value": 66,
+            "unit": "raw"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 1,
+              "d2": 66
+            }
+          ]
+        },
+        {
+          "t": 39721.09,
+          "msg": {
+            "action": "librarySave",
+            "name": "Locked save"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": []
+        },
+        {
+          "t": 39724.938,
+          "msg": {
+            "action": "setActiveBus",
+            "bus": "main"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": []
+        },
+        {
+          "t": 39725.802,
+          "msg": {
+            "action": "setMute",
+            "channel": 1,
+            "value": false
+          },
+          "code": 503,
+          "ok": false,
+          "error": "Mixer control transport is not connected/authenticated. The command was not sent.",
+          "midi": []
+        },
+        {
+          "t": 39732.956,
+          "msg": {
+            "action": "setActiveBus",
+            "bus": "main"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": []
+        },
+        {
+          "t": 39733.326,
+          "msg": {
+            "action": "beginGesture"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": []
+        },
+        {
+          "t": 39733.412,
+          "msg": {
+            "action": "setFader",
+            "channel": 1,
+            "value": 9
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 7,
+              "d2": 9
+            }
+          ]
+        },
+        {
+          "t": 39733.502,
+          "msg": {
+            "action": "setFader",
+            "channel": 1,
+            "value": 17
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 7,
+              "d2": 17
+            }
+          ]
+        },
+        {
+          "t": 39733.601,
+          "msg": {
+            "action": "setFader",
+            "channel": 1,
+            "value": 26
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 7,
+              "d2": 26
+            }
+          ]
+        },
+        {
+          "t": 39733.713,
+          "msg": {
+            "action": "setFader",
+            "channel": 1,
+            "value": 34
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 7,
+              "d2": 34
+            }
+          ]
+        },
+        {
+          "t": 39733.807,
+          "msg": {
+            "action": "setFader",
+            "channel": 1,
+            "value": 43
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 7,
+              "d2": 43
+            }
+          ]
+        },
+        {
+          "t": 39733.9,
+          "msg": {
+            "action": "setFader",
+            "channel": 1,
+            "value": 51
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 7,
+              "d2": 51
+            }
+          ]
+        },
+        {
+          "t": 39734.012,
+          "msg": {
+            "action": "setFader",
+            "channel": 1,
+            "value": 60
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 7,
+              "d2": 60
+            }
+          ]
+        },
+        {
+          "t": 39734.103,
+          "msg": {
+            "action": "setFader",
+            "channel": 1,
+            "value": 68
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 7,
+              "d2": 68
+            }
+          ]
+        },
+        {
+          "t": 39734.125,
+          "msg": {
+            "action": "setFader",
+            "channel": 1,
+            "value": 68
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 7,
+              "d2": 68
+            }
+          ]
+        },
+        {
+          "t": 39734.13,
+          "msg": {
+            "action": "endGesture"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": []
+        },
+        {
+          "t": 39734.92,
+          "msg": {
+            "action": "setMute",
+            "channel": 2,
+            "value": false
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 2,
+              "d1": 5,
+              "d2": 0
+            }
+          ]
+        },
+        {
+          "t": 39735.299,
+          "msg": {
+            "action": "beginGesture"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": []
+        },
+        {
+          "t": 39735.39,
+          "msg": {
+            "action": "setFader",
+            "channel": 8,
+            "value": 10
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 8,
+              "d1": 7,
+              "d2": 10
+            }
+          ]
+        },
+        {
+          "t": 39735.485,
+          "msg": {
+            "action": "setFader",
+            "channel": 8,
+            "value": 19
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 8,
+              "d1": 7,
+              "d2": 19
+            }
+          ]
+        },
+        {
+          "t": 39735.584,
+          "msg": {
+            "action": "setFader",
+            "channel": 8,
+            "value": 29
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 8,
+              "d1": 7,
+              "d2": 29
+            }
+          ]
+        },
+        {
+          "t": 39735.685,
+          "msg": {
+            "action": "setFader",
+            "channel": 8,
+            "value": 39
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 8,
+              "d1": 7,
+              "d2": 39
+            }
+          ]
+        },
+        {
+          "t": 39735.784,
+          "msg": {
+            "action": "setFader",
+            "channel": 8,
+            "value": 48
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 8,
+              "d1": 7,
+              "d2": 48
+            }
+          ]
+        },
+        {
+          "t": 39735.896,
+          "msg": {
+            "action": "setFader",
+            "channel": 8,
+            "value": 58
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 8,
+              "d1": 7,
+              "d2": 58
+            }
+          ]
+        },
+        {
+          "t": 39735.991,
+          "msg": {
+            "action": "setFader",
+            "channel": 8,
+            "value": 68
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 8,
+              "d1": 7,
+              "d2": 68
+            }
+          ]
+        },
+        {
+          "t": 39736.086,
+          "msg": {
+            "action": "setFader",
+            "channel": 8,
+            "value": 77
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 8,
+              "d1": 7,
+              "d2": 77
+            }
+          ]
+        },
+        {
+          "t": 39736.103,
+          "msg": {
+            "action": "setFader",
+            "channel": 8,
+            "value": 77
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 8,
+              "d1": 7,
+              "d2": 77
+            }
+          ]
+        },
+        {
+          "t": 39736.108,
+          "msg": {
+            "action": "endGesture"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": []
+        },
+        {
+          "t": 39737.133,
+          "msg": {
+            "action": "beginGesture"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": []
+        },
+        {
+          "t": 39737.22,
+          "msg": {
+            "action": "setEqBand",
+            "channel": 1,
+            "band": "low",
+            "value": 72,
+            "unit": "raw"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 1,
+              "d2": 72
+            }
+          ]
+        },
+        {
+          "t": 39737.318,
+          "msg": {
+            "action": "setEqBand",
+            "channel": 1,
+            "band": "low",
+            "value": 77,
+            "unit": "raw"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 1,
+              "d2": 77
+            }
+          ]
+        },
+        {
+          "t": 39737.421,
+          "msg": {
+            "action": "setEqBand",
+            "channel": 1,
+            "band": "low",
+            "value": 83,
+            "unit": "raw"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 1,
+              "d2": 83
+            }
+          ]
+        },
+        {
+          "t": 39737.522,
+          "msg": {
+            "action": "setEqBand",
+            "channel": 1,
+            "band": "low",
+            "value": 89,
+            "unit": "raw"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 1,
+              "d2": 89
+            }
+          ]
+        },
+        {
+          "t": 39737.635,
+          "msg": {
+            "action": "setEqBand",
+            "channel": 1,
+            "band": "low",
+            "value": 93,
+            "unit": "raw"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 1,
+              "d2": 93
+            }
+          ]
+        },
+        {
+          "t": 39737.718,
+          "msg": {
+            "action": "setEqBand",
+            "channel": 1,
+            "band": "low",
+            "value": 100,
+            "unit": "raw"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 1,
+              "d2": 100
+            }
+          ]
+        },
+        {
+          "t": 39737.819,
+          "msg": {
+            "action": "setEqBand",
+            "channel": 1,
+            "band": "low",
+            "value": 104,
+            "unit": "raw"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 1,
+              "d2": 104
+            }
+          ]
+        },
+        {
+          "t": 39737.918,
+          "msg": {
+            "action": "setEqBand",
+            "channel": 1,
+            "band": "low",
+            "value": 110,
+            "unit": "raw"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 1,
+              "d2": 110
+            }
+          ]
+        },
+        {
+          "t": 39737.955,
+          "msg": {
+            "action": "setEqBand",
+            "channel": 1,
+            "band": "low",
+            "value": 110,
+            "unit": "raw"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 1,
+              "d2": 110
+            }
+          ]
+        },
+        {
+          "t": 39737.96,
+          "msg": {
+            "action": "endGesture"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": []
+        },
+        {
+          "t": 39738.955,
+          "msg": {
+            "action": "resetEqFlat",
+            "channel": 1
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 1,
+              "d2": 64
+            },
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 2,
+              "d2": 64
+            },
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 3,
+              "d2": 64
+            },
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 4,
+              "d2": 64
+            }
+          ]
+        },
+        {
+          "t": 39739.581,
+          "msg": {
+            "action": "beginGesture"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": []
+        },
+        {
+          "t": 39739.668,
+          "msg": {
+            "action": "setSend",
+            "channel": 1,
+            "target": "mon1",
+            "value": 3,
+            "unit": "raw"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 14,
+              "d2": 3
+            }
+          ]
+        },
+        {
+          "t": 39739.771,
+          "msg": {
+            "action": "setSend",
+            "channel": 1,
+            "target": "mon1",
+            "value": 5,
+            "unit": "raw"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 14,
+              "d2": 5
+            }
+          ]
+        },
+        {
+          "t": 39739.88,
+          "msg": {
+            "action": "setSend",
+            "channel": 1,
+            "target": "mon1",
+            "value": 8,
+            "unit": "raw"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 14,
+              "d2": 8
+            }
+          ]
+        },
+        {
+          "t": 39739.973,
+          "msg": {
+            "action": "setSend",
+            "channel": 1,
+            "target": "mon1",
+            "value": 10,
+            "unit": "raw"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 14,
+              "d2": 10
+            }
+          ]
+        },
+        {
+          "t": 39740.166,
+          "msg": {
+            "action": "setSend",
+            "channel": 1,
+            "target": "mon1",
+            "value": 13,
+            "unit": "raw"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 14,
+              "d2": 13
+            }
+          ]
+        },
+        {
+          "t": 39740.201,
+          "msg": {
+            "action": "setSend",
+            "channel": 1,
+            "target": "mon1",
+            "value": 14,
+            "unit": "raw"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 14,
+              "d2": 14
+            }
+          ]
+        },
+        {
+          "t": 39740.282,
+          "msg": {
+            "action": "setSend",
+            "channel": 1,
+            "target": "mon1",
+            "value": 17,
+            "unit": "raw"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 14,
+              "d2": 17
+            }
+          ]
+        },
+        {
+          "t": 39740.384,
+          "msg": {
+            "action": "setSend",
+            "channel": 1,
+            "target": "mon1",
+            "value": 19,
+            "unit": "raw"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 14,
+              "d2": 19
+            }
+          ]
+        },
+        {
+          "t": 39740.464,
+          "msg": {
+            "action": "setSend",
+            "channel": 1,
+            "target": "mon1",
+            "value": 21,
+            "unit": "raw"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 14,
+              "d2": 21
+            }
+          ]
+        },
+        {
+          "t": 39740.469,
+          "msg": {
+            "action": "endGesture"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": []
+        },
+        {
+          "t": 39741.27,
+          "msg": {
+            "action": "setActiveBus",
+            "bus": "mon1"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": []
+        },
+        {
+          "t": 39741.576,
+          "msg": {
+            "action": "beginGesture"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": []
+        },
+        {
+          "t": 39741.679,
+          "msg": {
+            "action": "setBusFader",
+            "bus": "mon1",
+            "value": 8
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 9,
+              "d1": 7,
+              "d2": 8
+            }
+          ]
+        },
+        {
+          "t": 39741.769,
+          "msg": {
+            "action": "setBusFader",
+            "bus": "mon1",
+            "value": 15
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 9,
+              "d1": 7,
+              "d2": 15
+            }
+          ]
+        },
+        {
+          "t": 39741.868,
+          "msg": {
+            "action": "setBusFader",
+            "bus": "mon1",
+            "value": 23
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 9,
+              "d1": 7,
+              "d2": 23
+            }
+          ]
+        },
+        {
+          "t": 39741.969,
+          "msg": {
+            "action": "setBusFader",
+            "bus": "mon1",
+            "value": 31
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 9,
+              "d1": 7,
+              "d2": 31
+            }
+          ]
+        },
+        {
+          "t": 39742.124,
+          "msg": {
+            "action": "setBusFader",
+            "bus": "mon1",
+            "value": 39
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 9,
+              "d1": 7,
+              "d2": 39
+            }
+          ]
+        },
+        {
+          "t": 39742.227,
+          "msg": {
+            "action": "setBusFader",
+            "bus": "mon1",
+            "value": 46
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 9,
+              "d1": 7,
+              "d2": 46
+            }
+          ]
+        },
+        {
+          "t": 39742.321,
+          "msg": {
+            "action": "setBusFader",
+            "bus": "mon1",
+            "value": 54
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 9,
+              "d1": 7,
+              "d2": 54
+            }
+          ]
+        },
+        {
+          "t": 39742.433,
+          "msg": {
+            "action": "setBusFader",
+            "bus": "mon1",
+            "value": 62
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 9,
+              "d1": 7,
+              "d2": 62
+            }
+          ]
+        },
+        {
+          "t": 39742.436,
+          "msg": {
+            "action": "setBusFader",
+            "bus": "mon1",
+            "value": 62
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 9,
+              "d1": 7,
+              "d2": 62
+            }
+          ]
+        },
+        {
+          "t": 39742.442,
+          "msg": {
+            "action": "endGesture"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": []
+        },
+        {
+          "t": 39743.23,
+          "msg": {
+            "action": "beginGesture"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": []
+        },
+        {
+          "t": 39743.324,
+          "msg": {
+            "action": "setSend",
+            "channel": 1,
+            "target": "mon1",
+            "value": 26,
+            "unit": "raw"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 14,
+              "d2": 26
+            }
+          ]
+        },
+        {
+          "t": 39743.418,
+          "msg": {
+            "action": "setSend",
+            "channel": 1,
+            "target": "mon1",
+            "value": 31,
+            "unit": "raw"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 14,
+              "d2": 31
+            }
+          ]
+        },
+        {
+          "t": 39743.529,
+          "msg": {
+            "action": "setSend",
+            "channel": 1,
+            "target": "mon1",
+            "value": 36,
+            "unit": "raw"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 14,
+              "d2": 36
+            }
+          ]
+        },
+        {
+          "t": 39743.625,
+          "msg": {
+            "action": "setSend",
+            "channel": 1,
+            "target": "mon1",
+            "value": 41,
+            "unit": "raw"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 14,
+              "d2": 41
+            }
+          ]
+        },
+        {
+          "t": 39743.718,
+          "msg": {
+            "action": "setSend",
+            "channel": 1,
+            "target": "mon1",
+            "value": 46,
+            "unit": "raw"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 14,
+              "d2": 46
+            }
+          ]
+        },
+        {
+          "t": 39743.895,
+          "msg": {
+            "action": "setSend",
+            "channel": 1,
+            "target": "mon1",
+            "value": 51,
+            "unit": "raw"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 14,
+              "d2": 51
+            }
+          ]
+        },
+        {
+          "t": 39743.963,
+          "msg": {
+            "action": "setSend",
+            "channel": 1,
+            "target": "mon1",
+            "value": 56,
+            "unit": "raw"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 14,
+              "d2": 56
+            }
+          ]
+        },
+        {
+          "t": 39744.068,
+          "msg": {
+            "action": "setSend",
+            "channel": 1,
+            "target": "mon1",
+            "value": 61,
+            "unit": "raw"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 14,
+              "d2": 61
+            }
+          ]
+        },
+        {
+          "t": 39744.086,
+          "msg": {
+            "action": "setSend",
+            "channel": 1,
+            "target": "mon1",
+            "value": 61,
+            "unit": "raw"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 14,
+              "d2": 61
+            }
+          ]
+        },
+        {
+          "t": 39744.09,
+          "msg": {
+            "action": "endGesture"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": []
+        },
+        {
+          "t": 39744.87,
+          "msg": {
+            "action": "setActiveBus",
+            "bus": "main"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": []
+        },
+        {
+          "t": 39745.346,
+          "msg": {
+            "action": "setLowCut",
+            "channel": 1,
+            "value": 80,
+            "unit": "raw"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 9,
+              "d2": 80
+            }
+          ]
+        },
+        {
+          "t": 39746.105,
+          "msg": {
+            "action": "setCompressor",
+            "channel": 1,
+            "value": 1,
+            "unit": "raw"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 11,
+              "d2": 1
+            }
+          ]
+        },
+        {
+          "t": 39746.713,
+          "msg": {
+            "action": "beginGesture"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": []
+        },
+        {
+          "t": 39746.802,
+          "msg": {
+            "action": "setBusGeq",
+            "bus": "main",
+            "band": 1,
+            "value": 68
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 8,
+              "d1": 11,
+              "d2": 68
+            }
+          ]
+        },
+        {
+          "t": 39746.902,
+          "msg": {
+            "action": "setBusGeq",
+            "bus": "main",
+            "band": 1,
+            "value": 70
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 8,
+              "d1": 11,
+              "d2": 70
+            }
+          ]
+        },
+        {
+          "t": 39747.013,
+          "msg": {
+            "action": "setBusGeq",
+            "bus": "main",
+            "band": 1,
+            "value": 75
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 8,
+              "d1": 11,
+              "d2": 75
+            }
+          ]
+        },
+        {
+          "t": 39747.244,
+          "msg": {
+            "action": "setBusGeq",
+            "bus": "main",
+            "band": 1,
+            "value": 77
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 8,
+              "d1": 11,
+              "d2": 77
+            }
+          ]
+        },
+        {
+          "t": 39747.316,
+          "msg": {
+            "action": "setBusGeq",
+            "bus": "main",
+            "band": 1,
+            "value": 79
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 8,
+              "d1": 11,
+              "d2": 79
+            }
+          ]
+        },
+        {
+          "t": 39747.394,
+          "msg": {
+            "action": "setBusGeq",
+            "bus": "main",
+            "band": 1,
+            "value": 81
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 8,
+              "d1": 11,
+              "d2": 81
+            }
+          ]
+        },
+        {
+          "t": 39747.484,
+          "msg": {
+            "action": "setBusGeq",
+            "bus": "main",
+            "band": 1,
+            "value": 85
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 8,
+              "d1": 11,
+              "d2": 85
+            }
+          ]
+        },
+        {
+          "t": 39747.599,
+          "msg": {
+            "action": "setBusGeq",
+            "bus": "main",
+            "band": 1,
+            "value": 87
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 8,
+              "d1": 11,
+              "d2": 87
+            }
+          ]
+        },
+        {
+          "t": 39747.648,
+          "msg": {
+            "action": "setBusGeq",
+            "bus": "main",
+            "band": 1,
+            "value": 89
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 8,
+              "d1": 11,
+              "d2": 89
+            }
+          ]
+        },
+        {
+          "t": 39747.653,
+          "msg": {
+            "action": "endGesture"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": []
+        },
+        {
+          "t": 39748.421,
+          "msg": {
+            "action": "setBusLimiter",
+            "bus": "main",
+            "value": 126
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 8,
+              "d1": 8,
+              "d2": 126
+            }
+          ]
+        },
+        {
+          "t": 39749.059,
+          "msg": {
+            "action": "beginGesture"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": []
+        },
+        {
+          "t": 39749.135,
+          "msg": {
+            "action": "setBusGeq",
+            "bus": "mon2",
+            "band": 9,
+            "value": 68
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 10,
+              "d1": 19,
+              "d2": 68
+            }
+          ]
+        },
+        {
+          "t": 39749.226,
+          "msg": {
+            "action": "setBusGeq",
+            "bus": "mon2",
+            "band": 9,
+            "value": 70
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 10,
+              "d1": 19,
+              "d2": 70
+            }
+          ]
+        },
+        {
+          "t": 39749.328,
+          "msg": {
+            "action": "setBusGeq",
+            "bus": "mon2",
+            "band": 9,
+            "value": 75
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 10,
+              "d1": 19,
+              "d2": 75
+            }
+          ]
+        },
+        {
+          "t": 39749.419,
+          "msg": {
+            "action": "setBusGeq",
+            "bus": "mon2",
+            "band": 9,
+            "value": 77
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 10,
+              "d1": 19,
+              "d2": 77
+            }
+          ]
+        },
+        {
+          "t": 39749.517,
+          "msg": {
+            "action": "setBusGeq",
+            "bus": "mon2",
+            "band": 9,
+            "value": 81
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 10,
+              "d1": 19,
+              "d2": 81
+            }
+          ]
+        },
+        {
+          "t": 39749.618,
+          "msg": {
+            "action": "setBusGeq",
+            "bus": "mon2",
+            "band": 9,
+            "value": 83
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 10,
+              "d1": 19,
+              "d2": 83
+            }
+          ]
+        },
+        {
+          "t": 39749.724,
+          "msg": {
+            "action": "setBusGeq",
+            "bus": "mon2",
+            "band": 9,
+            "value": 87
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 10,
+              "d1": 19,
+              "d2": 87
+            }
+          ]
+        },
+        {
+          "t": 39749.819,
+          "msg": {
+            "action": "setBusGeq",
+            "bus": "mon2",
+            "band": 9,
+            "value": 89
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 10,
+              "d1": 19,
+              "d2": 89
+            }
+          ]
+        },
+        {
+          "t": 39749.837,
+          "msg": {
+            "action": "setBusGeq",
+            "bus": "mon2",
+            "band": 9,
+            "value": 89
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 10,
+              "d1": 19,
+              "d2": 89
+            }
+          ]
+        },
+        {
+          "t": 39749.84,
+          "msg": {
+            "action": "endGesture"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": []
+        },
+        {
+          "t": 39750.979,
+          "msg": {
+            "action": "setFxPreset",
+            "engine": "fx1",
+            "value": 3
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "PC",
+              "ch": 13,
+              "d1": 3,
+              "d2": 0
+            }
+          ]
+        },
+        {
+          "t": 39751.357,
+          "msg": {
+            "action": "setFxParam",
+            "engine": "fx2",
+            "param": 1,
+            "value": 1
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 14,
+              "d1": 1,
+              "d2": 1
+            }
+          ]
+        },
+        {
+          "t": 39751.753,
+          "msg": {
+            "action": "setFxParam",
+            "engine": "fx1",
+            "param": 2,
+            "value": true
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 13,
+              "d1": 2,
+              "d2": 127
+            }
+          ]
+        },
+        {
+          "t": 39752.455,
+          "msg": {
+            "action": "beginGesture"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": []
+        },
+        {
+          "t": 39752.546,
+          "msg": {
+            "action": "setSend",
+            "channel": 1,
+            "target": "mon1",
+            "value": 63,
+            "unit": "raw"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 14,
+              "d2": 63
+            }
+          ]
+        },
+        {
+          "t": 39752.634,
+          "msg": {
+            "action": "setSend",
+            "channel": 1,
+            "target": "mon1",
+            "value": 65,
+            "unit": "raw"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 14,
+              "d2": 65
+            }
+          ]
+        },
+        {
+          "t": 39752.734,
+          "msg": {
+            "action": "setSend",
+            "channel": 1,
+            "target": "mon1",
+            "value": 67,
+            "unit": "raw"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 14,
+              "d2": 67
+            }
+          ]
+        },
+        {
+          "t": 39752.834,
+          "msg": {
+            "action": "setSend",
+            "channel": 1,
+            "target": "mon1",
+            "value": 69,
+            "unit": "raw"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 14,
+              "d2": 69
+            }
+          ]
+        },
+        {
+          "t": 39752.933,
+          "msg": {
+            "action": "setSend",
+            "channel": 1,
+            "target": "mon1",
+            "value": 71,
+            "unit": "raw"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 14,
+              "d2": 71
+            }
+          ]
+        },
+        {
+          "t": 39753.034,
+          "msg": {
+            "action": "setSend",
+            "channel": 1,
+            "target": "mon1",
+            "value": 73,
+            "unit": "raw"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 14,
+              "d2": 73
+            }
+          ]
+        },
+        {
+          "t": 39753.135,
+          "msg": {
+            "action": "setSend",
+            "channel": 1,
+            "target": "mon1",
+            "value": 75,
+            "unit": "raw"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 14,
+              "d2": 75
+            }
+          ]
+        },
+        {
+          "t": 39753.234,
+          "msg": {
+            "action": "setSend",
+            "channel": 1,
+            "target": "mon1",
+            "value": 77,
+            "unit": "raw"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 14,
+              "d2": 77
+            }
+          ]
+        },
+        {
+          "t": 39753.258,
+          "msg": {
+            "action": "setSend",
+            "channel": 1,
+            "target": "mon1",
+            "value": 77,
+            "unit": "raw"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 14,
+              "d2": 77
+            }
+          ]
+        },
+        {
+          "t": 39753.261,
+          "msg": {
+            "action": "endGesture"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": []
+        },
+        {
+          "t": 39754.043,
+          "msg": {
+            "action": "beginGesture"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": []
+        },
+        {
+          "t": 39754.118,
+          "msg": {
+            "action": "setBusFader",
+            "bus": "mon1",
+            "value": 64
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 9,
+              "d1": 7,
+              "d2": 64
+            }
+          ]
+        },
+        {
+          "t": 39754.218,
+          "msg": {
+            "action": "setBusFader",
+            "bus": "mon1",
+            "value": 66
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 9,
+              "d1": 7,
+              "d2": 66
+            }
+          ]
+        },
+        {
+          "t": 39754.327,
+          "msg": {
+            "action": "setBusFader",
+            "bus": "mon1",
+            "value": 68
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 9,
+              "d1": 7,
+              "d2": 68
+            }
+          ]
+        },
+        {
+          "t": 39754.417,
+          "msg": {
+            "action": "setBusFader",
+            "bus": "mon1",
+            "value": 70
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 9,
+              "d1": 7,
+              "d2": 70
+            }
+          ]
+        },
+        {
+          "t": 39754.532,
+          "msg": {
+            "action": "setBusFader",
+            "bus": "mon1",
+            "value": 72
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 9,
+              "d1": 7,
+              "d2": 72
+            }
+          ]
+        },
+        {
+          "t": 39754.618,
+          "msg": {
+            "action": "setBusFader",
+            "bus": "mon1",
+            "value": 74
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 9,
+              "d1": 7,
+              "d2": 74
+            }
+          ]
+        },
+        {
+          "t": 39754.717,
+          "msg": {
+            "action": "setBusFader",
+            "bus": "mon1",
+            "value": 76
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 9,
+              "d1": 7,
+              "d2": 76
+            }
+          ]
+        },
+        {
+          "t": 39754.818,
+          "msg": {
+            "action": "setBusFader",
+            "bus": "mon1",
+            "value": 78
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 9,
+              "d1": 7,
+              "d2": 78
+            }
+          ]
+        },
+        {
+          "t": 39754.832,
+          "msg": {
+            "action": "setBusFader",
+            "bus": "mon1",
+            "value": 78
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 9,
+              "d1": 7,
+              "d2": 78
+            }
+          ]
+        },
+        {
+          "t": 39754.836,
+          "msg": {
+            "action": "endGesture"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": []
+        },
+        {
+          "t": 39756.498,
+          "msg": {
+            "action": "muteAll",
+            "value": true
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 5,
+              "d2": 127
+            },
+            {
+              "kind": "CC",
+              "ch": 2,
+              "d1": 5,
+              "d2": 127
+            },
+            {
+              "kind": "CC",
+              "ch": 3,
+              "d1": 5,
+              "d2": 127
+            },
+            {
+              "kind": "CC",
+              "ch": 4,
+              "d1": 5,
+              "d2": 127
+            },
+            {
+              "kind": "CC",
+              "ch": 5,
+              "d1": 5,
+              "d2": 127
+            },
+            {
+              "kind": "CC",
+              "ch": 6,
+              "d1": 5,
+              "d2": 127
+            },
+            {
+              "kind": "CC",
+              "ch": 7,
+              "d1": 5,
+              "d2": 127
+            }
+          ]
+        },
+        {
+          "t": 39757.904,
+          "msg": {
+            "action": "muteAll",
+            "value": false
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 5,
+              "d2": 0
+            },
+            {
+              "kind": "CC",
+              "ch": 2,
+              "d1": 5,
+              "d2": 0
+            },
+            {
+              "kind": "CC",
+              "ch": 3,
+              "d1": 5,
+              "d2": 0
+            },
+            {
+              "kind": "CC",
+              "ch": 4,
+              "d1": 5,
+              "d2": 0
+            },
+            {
+              "kind": "CC",
+              "ch": 5,
+              "d1": 5,
+              "d2": 0
+            },
+            {
+              "kind": "CC",
+              "ch": 6,
+              "d1": 5,
+              "d2": 0
+            },
+            {
+              "kind": "CC",
+              "ch": 7,
+              "d1": 5,
+              "d2": 0
+            }
+          ]
+        },
+        {
+          "t": 39758.724,
+          "msg": {
+            "action": "undo"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 7,
+              "d1": 5,
+              "d2": 127
+            },
+            {
+              "kind": "CC",
+              "ch": 6,
+              "d1": 5,
+              "d2": 127
+            },
+            {
+              "kind": "CC",
+              "ch": 5,
+              "d1": 5,
+              "d2": 127
+            },
+            {
+              "kind": "CC",
+              "ch": 4,
+              "d1": 5,
+              "d2": 127
+            },
+            {
+              "kind": "CC",
+              "ch": 3,
+              "d1": 5,
+              "d2": 127
+            },
+            {
+              "kind": "CC",
+              "ch": 2,
+              "d1": 5,
+              "d2": 127
+            },
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 5,
+              "d2": 127
+            }
+          ]
+        },
+        {
+          "t": 39759.102,
+          "msg": {
+            "action": "redo"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 5,
+              "d2": 0
+            },
+            {
+              "kind": "CC",
+              "ch": 2,
+              "d1": 5,
+              "d2": 0
+            },
+            {
+              "kind": "CC",
+              "ch": 3,
+              "d1": 5,
+              "d2": 0
+            },
+            {
+              "kind": "CC",
+              "ch": 4,
+              "d1": 5,
+              "d2": 0
+            },
+            {
+              "kind": "CC",
+              "ch": 5,
+              "d1": 5,
+              "d2": 0
+            },
+            {
+              "kind": "CC",
+              "ch": 6,
+              "d1": 5,
+              "d2": 0
+            },
+            {
+              "kind": "CC",
+              "ch": 7,
+              "d1": 5,
+              "d2": 0
+            }
+          ]
+        },
+        {
+          "t": 39760.171,
+          "msg": {
+            "action": "applyPreset",
+            "channel": 1,
+            "presetId": "speech-mc-handheld"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": [
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 1,
+              "d2": 51
+            },
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 2,
+              "d2": 55
+            },
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 3,
+              "d2": 70
+            },
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 4,
+              "d2": 68
+            },
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 9,
+              "d2": 22
+            },
+            {
+              "kind": "CC",
+              "ch": 1,
+              "d1": 11,
+              "d2": 30
+            }
+          ]
+        },
+        {
+          "t": 39760.969,
+          "msg": {
+            "action": "setActiveBus",
+            "bus": "main"
+          },
+          "code": 200,
+          "ok": true,
+          "error": null,
+          "midi": []
+        },
+        {
+          "t": 39777.789,
+          "msg": {
+            "action": "setGain",
+            "channel": 1,
+            "value": 64
+          },
+          "code": 403,
+          "ok": false,
+          "error": "Preamp gain is blocked by safety policy (SR-05).",
+          "midi": []
+        },
+        {
+          "t": 39777.798,
+          "msg": {
+            "action": "setPhantom",
+            "channel": 1,
+            "value": true
+          },
+          "code": 403,
+          "ok": false,
+          "error": "+48V phantom power requires explicit host confirmation dialog.",
+          "midi": []
+        }
+      ],
+      "fakeDriverCalls": 144
+    }
+  ]
+}

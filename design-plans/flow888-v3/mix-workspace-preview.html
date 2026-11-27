@@ -1,0 +1,362 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>FLOW 888 · Mix Workspace preview (revision 6)</title>
+<!-- PREVIEW ONLY. Static picture of mix-workspace-blueprint.md, revision 6. No script, no network, no MIDI.
+     Values are the audit-hub sample state from 2026-11-27, not mixer readings.
+     Only controls the FLOW 8 and the hub really support are drawn (see the blueprint, section 6). -->
+<style>
+@font-face { font-family: "Barlow Condensed"; src: url("../../flow8/web_ui/fonts/barlow-condensed-500.woff2") format("woff2"); font-weight: 500; }
+@font-face { font-family: "Barlow Condensed"; src: url("../../flow8/web_ui/fonts/barlow-condensed-600.woff2") format("woff2"); font-weight: 600; }
+@font-face { font-family: "Barlow Condensed"; src: url("../../flow8/web_ui/fonts/barlow-condensed-700.woff2") format("woff2"); font-weight: 700 800; }
+:root {
+  /* Reference palette mapped onto the DESIGN.md roles (blueprint section 0b). Proposed, not yet approved tokens. */
+  --well: #08090A; --chassis: #0E1113; --panel: #15181A; --card: #1B1E20; --raised: #292D30;
+  --line: #2C3033; --line-2: #484D50;
+  --ink: #E8EAEB; --ink-2: #C4C9CB; --ink-3: #92999C;
+  --sel: #35B4B0; --sel-deep: #0C7C82; --sel-tint: #0F2E2E;
+  --amber: #E6B83F; --red: #E34B45; --green: #31E83B; --meter: #27D65B; --meter-hot: #F04444;
+  --eq: #39C9DB;
+  --mix-main: #E8EAEB; --mix-mon: #34D399; --mix-fx: #9870D8;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: var(--well); color: var(--ink); font-family: "Barlow Condensed", "Leelawadee UI", system-ui, sans-serif; font-feature-settings: "tnum"; }
+button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
+.ic { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 44px; padding: 0 14px; border-radius: 4px; background: var(--card); border: 1px solid var(--line-2); font-size: 17px; font-weight: 700; letter-spacing: 0.02em; }
+.btn.off { color: var(--ink-3); border-color: var(--line); }
+.badge { font-size: 13px; font-weight: 700; color: var(--ink-3); letter-spacing: 0.04em; }
+.badge.unk { text-decoration: underline dotted; text-underline-offset: 3px; }
+
+.ipad { display: grid; grid-template-rows: 60px 54px minmax(0, 1fr); gap: 8px; height: 100vh; padding: 8px; }
+.phone { display: none; }
+
+/* Row 1: global toolbar */
+.bar { display: flex; align-items: center; gap: 10px; }
+.brand { display: grid; line-height: 1; margin-right: 6px; }
+.brand b { font-size: 28px; font-weight: 800; letter-spacing: 0.01em; }
+.brand small { font-size: 12px; font-weight: 700; color: var(--ink-3); letter-spacing: 0.14em; margin-top: 3px; }
+.state { display: inline-flex; align-items: center; gap: 8px; height: 40px; padding: 0 14px; border-radius: 4px; border: 1px solid var(--line-2); background: var(--panel); font-size: 15px; font-weight: 700; }
+.state.ok { color: var(--green); border-color: #1F5A27; background: #0C1A0E; }
+.lamp { width: 9px; height: 9px; border-radius: 50%; background: var(--green); }
+.sp { flex: 1; }
+.btn.lock { background: var(--panel); }
+.btn.mute-all { background: #3A1312; border-color: #8C2723; color: #FFC9C6; }
+.btn.sq { width: 52px; padding: 0; }
+
+/* Row 2: page navigation */
+.nav { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; }
+.nav button { display: flex; align-items: center; justify-content: center; gap: 10px; border-radius: 4px; background: var(--panel); border: 1px solid var(--line); font-size: 18px; font-weight: 700; color: var(--ink-2); }
+.nav button .ic { width: 24px; height: 24px; }
+.nav button[aria-current] { background: var(--sel-tint); border-color: var(--sel); color: var(--ink); }
+.nav button[aria-current] .ic { color: var(--sel); }
+
+/* Row 3: processing | workspace | master */
+.body { display: grid; grid-template-columns: 196px minmax(0, 1fr) 176px; gap: 12px; min-height: 0; }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 5px; }
+
+.proc { display: flex; flex-direction: column; gap: 5px; padding: 10px; }
+.chsel { display: flex; align-items: center; gap: 10px; height: 52px; padding: 0 10px; border-radius: 4px; background: var(--card); border: 1px solid var(--line-2); text-align: left; }
+.chsel b { font-size: 22px; font-weight: 800; }
+.chsel span { font-size: 19px; color: var(--ink-2); }
+.chsel .ic { margin-left: auto; width: 18px; }
+.proc .item { display: flex; align-items: center; gap: 12px; height: 50px; padding: 0 12px; border-radius: 4px; background: var(--card); border: 1px solid var(--line); font-size: 18px; font-weight: 700; color: var(--ink-2); text-align: left; }
+.proc .item .ic { width: 22px; height: 22px; color: var(--ink-3); }
+.proc .item[aria-pressed="true"] { background: var(--sel); border-color: var(--sel); color: var(--well); }
+.proc .item[aria-pressed="true"] .ic { color: var(--well); }
+.proc .item em { margin-left: auto; font-style: normal; font-size: 14px; color: var(--ink-3); }
+.proc h3 { margin: 8px 2px 0; font-size: 13px; font-weight: 700; color: var(--ink-3); letter-spacing: 0.06em; }
+.grps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; }
+.grps button { height: 44px; border-radius: 4px; background: var(--card); border: 1px solid var(--line-2); font-size: 17px; font-weight: 700; }
+.grps button[aria-pressed="true"] { background: #3A1312; border-color: var(--red); color: #FFD9D6; }
+.proc .foot { margin-top: auto; display: grid; grid-template-columns: 1fr; gap: 6px; }
+
+.work { display: grid; grid-template-rows: 330px minmax(0, 1fr); gap: 8px; min-width: 0; }
+
+/* EQ workspace */
+.eq { display: grid; grid-template-rows: 40px minmax(0, 1fr) 96px; gap: 10px; padding: 12px; }
+.eq-h { display: flex; align-items: center; gap: 12px; }
+.tabx { height: 36px; padding: 0 16px; border-radius: 4px; background: var(--sel); color: var(--well); font-size: 19px; font-weight: 800; display: inline-flex; align-items: center; }
+.eq-h .t { font-size: 19px; font-weight: 600; color: var(--ink-2); }
+.graph { position: relative; background: var(--well); border-radius: 3px; min-height: 0; }
+.graph svg.g { position: absolute; inset: 0; width: 100%; height: 100%; }
+.node { position: absolute; width: 26px; height: 26px; margin: -13px; border-radius: 50%; display: grid; place-items: center; font-size: 14px; font-weight: 800; background: var(--raised); border: 2px solid var(--eq); color: var(--ink); }
+.node.on { width: 32px; height: 32px; margin: -16px; background: var(--sel); border-color: var(--ink); color: var(--well); }
+.bands { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.band { display: grid; grid-template-columns: 1fr 44px; grid-template-rows: 30px 1fr; column-gap: 8px; padding: 6px 12px; border-radius: 4px; background: var(--card); border: 1px solid var(--line); text-align: left; }
+.band[aria-pressed="true"] { border-color: var(--sel); background: #142624; }
+.band .hd { grid-column: 1 / -1; display: flex; align-items: center; gap: 8px; font-size: 18px; font-weight: 800; }
+.band .hd i { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 3px; background: var(--raised); border: 1px solid var(--eq); font-style: normal; font-size: 13px; }
+.band[aria-pressed="true"] .hd i { background: var(--sel); border-color: var(--sel); color: var(--well); }
+.band dl { margin: 0; display: grid; grid-template-columns: auto 1fr; column-gap: 8px; row-gap: 1px; font-size: 15px; align-content: center; }
+.band dt { color: var(--ink-3); }
+.band dd { margin: 0; text-align: right; font-weight: 700; }
+.band dd.fixed { color: var(--ink-3); font-weight: 600; }
+.band dd .ic { width: 12px; height: 12px; vertical-align: -1px; }
+.knob { align-self: center; width: 40px; height: 40px; }
+
+/* Fader bank */
+.bank { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; padding: 10px; }
+.strip { display: grid; grid-template-rows: 52px minmax(0, 1fr) 34px 48px; gap: 6px; padding: 0 0 6px; border-radius: 4px; background: var(--card); border: 1px solid var(--line); min-width: 0; }
+.strip.sel { border: 2px solid var(--sel); background: #10201F; }
+.s-h { display: grid; place-content: center; text-align: center; border-bottom: 1px solid var(--line); line-height: 1.1; }
+.strip.sel .s-h { background: var(--sel-tint); border-bottom-color: var(--sel); }
+.s-h b { font-size: 18px; font-weight: 800; }
+.s-h span { font-size: 16px; color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 96px; }
+.s-h .badge { font-size: 11px; }
+.fz { display: grid; grid-template-columns: 24px 8px 1fr; gap: 5px; padding: 6px 8px 0; min-height: 0; }
+.scale { position: relative; font-size: 12px; color: var(--ink-3); }
+.scale span { position: absolute; right: 0; transform: translateY(-50%); }
+.meter { position: relative; background: repeating-linear-gradient(0deg, #1F2325 0 4px, var(--well) 4px 6px); border-radius: 1px; }
+.meter i { position: absolute; inset: 0; background: linear-gradient(0deg, var(--meter) 0 70%, var(--amber) 70% 86%, var(--meter-hot) 86%); clip-path: inset(calc(100% - var(--l)) 0 0 0); -webkit-mask: repeating-linear-gradient(0deg, #000 0 4px, transparent 4px 6px); mask: repeating-linear-gradient(0deg, #000 0 4px, transparent 4px 6px); }
+.track { position: relative; }
+.track::before { content: ""; position: absolute; left: 50%; top: 2%; bottom: 2%; width: 4px; margin-left: -2px; border-radius: 2px; background: #2C3033; }
+.track .fill { position: absolute; left: 50%; bottom: 2%; width: 4px; margin-left: -2px; border-radius: 2px; background: var(--sel-deep); }
+.cap { position: absolute; left: 50%; width: 38px; height: 34px; transform: translate(-50%, 50%); border-radius: 3px; background: linear-gradient(#D9DEE0, #9CA4A8); border: 1px solid #5B6368; } /* the fader cap is the one modelled object */
+.cap::after { content: ""; position: absolute; left: 4px; right: 4px; top: 50%; height: 2px; margin-top: -1px; background: #1A1F22; }
+.cap.unk { background: transparent; border: 1px dashed var(--ink-3); }
+.rd { display: grid; place-items: center; margin: 0 6px; border-radius: 3px; background: var(--well); font-size: 19px; font-weight: 700; }
+.rd.unk { color: var(--ink-3); border: 1px dashed var(--line-2); }
+.mute { margin: 0 6px; border-radius: 4px; background: var(--raised); border: 1px solid var(--line-2); font-size: 20px; font-weight: 800; color: var(--ink-2); display: flex; align-items: center; justify-content: center; gap: 6px; }
+.mute.on { background: var(--red); border-color: var(--red); color: var(--well); }
+.mute.unk { background: transparent; border-style: dashed; color: var(--ink-3); }
+
+/* Right: master and buses */
+.mast { display: flex; flex-direction: column; gap: 8px; min-height: 0; }
+.main { display: grid; grid-template-rows: 34px minmax(0, 1fr) 46px 36px; gap: 8px; padding: 12px; flex: 1; min-height: 0; }
+.main h2 { margin: 0; font-size: 20px; font-weight: 800; display: flex; align-items: center; justify-content: space-between; }
+.main .fz { grid-template-columns: 10px 26px 1fr; padding: 0; }
+.main .scale span { right: 2px; }
+.sel-btn { border-radius: 4px; background: var(--sel); color: var(--well); font-size: 20px; font-weight: 800; display: flex; align-items: center; justify-content: center; gap: 8px; }
+.main .rd { margin: 0; }
+.bus { display: grid; grid-template-columns: 26px 1fr 18px; grid-template-rows: auto auto; column-gap: 8px; align-items: center; padding: 10px 12px; border-radius: 5px; background: var(--panel); border: 1px solid var(--line); border-left: 1px solid var(--line); text-align: left; }
+.bus .ic { grid-row: span 2; width: 24px; height: 24px; }
+.bus b { font-size: 19px; font-weight: 800; }
+.bus small { grid-column: 2; font-size: 16px; color: var(--ink-2); }
+.bus .chev { grid-column: 3; grid-row: 1 / span 2; width: 16px; height: 16px; color: var(--ink-3); }
+.bus.mon b, .bus.mon .ic:first-child { color: var(--mix-mon); }
+.bus.fx b, .bus.fx .ic:first-child { color: var(--mix-fx); }
+
+.caption { position: fixed; right: 10px; bottom: 2px; font-size: 11px; color: var(--ink-3); pointer-events: none; }
+
+/* ---------- Phone portrait: single-channel focus ---------- */
+@media (max-width: 760px) {
+  .ipad { display: none; }
+  .phone { display: grid; grid-template-rows: auto auto auto minmax(0, 1fr) auto; gap: 8px; height: 100vh; padding: 8px; }
+  .pbar { display: flex; align-items: center; gap: 6px; }
+  .pbar .brand b { font-size: 22px; }
+  .pbar .state { height: 40px; padding: 0 10px; }
+  .chips { display: flex; gap: 6px; overflow-x: auto; }
+  .chips button { flex: none; height: 48px; min-width: 70px; border-radius: 4px; background: var(--card); border: 1px solid var(--line-2); display: grid; place-content: center; line-height: 1.05; }
+  .chips button b { font-size: 16px; font-weight: 800; }
+  .chips button span { font-size: 13px; color: var(--ink-3); }
+  .chips button[aria-pressed="true"] { background: var(--sel); border-color: var(--sel); color: var(--well); }
+  .chips button[aria-pressed="true"] span { color: #0B3A38; }
+  .pmix { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; }
+  .pmix button { height: 42px; border-radius: 4px; background: var(--card); border: 1px solid var(--line-2); font-size: 15px; font-weight: 800; }
+  .pmix button.mon { color: var(--mix-mon); } .pmix button.fx { color: var(--mix-fx); }
+  .pmix button[aria-pressed="true"] { border-color: var(--sel); background: var(--sel-tint); color: var(--ink); }
+  .focus { display: grid; grid-template-columns: 132px 1fr; gap: 8px; min-height: 0; }
+  .focus .strip { grid-template-rows: 52px minmax(0, 1fr) 40px 52px; }
+  .focus .cap { width: 52px; height: 40px; }
+  .qeq { display: flex; flex-direction: column; gap: 6px; min-height: 0; }
+  .qeq .tabx { height: 34px; font-size: 17px; align-self: flex-start; }
+  .qrow { padding: 7px 10px; border-radius: 4px; background: var(--card); border: 1px solid var(--line); }
+  .qrow.on { border-color: var(--sel); }
+  .qrow small { display: flex; justify-content: space-between; align-items: center; font-size: 15px; color: var(--ink-3); font-weight: 600; }
+  .qrow small b { color: var(--ink); font-size: 17px; }
+  .qrow small i { font-style: normal; display: inline-grid; place-items: center; width: 20px; height: 20px; margin-right: 6px; border-radius: 3px; border: 1px solid var(--eq); color: var(--ink); font-size: 12px; font-weight: 800; }
+  .rng { position: relative; height: 26px; }
+  .rng::before { content: ""; position: absolute; left: 0; right: 0; top: 11px; height: 4px; border-radius: 2px; background: var(--well); }
+  .rng s { position: absolute; top: 11px; height: 4px; background: var(--sel-deep); text-decoration: none; }
+  .rng u { position: absolute; top: 2px; width: 22px; height: 22px; margin-left: -11px; border-radius: 50%; background: #D9DEE0; }
+  .pnav { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr 1fr 1fr; gap: 4px; }
+  .pnav button { height: 56px; border-radius: 4px; background: var(--panel); border: 1px solid var(--line); display: grid; place-items: center; align-content: center; gap: 2px; font-size: 13px; font-weight: 700; color: var(--ink-2); }
+  .pnav button .ic { width: 22px; height: 22px; }
+  .pnav button[aria-current] { border-color: var(--sel); background: var(--sel-tint); color: var(--ink); }
+  .pundo { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-mic" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3M8 21h8"/></symbol>
+  <symbol id="i-in" viewBox="0 0 24 24"><path d="M4 12h11M11 8l4 4-4 4M19 4v16"/></symbol>
+  <symbol id="i-eq" viewBox="0 0 24 24"><path d="M2 12h3l2-6 3 12 3-9 2 5 2-2h5"/></symbol>
+  <symbol id="i-comp" viewBox="0 0 24 24"><path d="M4 20 13 11h7M4 4v16h16"/></symbol>
+  <symbol id="i-fxsend" viewBox="0 0 24 24"><circle cx="6" cy="12" r="2.5"/><path d="M8.5 11 17 5M8.5 13 17 19"/><circle cx="18.5" cy="4.5" r="1.8"/><circle cx="18.5" cy="19.5" r="1.8"/></symbol>
+  <symbol id="i-spk" viewBox="0 0 24 24"><path d="M4 9h4l5-4v14l-5-4H4zM16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"/></symbol>
+  <symbol id="i-mute" viewBox="0 0 24 24"><path d="M4 9h4l5-4v14l-5-4H4zM16 9l5 6M21 9l-5 6"/></symbol>
+  <symbol id="i-phones" viewBox="0 0 24 24"><path d="M4 15v-3a8 8 0 0 1 16 0v3"/><rect x="3" y="14" width="4" height="7" rx="1.5"/><rect x="17" y="14" width="4" height="7" rx="1.5"/></symbol>
+  <symbol id="i-fx" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M8 12c1.3-3 2.7-3 4 0s2.7 3 4 0"/></symbol>
+  <symbol id="i-mix" viewBox="0 0 24 24"><path d="M6 3v18M12 3v18M18 3v18"/><rect x="4" y="13" width="4" height="3" rx="1"/><rect x="10" y="7" width="4" height="3" rx="1"/><rect x="16" y="11" width="4" height="3" rx="1"/></symbol>
+  <symbol id="i-wave" viewBox="0 0 24 24"><path d="M2 12h3l2-5 3 10 3-12 3 12 2-5h4"/></symbol>
+  <symbol id="i-show" viewBox="0 0 24 24"><rect x="3" y="9" width="18" height="12" rx="1"/><path d="M3 9 5 4l4 4M9 8 11 3l4 4M15 7l2-4 4 4"/></symbol>
+  <symbol id="i-out" viewBox="0 0 24 24"><path d="M4 9h4l5-4v14l-5-4H4zM17 9v6M20 7v10"/></symbol>
+  <symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9 7 7M17 17l2.1 2.1M4.9 19.1 7 17M17 7l2.1-2.1"/></symbol>
+  <symbol id="i-usb" viewBox="0 0 24 24"><path d="M3 12h14M17 12l-3-3M17 12l-3 3M7 12V8h4M11 12v4h3"/><circle cx="19.5" cy="12" r="1.8"/></symbol>
+  <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="1.5"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></symbol>
+  <symbol id="i-undo" viewBox="0 0 24 24"><path d="M9 7 4 12l5 5M4 12h11a5 5 0 0 1 0 10h-3"/></symbol>
+  <symbol id="i-redo" viewBox="0 0 24 24"><path d="m15 7 5 5-5 5M20 12H9a5 5 0 0 0 0 10h3"/></symbol>
+  <symbol id="i-chev" viewBox="0 0 24 24"><path d="m9 5 7 7-7 7"/></symbol>
+  <symbol id="i-preset" viewBox="0 0 24 24"><path d="M4 6h6l2 2h8v11H4z"/></symbol>
+  <symbol id="i-strip" viewBox="0 0 24 24"><path d="M7 3v18M17 3v18"/><rect x="4" y="13" width="6" height="3" rx="1"/><rect x="14" y="6" width="6" height="3" rx="1"/></symbol>
+</svg>
+
+<!-- ================= iPad landscape / desktop ================= -->
+<div class="ipad">
+  <header class="bar">
+    <div class="brand"><b>FLOW 888</b><small>LIVE CONSOLE</small></div>
+    <span class="state ok"><span class="lamp"></span>CONNECTED</span>
+    <span class="state"><svg class="ic"><use href="#i-usb"/></svg>USB MIDI</span>
+    <span class="sp"></span>
+    <button class="btn"><svg class="ic"><use href="#i-undo"/></svg>UNDO</button>
+    <button class="btn off"><svg class="ic"><use href="#i-redo"/></svg>REDO</button>
+    <span class="sp"></span>
+    <button class="btn lock"><svg class="ic"><use href="#i-lock"/></svg>LOCK</button>
+    <button class="btn mute-all"><svg class="ic"><use href="#i-mute"/></svg>MUTE ALL</button>
+    <button class="btn sq" aria-label="Settings: FINE, NIGHT"><svg class="ic"><use href="#i-gear"/></svg></button>
+  </header>
+
+  <nav class="nav" aria-label="Pages">
+    <button aria-current="page"><svg class="ic"><use href="#i-mix"/></svg>MIX</button>
+    <button><svg class="ic"><use href="#i-wave"/></svg>FX</button>
+    <button><svg class="ic"><use href="#i-phones"/></svg>MY MON</button>
+    <button><svg class="ic"><use href="#i-show"/></svg>SHOW</button>
+    <button><svg class="ic"><use href="#i-out"/></svg>OUTPUT</button>
+    <button><svg class="ic"><use href="#i-gear"/></svg>SETUP</button>
+  </nav>
+
+  <div class="body">
+    <aside class="panel proc" aria-label="Selected channel">
+      <button class="chsel"><b>CH 1</b><span>Mic 1</span><svg class="ic"><use href="#i-chev"/></svg></button>
+      <button class="item"><svg class="ic"><use href="#i-in"/></svg>SOURCE<em>LC</em></button>
+      <button class="item" aria-pressed="true"><svg class="ic"><use href="#i-eq"/></svg>EQ</button>
+      <button class="item"><svg class="ic"><use href="#i-comp"/></svg>COMP<em>31%</em></button>
+      <button class="item"><svg class="ic"><use href="#i-fxsend"/></svg>FX SEND</button>
+      <button class="item"><svg class="ic"><use href="#i-spk"/></svg>MON SEND</button>
+      <button class="item"><svg class="ic"><use href="#i-strip"/></svg>CHANNEL</button>
+      <div class="foot">
+        <h3>MUTE GROUPS</h3>
+        <div class="grps"><button>A</button><button>B</button><button aria-pressed="true">C</button><button>D</button></div>
+        <button class="btn"><svg class="ic"><use href="#i-preset"/></svg>PRESET</button>
+      </div>
+    </aside>
+
+    <main class="work">
+      <section class="panel eq" aria-label="EQ, channel 1">
+        <div class="eq-h"><span class="tabx">EQ</span><span class="t">4-BAND · CH 1 Mic 1</span><span class="sp"></span><span class="badge">SNT</span><button class="btn" style="height:36px">FLAT</button></div>
+        <div class="graph">
+          <svg class="g" viewBox="0 0 800 200" preserveAspectRatio="none" aria-hidden="true">
+            <g stroke="#1F2427" stroke-width="1">
+              <line x1="40" y1="20" x2="800" y2="20"/><line x1="40" y1="55" x2="800" y2="55"/><line x1="40" y1="125" x2="800" y2="125"/><line x1="40" y1="160" x2="800" y2="160"/>
+              <line x1="95" y1="10" x2="95" y2="170"/><line x1="135" y1="10" x2="135" y2="170"/><line x1="165" y1="10" x2="165" y2="170"/><line x1="215" y1="10" x2="215" y2="170"/>
+              <line x1="290" y1="10" x2="290" y2="170"/><line x1="345" y1="10" x2="345" y2="170"/><line x1="420" y1="10" x2="420" y2="170"/><line x1="480" y1="10" x2="480" y2="170"/>
+              <line x1="545" y1="10" x2="545" y2="170"/><line x1="610" y1="10" x2="610" y2="170"/><line x1="680" y1="10" x2="680" y2="170"/><line x1="745" y1="10" x2="745" y2="170"/>
+            </g>
+            <line x1="40" y1="90" x2="800" y2="90" stroke="#484D50" stroke-width="1"/>
+            <g fill="#92999C" font-size="13" font-family="Barlow Condensed" font-weight="600">
+              <text x="4" y="24">+12</text><text x="8" y="59">+6</text><text x="14" y="94">0</text><text x="10" y="129">-6</text><text x="4" y="164">-12</text>
+              <text x="40" y="192">20</text><text x="125" y="192">50</text><text x="202" y="192">100</text><text x="280" y="192">200</text><text x="405" y="192">500</text><text x="472" y="192">1k</text><text x="600" y="192">2k</text><text x="672" y="192">5k</text><text x="735" y="192">10k</text><text x="775" y="192">20k</text>
+            </g>
+            <path d="M40 84 C 120 82, 200 86, 290 100 S 400 94, 480 86 S 650 86, 800 82" fill="none" stroke="#39C9DB" stroke-width="2.5"/>
+            <path d="M40 84 C 120 82, 200 86, 290 100 S 400 94, 480 86 S 650 86, 800 82 L 800 90 L 40 90 Z" fill="#39C9DB" fill-opacity="0.14"/>
+          </svg>
+          <span class="node" style="left:6%;top:42%">1</span>
+          <span class="node on" style="left:36%;top:50%">2</span>
+          <span class="node" style="left:60%;top:43%">3</span>
+          <span class="node" style="left:97%;top:41%">4</span>
+        </div>
+        <div class="bands">
+          <button class="band"><span class="hd"><i>1</i>LOW</span><dl><dt>Freq</dt><dd class="fixed">20 Hz <svg class="ic"><use href="#i-lock"/></svg></dd><dt>Gain</dt><dd>+1.4 dB</dd><dt>Q</dt><dd class="fixed">fixed</dd></dl><svg class="knob" viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="17" fill="#292D30" stroke="#484D50" stroke-width="2"/><path d="M8 32A17 17 0 0 1 20 3" stroke="#39C9DB" stroke-width="3" fill="none"/><line x1="20" y1="20" x2="22" y2="6" stroke="#E8EAEB" stroke-width="3" stroke-linecap="round"/></svg></button>
+          <button class="band" aria-pressed="true"><span class="hd"><i>2</i>LOW MID</span><dl><dt>Freq</dt><dd class="fixed">300 Hz <svg class="ic"><use href="#i-lock"/></svg></dd><dt>Gain</dt><dd>-1.4 dB</dd><dt>Q</dt><dd class="fixed">fixed</dd></dl><svg class="knob" viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="17" fill="#292D30" stroke="#35B4B0" stroke-width="2"/><path d="M8 32A17 17 0 0 1 18 3" stroke="#35B4B0" stroke-width="3" fill="none"/><line x1="20" y1="20" x2="17" y2="6" stroke="#E8EAEB" stroke-width="3" stroke-linecap="round"/></svg></button>
+          <button class="band"><span class="hd"><i>3</i>HI MID</span><dl><dt>Freq</dt><dd class="fixed">1.5 kHz <svg class="ic"><use href="#i-lock"/></svg></dd><dt>Gain</dt><dd>+1.0 dB</dd><dt>Q</dt><dd class="fixed">fixed</dd></dl><svg class="knob" viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="17" fill="#292D30" stroke="#484D50" stroke-width="2"/><path d="M8 32A17 17 0 0 1 21 3" stroke="#39C9DB" stroke-width="3" fill="none"/><line x1="20" y1="20" x2="21" y2="6" stroke="#E8EAEB" stroke-width="3" stroke-linecap="round"/></svg></button>
+          <button class="band"><span class="hd"><i>4</i>HIGH</span><dl><dt>Freq</dt><dd class="fixed">20 kHz <svg class="ic"><use href="#i-lock"/></svg></dd><dt>Gain</dt><dd>+1.9 dB</dd><dt>Q</dt><dd class="fixed">fixed</dd></dl><svg class="knob" viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="17" fill="#292D30" stroke="#484D50" stroke-width="2"/><path d="M8 32A17 17 0 0 1 22 3" stroke="#39C9DB" stroke-width="3" fill="none"/><line x1="20" y1="20" x2="23" y2="6" stroke="#E8EAEB" stroke-width="3" stroke-linecap="round"/></svg></button>
+        </div>
+      </section>
+
+      <section class="panel bank" aria-label="Input faders, MAIN mix">
+        <div class="strip sel"><div class="s-h"><b>CH 1</b><span>Mic 1</span></div>
+          <div class="fz"><div class="scale"><span style="top:4%">+10</span><span style="top:24%">0</span><span style="top:46%">-10</span><span style="top:68%">-30</span><span style="top:96%">-∞</span></div><div class="meter"><i style="--l:58%"></i></div><div class="track"><div class="fill" style="height:66%"></div><div class="cap" style="bottom:68%"></div></div></div>
+          <div class="rd">-3.5 dB</div><button class="mute"><svg class="ic"><use href="#i-mute"/></svg>M</button></div>
+        <div class="strip"><div class="s-h"><b>CH 2</b><span>Mic 2</span></div>
+          <div class="fz"><div class="scale"><span style="top:4%">+10</span><span style="top:24%">0</span><span style="top:46%">-10</span><span style="top:68%">-30</span><span style="top:96%">-∞</span></div><div class="meter"><i style="--l:44%"></i></div><div class="track"><div class="fill" style="height:58%"></div><div class="cap" style="bottom:60%"></div></div></div>
+          <div class="rd">-9.0 dB</div><button class="mute"><svg class="ic"><use href="#i-mute"/></svg>M</button></div>
+        <div class="strip"><div class="s-h"><b>CH 3</b><span>Mic/Line 3</span></div>
+          <div class="fz"><div class="scale"><span style="top:4%">+10</span><span style="top:24%">0</span><span style="top:46%">-10</span><span style="top:68%">-30</span><span style="top:96%">-∞</span></div><div class="meter"><i style="--l:66%"></i></div><div class="track"><div class="fill" style="height:74%"></div><div class="cap" style="bottom:76%"></div></div></div>
+          <div class="rd">+0.0 dB</div><button class="mute"><svg class="ic"><use href="#i-mute"/></svg>M</button></div>
+        <div class="strip"><div class="s-h"><b>CH 4</b><span>Mic/Line 4</span></div>
+          <div class="fz"><div class="scale"><span style="top:4%">+10</span><span style="top:24%">0</span><span style="top:46%">-10</span><span style="top:68%">-30</span><span style="top:96%">-∞</span></div><div class="meter"><i style="--l:20%"></i></div><div class="track"><div class="fill" style="height:38%"></div><div class="cap" style="bottom:40%"></div></div></div>
+          <div class="rd">-21.5 dB</div><button class="mute"><svg class="ic"><use href="#i-mute"/></svg>M</button></div>
+        <div class="strip"><div class="s-h"><b>CH 5/6</b><span>Line 5/6</span></div>
+          <div class="fz"><div class="scale"><span style="top:4%">+10</span><span style="top:24%">0</span><span style="top:46%">-10</span><span style="top:68%">-30</span><span style="top:96%">-∞</span></div><div class="meter"><i style="--l:36%"></i></div><div class="track"><div class="fill" style="height:50%"></div><div class="cap" style="bottom:52%"></div></div></div>
+          <div class="rd">-13.2 dB</div><button class="mute"><svg class="ic"><use href="#i-mute"/></svg>M</button></div>
+        <div class="strip"><div class="s-h"><b>CH 7/8</b><span>Line 7/8</span></div>
+          <div class="fz"><div class="scale"><span style="top:4%">+10</span><span style="top:24%">0</span><span style="top:46%">-10</span><span style="top:68%">-30</span><span style="top:96%">-∞</span></div><div class="meter"><i style="--l:0%"></i></div><div class="track"><div class="fill" style="height:28%"></div><div class="cap" style="bottom:30%"></div></div></div>
+          <div class="rd">-28.4 dB</div><button class="mute on"><svg class="ic"><use href="#i-mute"/></svg>M</button></div>
+        <div class="strip"><div class="s-h"><b>USB/BT</b><span>Return <span class="badge unk">UNK</span></span></div>
+          <div class="fz"><div class="scale"><span style="top:4%">+10</span><span style="top:24%">0</span><span style="top:46%">-10</span><span style="top:68%">-30</span><span style="top:96%">-∞</span></div><div class="meter"><i style="--l:12%"></i></div><div class="track"><div class="cap unk" style="bottom:3%"></div></div></div>
+          <div class="rd unk">--</div><button class="mute unk"><svg class="ic"><use href="#i-mute"/></svg>M ?</button></div>
+      </section>
+    </main>
+
+    <aside class="mast" aria-label="Main out and buses">
+      <section class="panel main">
+        <h2>MAIN OUT <span class="badge">SNT</span></h2>
+        <div class="fz"><div class="meter"><i style="--l:60%"></i></div><div class="scale"><span style="top:4%">+10</span><span style="top:24%">0</span><span style="top:46%">-10</span><span style="top:68%">-30</span><span style="top:96%">-∞</span></div><div class="track"><div class="fill" style="height:74%"></div><div class="cap" style="bottom:76%"></div></div></div>
+        <div class="sel-btn"><svg class="ic"><use href="#i-spk"/></svg>MAIN</div>
+        <div class="rd">0.0 dB</div>
+      </section>
+      <button class="bus mon"><svg class="ic"><use href="#i-phones"/></svg><b>MON 1</b><small>-3.0 dB</small><svg class="ic chev"><use href="#i-chev"/></svg></button>
+      <button class="bus mon"><svg class="ic"><use href="#i-phones"/></svg><b>MON 2</b><small><span class="badge unk">UNK</span></small><svg class="ic chev"><use href="#i-chev"/></svg></button>
+      <button class="bus fx"><svg class="ic"><use href="#i-fx"/></svg><b>FX 1</b><small>Church</small><svg class="ic chev"><use href="#i-chev"/></svg></button>
+      <button class="bus fx"><svg class="ic"><use href="#i-fx"/></svg><b>FX 2</b><small><span class="badge unk">UNK</span></small><svg class="ic chev"><use href="#i-chev"/></svg></button>
+    </aside>
+  </div>
+</div>
+
+<!-- ================= Phone portrait ================= -->
+<div class="phone">
+  <header class="pbar">
+    <div class="brand"><b>FLOW 888</b></div>
+    <span class="state ok"><span class="lamp"></span>USB</span>
+    <span class="sp"></span>
+    <button class="btn lock" aria-label="Lock"><svg class="ic"><use href="#i-lock"/></svg></button>
+    <button class="btn mute-all">MUTE ALL</button>
+  </header>
+  <div class="chips" aria-label="Channel">
+    <button aria-pressed="true"><b>CH 1</b><span>Mic 1</span></button><button><b>CH 2</b><span>Mic 2</span></button><button><b>CH 3</b><span>Line 3</span></button><button><b>CH 4</b><span>Line 4</span></button><button><b>5/6</b><span>Line</span></button><button><b>7/8</b><span>Line</span></button><button><b>USB</b><span>BT</span></button>
+  </div>
+  <div class="pmix" aria-label="Mix on fader">
+    <button aria-pressed="true">MAIN</button><button class="mon">MON 1</button><button class="mon">MON 2</button><button class="fx">FX 1</button><button class="fx">FX 2</button>
+  </div>
+  <div class="focus">
+    <div class="strip sel"><div class="s-h"><b>CH 1</b><span>Mic 1</span></div>
+      <div class="fz"><div class="scale"><span style="top:4%">+10</span><span style="top:24%">0</span><span style="top:46%">-10</span><span style="top:68%">-30</span><span style="top:96%">-∞</span></div><div class="meter"><i style="--l:58%"></i></div><div class="track"><div class="fill" style="height:66%"></div><div class="cap" style="bottom:68%"></div></div></div>
+      <div class="rd">-3.5 dB</div><button class="mute"><svg class="ic"><use href="#i-mute"/></svg>MUTE</button></div>
+    <div class="qeq">
+      <span class="tabx">EQ · SNT</span>
+      <div class="qrow"><small><span><i>1</i>LOW · 20 Hz</span><b>+1.4 dB</b></small><div class="rng"><s style="left:50%;width:5%"></s><u style="left:55%"></u></div></div>
+      <div class="qrow on"><small><span><i>2</i>LOW MID · 300 Hz</span><b>-1.4 dB</b></small><div class="rng"><s style="left:45%;width:5%"></s><u style="left:45%"></u></div></div>
+      <div class="qrow"><small><span><i>3</i>HI MID · 1.5 kHz</span><b>+1.0 dB</b></small><div class="rng"><s style="left:50%;width:3%"></s><u style="left:53%"></u></div></div>
+      <div class="qrow"><small><span><i>4</i>HIGH · 20 kHz</span><b>+1.9 dB</b></small><div class="rng"><s style="left:50%;width:6%"></s><u style="left:56%"></u></div></div>
+      <div class="qrow"><small><span>LOW CUT</span><b>125 Hz</b></small><div class="rng"><s style="left:0;width:18%"></s><u style="left:18%"></u></div></div>
+      <div class="qrow"><small><span>COMP</span><b>31%</b></small><div class="rng"><s style="left:0;width:31%"></s><u style="left:31%"></u></div></div>
+      <div class="pundo"><button class="btn"><svg class="ic"><use href="#i-undo"/></svg>UNDO</button><button class="btn off"><svg class="ic"><use href="#i-redo"/></svg>REDO</button></div>
+    </div>
+  </div>
+  <nav class="pnav" aria-label="Pages">
+    <button aria-current="page"><svg class="ic"><use href="#i-mix"/></svg>MIX</button>
+    <button><svg class="ic"><use href="#i-wave"/></svg>FX</button>
+    <button><svg class="ic"><use href="#i-phones"/></svg>MY MON</button>
+    <button><svg class="ic"><use href="#i-show"/></svg>SHOW</button>
+    <button><svg class="ic"><use href="#i-out"/></svg>OUTPUT</button>
+    <button><svg class="ic"><use href="#i-gear"/></svg>SETUP</button>
+  </nav>
+</div>
+
+<div class="caption">Preview · sample values · not wired</div>
+</body>
+</html>

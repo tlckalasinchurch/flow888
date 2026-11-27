@@ -1,0 +1,53 @@
+{
+ "kbd_read": "-69.3 SNT",
+ "kbd_badge_class": "prov COMMANDED",
+ "kbd_sent": [
+  {
+   "action": "setFader",
+   "channel": 5,
+   "value": 1,
+   "_code": 200
+  }
+ ],
+ "focus_outline": "solid rgb(53, 180, 176)",
+ "drag_actions": [
+  "beginGesture",
+  "setFader",
+  "setFader",
+  "endGesture"
+ ],
+ "drag_read": "+6.2 SNT",
+ "hover_border": "rgb(146, 153, 156)",
+ "hover_selected_border": "rgb(53, 180, 176)",
+ "eq_sent": [
+  {
+   "action": "setEqBand",
+   "channel": 1,
+   "band": "low_mid",
+   "value": 72,
+   "unit": "raw",
+   "_code": 200
+  }
+ ],
+ "axis_font": [
+  "12px",
+  "12px",
+  "12px",
+  "12px",
+  "12px",
+  "12px",
+  "12px",
+  "12px",
+  "12px",
+  "12px",
+  "12px",
+  "12px",
+  "12px"
+ ],
+ "grp_box": [
+  84,
+  44
+ ],
+ "grp_editor_open": true,
+ "physical": []
+}

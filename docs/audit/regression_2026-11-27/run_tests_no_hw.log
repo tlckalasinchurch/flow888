@@ -1,0 +1,46 @@
+.................................................................................................................................................sssss.................................................................................................................................................................................................Scene 'Show': fader on channel 3 was not sent
+Traceback (most recent call last):
+  File "C:\Users\Administrator\Desktop\00 - Projects\Flow888\flow888\flow8\service.py", line 1152, in apply_mix_state
+    self._replay(parameter, channel, values[parameter])
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Administrator\Desktop\00 - Projects\Flow888\flow888\flow8\service.py", line 1034, in _replay
+    self.set_fader(channel_index, value)
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Administrator\Desktop\00 - Projects\Flow888\flow888\flow8\service.py", line 695, in set_fader
+    self._dispatch_and_notify(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~^
+        self.parameter_engine.channel(channel_index).set_fader,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        clamped, unit="raw",
+        ^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Administrator\Desktop\00 - Projects\Flow888\flow888\flow8\service.py", line 485, in _dispatch_and_notify
+    return callback(*args, **kwargs)
+  File "C:\Users\Administrator\Desktop\00 - Projects\Flow888\flow888\flow8\parameter_engine.py", line 78, in set_fader
+    return self._boundary.execute_command(f"{self._prefix}.fader", value, source=source, unit=unit)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python314\Lib\unittest\mock.py", line 1176, in __call__
+    return self._mock_call(*args, **kwargs)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Python314\Lib\unittest\mock.py", line 1180, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Python314\Lib\unittest\mock.py", line 1247, in _execute_mock_call
+    result = effect(*args, **kwargs)
+  File "C:\Users\Administrator\Desktop\00 - Projects\Flow888\flow888\tests\test_service_ledger_scenes.py", line 243, in flaky
+    raise Flow8CommandError("driver down")
+flow8.command_boundary.Flow8CommandError: driver down
+.....................................................................................................................................................FLOW 8 USB MIDI endpoint disappeared; disconnecting and reconciling.
+..FLOW 8 USB MIDI endpoint disappeared; disconnecting and reconciling.
+.FLOW 8 USB MIDI endpoint disappeared; disconnecting and reconciling.
+...................................
+----------------------------------------------------------------------
+Ran 530 tests in 125.158s
+
+OK (skipped=5)
+Writes are disabled (no --allow-write): nothing was sent.
+
+=== Categories ===
+ran 530 | passed 525 | failed 0 | errors 0 | skipped 5 | expected failures 0 | unexpected successes 0
+hardware tests: NOT RUN (skipped 5) | attempted physical port opens: 0

@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#06111A" />
+<title>FLOW 888 · v3 prototype</title>
+<link rel="stylesheet" href="proto.css" />
+</head>
+<body>
+<!-- PROTOTYPE: mock data only. This page has no network code and cannot send anything to a mixer. -->
+<div class="shell">
+  <header class="bar">
+    <div class="brand"><svg viewBox="0 0 48 40" aria-hidden="true"><g stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M4 18v4M10 12v16M16 6v28M22 14v12M28 4v32M34 12v16M40 17v6"/></g></svg><b>FLOW 888</b></div>
+    <button class="link" id="link" type="button" title="Host PC link and mixer link">
+      <span class="dot ok"></span><span>HOST</span><span class="sep"></span><span class="dot ok"></span><span>FLOW 8 · USB</span>
+    </button>
+    <div class="cue" id="cue"></div>
+    <div class="bar-right">
+      <button class="tool" id="btn-fine" type="button" aria-pressed="false" title="Fine: faders move at a quarter of the finger travel">FINE</button>
+      <button class="tool" id="btn-night" type="button" aria-pressed="false" title="Night: red-only display for a dark room">NIGHT</button>
+      <button class="tool" id="btn-undo" type="button" title="Undo the last change">UNDO</button>
+      <span class="gap" aria-hidden="true"></span>
+      <button class="safety lock" id="btn-lock" type="button" aria-pressed="false"><span class="fill"></span>LOCK</button>
+      <button class="safety mute" id="btn-muteall" type="button" aria-pressed="false"><span class="fill"></span>MUTE ALL</button>
+    </div>
+  </header>
+
+  <nav class="rail" id="rail" aria-label="Pages"></nav>
+
+  <main class="stage" id="stage" aria-live="polite"></main>
+</div>
+<div class="toast" id="toast" role="status"></div>
+<script src="proto.js"></script>
+</body>
+</html>

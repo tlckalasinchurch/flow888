@@ -1,0 +1,124 @@
+render tier: 10 screenshots in C:\Users\Administrator\Desktop\00 - Projects\Flow888\flow888\flow8\web_ui\v3\.hallmark\shots (1280x800, 1440x900, 1920x1080 folds; 1440 and 375 full pages)
+flow8\web_ui\v3\index.html
+  FAIL 34 :1 [320px] horizontal scroll: scrollWidth 324 > viewport 320 | fix: overflow-x: clip on html and body; find the overflowing block
+  FAIL 49a :1 [375px] control "MUTE ALL" wraps to 2 lines (button.safety.mute) | fix: Shorten the label or set nowrap
+  FAIL 67 :39 "LIVE CONSOLE" typed in capitals at 15px (<small>) | fix: Sentence case in the body face; capitals survive only as a wordmark or as the display voice
+  FAIL 67 :40 "CONNECTING" typed in capitals at 14px (<button class="state">)
+  FAIL 67 :40 "CONNECTING" typed in capitals at 18px tracked 0.04em (<span class="tx">)
+  REFLEX 72 :1 [1440px] text crowds the edge of its box: button.btn right 6px, bottom 1px; button.btn right 6px, bottom 1px; button.sa… | fix: Pad the box: max(8px, 0.5em) at the sides, max(4px, 0.3em) above and below
+  WARN render :1 the shots show a fallback: fonts or stylesheets did not load (v3.css) | fix: Recapture when the host answers or the path is right; never review or sign off a fallback face
+flow8\web_ui\v3\v3.css
+  FAIL 62 :504 input[type="range"].unk-range::-webkit-slider-thumb is hidden at rest (visibility: hidden) and depends on a script to a… | fix: Visible by default: scope the hidden state under a .js class the script adds, or animate from visible with @starting-style
+  FAIL 67 :63 .brand small: letter-spaced tracked 0.14em at 12px in a label role | fix: Labels, captions, table heads, nav links and meta are the body face (or the theme's label face), a step smaller, sentence case, untracked
+  FAIL 67 :64 .state: letter-spaced tracked 0.04em at 15px in a label role
+  FAIL 67 :74 .tool: letter-spaced tracked 0.04em at 15px in a label role
+  FAIL 67 :110 .groups > span: letter-spaced tracked 0.04em at 12px in a label role
+  FAIL 67 :122 .s-head .num: letter-spaced tracked 0.04em at 12px in a label role
+  FAIL 67 :124 .prov: letter-spaced tracked 0.04em at 12px in a label role
+  FAIL 67 :148 .s-mute: letter-spaced tracked 0.04em at 14px in a label role
+  FAIL 67 :156 .matrix th: letter-spaced tracked 0.04em at 13px in a label role
+  FAIL 67 :180 .row label, .row .k: letter-spaced tracked 0.04em at 13px in a label role
+  FAIL 67 :287 .mini: letter-spaced tracked 0.04em at 13px in a label role
+  FAIL 67 :294 .preset .cat: letter-spaced tracked 0.04em at 12px in a label role
+  FAIL 67 :418 .s-read .prov: letter-spaced tracked 0.04em at 12px in a label role
+  FAIL 67 :434 .cue-tag: letter-spaced tracked 0.04em at 12px in a label role
+  FAIL 67 :498 .ws .grp[aria-pressed="true"]::after: letter-spaced tracked 0.04em at 12px in a label role
+  REFLEX 38iii :99 accented word inside a heading (.page-head h1 i) | fix: Set the whole head one way: a line break, a second line at a second size, or the whole head in the accent. Guard: the theme names the coloured word as its signature and it appears once on the page, in the hero
+  WARN 41 :166 dark surface (L 14%) on .panel sets no text colour | fix: Swap text to paper in the same rule
+  WARN 41 :217 dark surface (L 14%) on .cuecard sets no text colour
+  WARN 41 :241 dark surface (L 14%) on .lockcard sets no text colour
+  WARN 41 :312 dark surface (L 13%) on .ws .panel sets no text colour
+  WARN 41 :335 dark surface (L 14%) on .band sets no text colour
+  WARN F7 :188 same container recipe on 7 selectors (.preset, .calc input[type="number"], .calc .res…...) | fix: Vary weight, radius, or fill by role; not every box is the same box
+  WARN F24 :84 a hairline border under a wide soft shadow on .setmenu | fix: Commit to one: a defined edge, or elevation by shadow
+  NOTE 24b :60 gap: 10px (off the 4px scale) on .bar | fix: Use the 4px spacing scale
+  NOTE 24b :63 margin-top: 3px (off the 4px scale) on .brand small
+  NOTE 24b :64 padding: 0 14px (off the 4px scale) on .state
+  NOTE 24b :74 padding: 0 14px (off the 4px scale) on .tool
+  NOTE 24b :84 gap: 6px (off the 4px scale) on .setmenu
+  NOTE 24b :89 gap: 10px (off the 4px scale) on .tabs button
+  NOTE 24b :97 padding: 12px 16px 10px (off the 4px scale) on .page-head
+  NOTE 24b :105 padding: 0 14px (off the 4px scale) on .mixes button
+  NOTE 24b :109 gap: 6px (off the 4px scale) on .groups
+  NOTE 24b :117 gap: 6px (off the 4px scale) on .bank
+  NOTE 24b :117 padding: 10px 12px 12px (off the 4px scale) on .bank
+  NOTE 24b :120 margin-left: 10px (off the 4px scale) on .strip.master
+  NOTE 24b :121 padding: 9px 8px 6px (off the 4px scale) on .s-head
+  NOTE 24b :123 margin-top: 3px (off the 4px scale) on .s-head .nm
+  NOTE 24b :128 gap: 3px (off the 4px scale) on .s-chips
+  NOTE 24b :128 padding: 6px 8px (off the 4px scale) on .s-chips
+  NOTE 24b :129 padding: 1px 5px (off the 4px scale) on .chip
+  NOTE 24b :132 gap: 6px (off the 4px scale) on .s-fader
+  NOTE 24b :132 padding: 6px 8px (off the 4px scale) on .s-fader
+  NOTE 24b :146 column-gap: 6px (off the 4px scale) on .s-read
+  NOTE 24b :146 padding: 5px 4px (off the 4px scale) on .s-read
+  NOTE 24b :148 margin: 6px 8px 8px (off the 4px scale) on .s-mute
+  NOTE 24b :155 margin: 14px 16px (off the 4px scale) on .matrix
+  NOTE 24b :157 padding-bottom: 6px (off the 4px scale) on .matrix thead th
+  NOTE 24b :167 margin: 0 0 10px (off the 4px scale) on .panel h2
+  NOTE 24b :171 margin: -22px 0 0 -22px (off the 4px scale) on .eq-node
+  NOTE 24b :174 gap: 6px (off the 4px scale) on .eq-legend
+  NOTE 24b :174 margin-top: 10px (off the 4px scale) on .eq-legend
+  NOTE 24b :175 padding: 6px 10px (off the 4px scale) on .eq-legend div
+  NOTE 24b :178 gap: 10px (off the 4px scale) on .row
+  NOTE 24b :188 padding: 10px 12px (off the 4px scale) on .preset
+  NOTE 24b :195 gap: 6px (off the 4px scale) on .geq
+  NOTE 24b :200 padding: 0 10px (off the 4px scale) on .calc input[type="number"]
+  NOTE 24b :201 margin-top: 10px (off the 4px scale) on .calc .result
+  NOTE 24b :207 padding: 4px 6px (off the 4px scale) on .presets16 button
+  NOTE 24b :211 padding: 0 14px (off the 4px scale) on .seg button
+  NOTE 24b :216 gap: 6px (off the 4px scale) on .cues
+  NOTE 24b :217 gap: 10px (off the 4px scale) on .cuecard
+  NOTE 24b :226 gap: 6px (off the 4px scale) on .scope
+  NOTE 24b :232 gap: 10px (off the 4px scale) on .me
+  NOTE 24b :235 gap: 6px (off the 4px scale) on .others
+  NOTE 24b :247 padding: 10px 16px (off the 4px scale) on .toast
+  NOTE 24b :257 gap: 6px (off the 4px scale) on .shell
+  NOTE 24b :257 padding: 6px (off the 4px scale) on .shell
+  NOTE 24b :258 gap: 6px (off the 4px scale) on .bar
+  NOTE 24b :260 padding: 0 10px (off the 4px scale) on .state
+  NOTE 24b :282 margin: 10px 16px 0 (off the 4px scale) on .offline-note
+  NOTE 24b :282 padding: 10px 14px (off the 4px scale) on .offline-note
+  NOTE 24b :288 gap: 6px (off the 4px scale) on .grp-edit
+  NOTE 24b :289 padding: 0 10px (off the 4px scale) on .grp-name
+  NOTE 24b :290 padding: 0 10px (off the 4px scale) on .grp-ch
+  NOTE 24b :300 gap: 6px (off the 4px scale) on .cue-save
+  NOTE 24b :300 margin-top: 6px (off the 4px scale) on .cue-save
+  NOTE 24b :301 padding: 0 10px (off the 4px scale) on .cue-save input
+  NOTE 24b :313 gap: 5px (off the 4px scale) on .ws .proc
+  NOTE 24b :313 padding: 10px (off the 4px scale) on .ws .proc
+  NOTE 24b :314 gap: 10px (off the 4px scale) on .chsel
+  NOTE 24b :322 gap: 6px (off the 4px scale) on .proc .foot
+  NOTE 24b :323 margin: 6px 2px 0 (off the 4px scale) on .proc h3
+  NOTE 24b :324 gap: 5px (off the 4px scale) on .grps
+  NOTE 24b :328 gap: 10px (off the 4px scale) on .pv
+  NOTE 24b :332 gap: 6px (off the 4px scale) on .pv-h .mini
+  NOTE 24b :335 padding: 6px 12px (off the 4px scale) on .band
+  NOTE 24b :349 gap: 14px (off the 4px scale) on .sends1 .row
+  NOTE 24b :353 padding: 10px (off the 4px scale) on .ws .bank
+  NOTE 24b :356 padding: 8px 4px 6px (off the 4px scale) on .ws .s-head
+  NOTE 24b :363 margin: 6px (off the 4px scale) on .ws .s-mute
+  NOTE 24b :368 padding: 10px (off the 4px scale) on .mstrip
+  NOTE 24b :372 gap: 6px (off the 4px scale) on .buses
+  NOTE 24b :391 gap: 6px (off the 4px scale) on .ws
+  NOTE 24b :392 gap: 6px (off the 4px scale) on .chrow
+  NOTE 24b :399 padding: 6px 8px (off the 4px scale) on .bus
+  NOTE 24b :401 padding: 6px (off the 4px scale) on .ws .bank
+  NOTE 24b :404 padding: 6px (off the 4px scale) on .mstrip
+  NOTE 24b :406 padding: 6px (off the 4px scale) on .ws .proc
+  NOTE 24b :408 gap: 6px (off the 4px scale) on .ws .proc .item
+  NOTE 24b :419 padding: 5px 2px (off the 4px scale) on .ws .s-read
+  NOTE 24b :460 gap: 6px (off the 4px scale) on .shell
+  NOTE 24b :462 padding: 0 10px (off the 4px scale) on .bus
+  NOTE 24b :466 gap: 5px (off the 4px scale) on .buses
+  NOTE 24b :467 padding: 6px 4px 4px (off the 4px scale) on .ws .s-head
+  NOTE 24b :479 padding: 6px 8px (off the 4px scale) on .bus
+  NOTE 24b :484 padding: 0 10px (off the 4px scale) on .proc .item
+  NOTE 24b :485 padding: 6px 4px (off the 4px scale) on .ws .s-fader
+  NOTE 24b :496 margin-left: 10px (off the 4px scale) on .brand
+http://127.0.0.1:8855/v3/
+  REFLEX 39b :1 [1440px] control height outside 32 to 52px: div.s-head 57px, div.s-head 57px, div.s-head 57px | fix: Marketing controls stand 44 to 52px; app UI 32 to 40px with a 44px hit target
+  WARN F19 :1 [1440px] 4 font weights in running use (400, 600, 700, 800) | fix: Three weights at most, display and body together, picked as extremes
+sloplint: 20 FAIL, 3 REFLEX, 9 WARN, 85 NOTE across 2 file(s) and 1 URL(s).
+kept: headings 3/3, figures 3/3; before 74 FAIL, 88 REFLEX, now 20 FAIL, 3 REFLEX
+compare: flow8\web_ui\v3\.hallmark\compare.html, .hallmark\compare.html shows before and after side by side
