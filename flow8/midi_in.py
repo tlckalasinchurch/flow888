@@ -7,6 +7,7 @@ Bidirectional state synchronization is NOT claimed in this phase.
 """
 
 import threading
+import time
 import ctypes
 import sys
 from typing import Optional, Callable, Tuple, List
@@ -62,6 +63,9 @@ class Flow8MidiIn:
         self._is_listening = False
         self._callbacks: List[Callable[[dict], None]] = []
         self._c_callback_ref = None
+        self._cb_events = 0
+        self._cb_total_s = 0.0
+        self._cb_max_s = 0.0
 
     def _require_winmm(self) -> None:
         if self._winmm is None:
@@ -125,29 +129,49 @@ class Flow8MidiIn:
                     return i
         return None
 
+    def callback_stats(self) -> dict:
+        """Time spent inside the WinMM driver callback per MIM_DATA event (listeners included)."""
+        events = self._cb_events
+        return {
+            "events": events,
+            "callbackMaxUs": round(self._cb_max_s * 1e6, 1),
+            "callbackMeanUs": round(self._cb_total_s / events * 1e6, 1) if events else 0.0,
+        }
+
     def _internal_c_callback(self, hMidiIn, wMsg, dwInstance, dwParam1, dwParam2):
         if wMsg == MIM_DATA:
-            status = dwParam1 & 0xFF
-            b1 = (dwParam1 >> 8) & 0xFF
-            b2 = (dwParam1 >> 16) & 0xFF
-            ts_driver = dwParam2
-            event = {
-                'timestamp': datetime.now().isoformat(),
-                'driver_ts_ms': ts_driver,
-                'status': status,
-                'channel': (status & 0x0F) + 1,
-                'command': status & 0xF0,
-                'data1': b1,
-                'data2': b2
-            }
-            # Snapshot callbacks to avoid deadlock during iteration
-            with self._lock:
-                listeners = list(self._callbacks)
-            for cb in listeners:
-                try:
-                    cb(event)
-                except Exception:
-                    pass
+            t0 = time.perf_counter()
+            try:
+                self._handle_data(dwParam1, dwParam2)
+            finally:
+                spent = time.perf_counter() - t0
+                self._cb_total_s += spent
+                if spent > self._cb_max_s:
+                    self._cb_max_s = spent
+                self._cb_events += 1
+
+    def _handle_data(self, dwParam1, dwParam2):
+        status = dwParam1 & 0xFF
+        b1 = (dwParam1 >> 8) & 0xFF
+        b2 = (dwParam1 >> 16) & 0xFF
+        ts_driver = dwParam2
+        event = {
+            'timestamp': datetime.now().isoformat(),
+            'driver_ts_ms': ts_driver,
+            'status': status,
+            'channel': (status & 0x0F) + 1,
+            'command': status & 0xF0,
+            'data1': b1,
+            'data2': b2
+        }
+        # Snapshot callbacks to avoid deadlock during iteration
+        with self._lock:
+            listeners = list(self._callbacks)
+        for cb in listeners:
+            try:
+                cb(event)
+            except Exception:
+                pass
 
     def open(self, device_id: Optional[int] = None) -> None:
         """Open the MIDI IN endpoint safely."""

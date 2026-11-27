@@ -55,6 +55,16 @@ class CacheHeaderTests(unittest.TestCase):
         cache = (headers.get("Cache-Control") or "").lower()
         self.assertIn("no-store", cache)
 
+    def test_text_assets_are_gzipped_only_when_asked(self):
+        import gzip
+        plain_headers, plain = self.get("/app.js")
+        self.assertIsNone(plain_headers.get("Content-Encoding"))
+        request = urllib.request.Request(f"http://127.0.0.1:{self.port}/app.js", headers={"Accept-Encoding": "gzip"})
+        with urllib.request.urlopen(request, timeout=5) as response:
+            self.assertEqual(response.headers.get("Content-Encoding"), "gzip")
+            self.assertEqual(response.headers.get("Vary"), "Accept-Encoding")
+            self.assertEqual(gzip.decompress(response.read()), plain)
+
     def test_unknown_asset_is_a_404_json(self):
         with self.assertRaises(urllib.error.HTTPError) as ctx:
             self.get("/nope.js")

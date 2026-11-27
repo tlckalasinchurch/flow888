@@ -22,7 +22,8 @@ code path that may set it True without a confirmation channel.
 import time
 import threading
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
+from collections import deque
+from typing import Any, Deque, Dict, List, Optional
 
 from .domain_model import LOGICAL_CHANNELS
 from .state_model import Flow8StateStore, EventSource, VerificationLevel, SyncStatus
@@ -37,6 +38,9 @@ from .parameter_mapping import (
     eq_db_to_midi,
     compressor_percent_to_midi,
 )
+
+# In-memory command log window. Totals live in Flow8CommandBoundary.command_counts.
+COMMAND_LOG_CAPACITY = 2000
 
 class Flow8CommandError(Exception):
     """Base exception for command boundary errors."""
@@ -293,7 +297,17 @@ class Flow8CommandBoundary:
         # legacy USB-only path below is used unchanged.
         self._transport_router = transport_router
         self._lock = threading.RLock()
-        self._log: List[CommandLogEntry] = []
+        # Bounded window: a long show must not grow memory or per-command copy cost.
+        self._log: Deque[CommandLogEntry] = deque(maxlen=COMMAND_LOG_CAPACITY)
+        self._counts = {"commands": 0, "accepted": 0, "driverDispatched": 0, "rejected": 0}
+
+    def _append(self, entry: CommandLogEntry) -> None:
+        with self._lock:
+            self._log.append(entry)
+            self._counts["commands"] += 1
+            self._counts["accepted"] += bool(entry.command_accepted)
+            self._counts["driverDispatched"] += bool(entry.driver_dispatched)
+            self._counts["rejected"] += not entry.success
 
     @property
     def allowlist(self) -> List[str]:
@@ -301,8 +315,15 @@ class Flow8CommandBoundary:
 
     @property
     def command_log(self) -> List[CommandLogEntry]:
+        """The newest COMMAND_LOG_CAPACITY entries, oldest first."""
         with self._lock:
             return list(self._log)
+
+    @property
+    def command_counts(self) -> Dict[str, int]:
+        """Totals since start, including entries that left the bounded log."""
+        with self._lock:
+            return dict(self._counts)
 
     def _get_state(self, param_id: str):
         try:
@@ -348,8 +369,7 @@ class Flow8CommandBoundary:
                 observed_value=None,
                 verification_level=None,
             )
-            with self._lock:
-                self._log.append(entry)
+            self._append(entry)
             raise Flow8CommandRejectedError(err)
 
         spec = self.ACTIVE_ALLOWLIST[param_id]
@@ -383,8 +403,7 @@ class Flow8CommandBoundary:
                 midi_channel=spec["channel"],
                 midi_cc=spec["cc"],
             )
-            with self._lock:
-                self._log.append(entry)
+            self._append(entry)
             raise Flow8CommandRejectedError(err) from policy_error
 
         # 2. Value Conversion & Validation
@@ -483,8 +502,7 @@ class Flow8CommandBoundary:
                 midi_channel=spec["channel"],
                 midi_cc=spec["cc"],
             )
-            with self._lock:
-                self._log.append(entry)
+            self._append(entry)
             raise Flow8ValidationError(err)
 
         # 3. Hardware Dispatch (only if connected)
@@ -576,8 +594,7 @@ class Flow8CommandBoundary:
             transport=transport_used,
         )
 
-        with self._lock:
-            self._log.append(entry)
+        self._append(entry)
 
         if transport_rejected is not None:
             raise Flow8CommandRejectedError(transport_rejected)
