@@ -1,0 +1,4 @@
+1366x768 {'viewportH': 768, 'muteBottom': 734, 'presetBottom': 741, 'fx2Bottom': 752, 'stageScroll': 0, 'faderWellH': 140}
+1024x768 {'viewportH': 768, 'muteBottom': 734, 'presetBottom': 741, 'fx2Bottom': 752, 'stageScroll': 0, 'faderWellH': 136}
+1180x820 {'viewportH': 820, 'muteBottom': 786, 'presetBottom': 793, 'fx2Bottom': 804, 'stageScroll': 0, 'faderWellH': 177}
+physical MIDI calls: 0

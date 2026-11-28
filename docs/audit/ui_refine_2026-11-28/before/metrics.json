@@ -1,0 +1,1319 @@
+{
+ "1440/mix-eq": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [],
+  "small": [
+   "span.prov.COMMANDED \"SNT\" 11px",
+   "span.prov.COMMANDED \"SNT\" 11px",
+   "span.prov.COMMANDED \"SNT\" 11px",
+   "span.prov.COMMANDED \"SNT\" 11px",
+   "span.prov.UNSYNCED \"UNK\" 11px",
+   "span.prov.UNSYNCED \"UNK\" 11px",
+   "span.prov.UNSYNCED \"UNK\" 11px",
+   "span.prov.COMMANDED \"SNT\" 11px"
+  ],
+  "targets44": [],
+  "targets24": [],
+  "contrastFails": [],
+  "contrastSummary": {
+   "checked": 141,
+   "measured": 141,
+   "unparseable": 0
+  },
+  "errors": []
+ },
+ "1440/mix-source": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [],
+  "small": [
+   "span.prov.COMMANDED \"SNT\" 11px",
+   "span.prov.COMMANDED \"SNT\" 11px",
+   "span.prov.COMMANDED \"SNT\" 11px",
+   "span.prov.COMMANDED \"SNT\" 11px",
+   "span.prov.UNSYNCED \"UNK\" 11px",
+   "span.prov.UNSYNCED \"UNK\" 11px",
+   "span.prov.UNSYNCED \"UNK\" 11px",
+   "span.prov.COMMANDED \"SNT\" 11px"
+  ],
+  "targets44": [],
+  "targets24": [],
+  "contrastFails": [],
+  "contrastSummary": {
+   "checked": 115,
+   "measured": 115,
+   "unparseable": 0
+  },
+  "errors": []
+ },
+ "1440/mix-comp": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [],
+  "small": [
+   "span.prov.COMMANDED \"SNT\" 11px",
+   "span.prov.COMMANDED \"SNT\" 11px",
+   "span.prov.COMMANDED \"SNT\" 11px",
+   "span.prov.COMMANDED \"SNT\" 11px",
+   "span.prov.UNSYNCED \"UNK\" 11px",
+   "span.prov.UNSYNCED \"UNK\" 11px",
+   "span.prov.UNSYNCED \"UNK\" 11px",
+   "span.prov.COMMANDED \"SNT\" 11px"
+  ],
+  "targets44": [],
+  "targets24": [],
+  "contrastFails": [],
+  "contrastSummary": {
+   "checked": 111,
+   "measured": 111,
+   "unparseable": 0
+  },
+  "errors": []
+ },
+ "1440/mix-fxsend": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [],
+  "small": [
+   "span.prov.COMMANDED \"SNT\" 11px",
+   "span.prov.COMMANDED \"SNT\" 11px",
+   "span.prov.COMMANDED \"SNT\" 11px",
+   "span.prov.COMMANDED \"SNT\" 11px",
+   "span.prov.UNSYNCED \"UNK\" 11px",
+   "span.prov.UNSYNCED \"UNK\" 11px",
+   "span.prov.UNSYNCED \"UNK\" 11px",
+   "span.prov.COMMANDED \"SNT\" 11px"
+  ],
+  "targets44": [],
+  "targets24": [],
+  "contrastFails": [],
+  "contrastSummary": {
+   "checked": 113,
+   "measured": 113,
+   "unparseable": 0
+  },
+  "errors": []
+ },
+ "1440/sends": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [],
+  "small": [],
+  "targets44": [],
+  "targets24": [],
+  "contrastFails": [],
+  "contrastSummary": {
+   "checked": 56,
+   "measured": 56,
+   "unparseable": 0
+  },
+  "errors": []
+ },
+ "1440/channel": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [],
+  "small": [],
+  "targets44": [],
+  "targets24": [],
+  "contrastFails": [],
+  "contrastSummary": {
+   "checked": 85,
+   "measured": 85,
+   "unparseable": 0
+  },
+  "errors": []
+ },
+ "1440/fx": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [],
+  "small": [],
+  "targets44": [],
+  "targets24": [],
+  "contrastFails": [],
+  "contrastSummary": {
+   "checked": 79,
+   "measured": 79,
+   "unparseable": 0
+  },
+  "errors": []
+ },
+ "1440/stage": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [],
+  "small": [],
+  "targets44": [],
+  "targets24": [],
+  "contrastFails": [],
+  "contrastSummary": {
+   "checked": 90,
+   "measured": 90,
+   "unparseable": 0
+  },
+  "errors": []
+ },
+ "1440/show": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [],
+  "small": [],
+  "targets44": [],
+  "targets24": [],
+  "contrastFails": [],
+  "contrastSummary": {
+   "checked": 33,
+   "measured": 33,
+   "unparseable": 0
+  },
+  "errors": []
+ },
+ "1440/output": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [],
+  "small": [],
+  "targets44": [],
+  "targets24": [],
+  "contrastFails": [],
+  "contrastSummary": {
+   "checked": 50,
+   "measured": 50,
+   "unparseable": 0
+  },
+  "errors": []
+ },
+ "1440/safety": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [],
+  "small": [],
+  "targets44": [],
+  "targets24": [],
+  "contrastFails": [],
+  "contrastSummary": {
+   "checked": 43,
+   "measured": 43,
+   "unparseable": 0
+  },
+  "errors": []
+ },
+ "1440/mix-offline": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [],
+  "small": [
+   "span.prov.UNSYNCED \"UNK\" 11px",
+   "span.prov.UNSYNCED \"UNK\" 11px",
+   "span.prov.UNSYNCED \"UNK\" 11px",
+   "span.prov.UNSYNCED \"UNK\" 11px",
+   "span.prov.UNSYNCED \"UNK\" 11px",
+   "span.prov.UNSYNCED \"UNK\" 11px",
+   "span.prov.UNSYNCED \"UNK\" 11px",
+   "span.prov.UNSYNCED \"UNK\" 11px"
+  ],
+  "targets44": [],
+  "targets24": [],
+  "contrastFails": [],
+  "contrastSummary": {
+   "checked": 142,
+   "measured": 142,
+   "unparseable": 0
+  },
+  "errors": []
+ },
+ "1180/mix-eq": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [],
+  "small": [
+   "span.prov.COMMANDED \"SNT\" 11px",
+   "span.prov.COMMANDED \"SNT\" 11px",
+   "span.prov.COMMANDED \"SNT\" 11px",
+   "span.prov.COMMANDED \"SNT\" 11px",
+   "span.prov.UNSYNCED \"UNK\" 11px",
+   "span.prov.UNSYNCED \"UNK\" 11px",
+   "span.prov.UNSYNCED \"UNK\" 11px",
+   "span.prov.COMMANDED \"SNT\" 11px"
+  ],
+  "targets44": [
+   "button.grp \"A\" 40x44",
+   "button.grp \"B\" 40x44",
+   "button.grp \"C\" 40x44",
+   "button.grp \"D\" 40x44"
+  ],
+  "targets24": [],
+  "contrastFails": [],
+  "contrastSummary": {
+   "checked": 141,
+   "measured": 141,
+   "unparseable": 0
+  },
+  "errors": []
+ },
+ "1180/mix-source": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [],
+  "small": [
+   "span.prov.COMMANDED \"SNT\" 11px",
+   "span.prov.COMMANDED \"SNT\" 11px",
+   "span.prov.COMMANDED \"SNT\" 11px",
+   "span.prov.COMMANDED \"SNT\" 11px",
+   "span.prov.UNSYNCED \"UNK\" 11px",
+   "span.prov.UNSYNCED \"UNK\" 11px",
+   "span.prov.UNSYNCED \"UNK\" 11px",
+   "span.prov.COMMANDED \"SNT\" 11px"
+  ],
+  "targets44": [
+   "button.grp \"A\" 40x44",
+   "button.grp \"B\" 40x44",
+   "button.grp \"C\" 40x44",
+   "button.grp \"D\" 40x44"
+  ],
+  "targets24": [],
+  "contrastFails": [],
+  "contrastSummary": {
+   "checked": 115,
+   "measured": 115,
+   "unparseable": 0
+  },
+  "errors": []
+ },
+ "1180/mix-comp": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [],
+  "small": [
+   "span.prov.COMMANDED \"SNT\" 11px",
+   "span.prov.COMMANDED \"SNT\" 11px",
+   "span.prov.COMMANDED \"SNT\" 11px",
+   "span.prov.COMMANDED \"SNT\" 11px",
+   "span.prov.UNSYNCED \"UNK\" 11px",
+   "span.prov.UNSYNCED \"UNK\" 11px",
+   "span.prov.UNSYNCED \"UNK\" 11px",
+   "span.prov.COMMANDED \"SNT\" 11px"
+  ],
+  "targets44": [
+   "button.grp \"A\" 40x44",
+   "button.grp \"B\" 40x44",
+   "button.grp \"C\" 40x44",
+   "button.grp \"D\" 40x44"
+  ],
+  "targets24": [],
+  "contrastFails": [],
+  "contrastSummary": {
+   "checked": 111,
+   "measured": 111,
+   "unparseable": 0
+  },
+  "errors": []
+ },
+ "1180/mix-fxsend": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [],
+  "small": [
+   "span.prov.COMMANDED \"SNT\" 11px",
+   "span.prov.COMMANDED \"SNT\" 11px",
+   "span.prov.COMMANDED \"SNT\" 11px",
+   "span.prov.COMMANDED \"SNT\" 11px",
+   "span.prov.UNSYNCED \"UNK\" 11px",
+   "span.prov.UNSYNCED \"UNK\" 11px",
+   "span.prov.UNSYNCED \"UNK\" 11px",
+   "span.prov.COMMANDED \"SNT\" 11px"
+  ],
+  "targets44": [
+   "button.grp \"A\" 40x44",
+   "button.grp \"B\" 40x44",
+   "button.grp \"C\" 40x44",
+   "button.grp \"D\" 40x44"
+  ],
+  "targets24": [],
+  "contrastFails": [],
+  "contrastSummary": {
+   "checked": 113,
+   "measured": 113,
+   "unparseable": 0
+  },
+  "errors": []
+ },
+ "1180/sends": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [],
+  "small": [],
+  "targets44": [],
+  "targets24": [],
+  "contrastFails": [],
+  "contrastSummary": {
+   "checked": 56,
+   "measured": 56,
+   "unparseable": 0
+  },
+  "errors": []
+ },
+ "1180/channel": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [],
+  "small": [],
+  "targets44": [],
+  "targets24": [],
+  "contrastFails": [],
+  "contrastSummary": {
+   "checked": 85,
+   "measured": 85,
+   "unparseable": 0
+  },
+  "errors": []
+ },
+ "1180/fx": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [],
+  "small": [],
+  "targets44": [],
+  "targets24": [],
+  "contrastFails": [],
+  "contrastSummary": {
+   "checked": 79,
+   "measured": 79,
+   "unparseable": 0
+  },
+  "errors": []
+ },
+ "1180/stage": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [
+   "span.nm \"USB/BT Return\""
+  ],
+  "small": [],
+  "targets44": [],
+  "targets24": [],
+  "contrastFails": [],
+  "contrastSummary": {
+   "checked": 90,
+   "measured": 90,
+   "unparseable": 0
+  },
+  "errors": []
+ },
+ "1180/show": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [],
+  "small": [],
+  "targets44": [],
+  "targets24": [],
+  "contrastFails": [],
+  "contrastSummary": {
+   "checked": 33,
+   "measured": 33,
+   "unparseable": 0
+  },
+  "errors": []
+ },
+ "1180/output": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [],
+  "small": [],
+  "targets44": [],
+  "targets24": [],
+  "contrastFails": [],
+  "contrastSummary": {
+   "checked": 50,
+   "measured": 50,
+   "unparseable": 0
+  },
+  "errors": []
+ },
+ "1180/safety": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [],
+  "small": [],
+  "targets44": [],
+  "targets24": [],
+  "contrastFails": [],
+  "contrastSummary": {
+   "checked": 43,
+   "measured": 43,
+   "unparseable": 0
+  },
+  "errors": []
+ },
+ "1180/mix-offline": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [],
+  "small": [
+   "span.prov.UNSYNCED \"UNK\" 11px",
+   "span.prov.UNSYNCED \"UNK\" 11px",
+   "span.prov.UNSYNCED \"UNK\" 11px",
+   "span.prov.UNSYNCED \"UNK\" 11px",
+   "span.prov.UNSYNCED \"UNK\" 11px",
+   "span.prov.UNSYNCED \"UNK\" 11px",
+   "span.prov.UNSYNCED \"UNK\" 11px",
+   "span.prov.UNSYNCED \"UNK\" 11px"
+  ],
+  "targets44": [
+   "button.grp \"A\" 40x44",
+   "button.grp \"B\" 40x44",
+   "button.grp \"C\" 40x44",
+   "button.grp \"D\" 40x44"
+  ],
+  "targets24": [],
+  "contrastFails": [],
+  "contrastSummary": {
+   "checked": 142,
+   "measured": 142,
+   "unparseable": 0
+  },
+  "errors": []
+ },
+ "1024/mix-eq": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [
+   "span \"CH 5/6\"",
+   "span \"CH 7/8\"",
+   "span \"USB/BT\"",
+   "span.nm \"USB/BT Return\""
+  ],
+  "small": [
+   "span.prov.COMMANDED \"SNT\" 11px",
+   "span.prov.COMMANDED \"SNT\" 11px",
+   "span.prov.COMMANDED \"SNT\" 11px",
+   "span.prov.COMMANDED \"SNT\" 11px",
+   "span.prov.UNSYNCED \"UNK\" 11px",
+   "span.prov.UNSYNCED \"UNK\" 11px",
+   "span.prov.UNSYNCED \"UNK\" 11px",
+   "span.prov.COMMANDED \"SNT\" 11px"
+  ],
+  "targets44": [
+   "button.grp \"A\" 40x44",
+   "button.grp \"B\" 40x44",
+   "button.grp \"C\" 40x44",
+   "button.grp \"D\" 40x44",
+   "div.well \"+100-20-40-\u221e\" 44x156"
+  ],
+  "targets24": [],
+  "contrastFails": [],
+  "contrastSummary": {
+   "checked": 141,
+   "measured": 141,
+   "unparseable": 0
+  },
+  "errors": []
+ },
+ "1024/mix-source": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [
+   "span \"CH 5/6\"",
+   "span \"CH 7/8\"",
+   "span \"USB/BT\"",
+   "span.nm \"USB/BT Return\""
+  ],
+  "small": [
+   "span.prov.COMMANDED \"SNT\" 11px",
+   "span.prov.COMMANDED \"SNT\" 11px",
+   "span.prov.COMMANDED \"SNT\" 11px",
+   "span.prov.COMMANDED \"SNT\" 11px",
+   "span.prov.UNSYNCED \"UNK\" 11px",
+   "span.prov.UNSYNCED \"UNK\" 11px",
+   "span.prov.UNSYNCED \"UNK\" 11px",
+   "span.prov.COMMANDED \"SNT\" 11px"
+  ],
+  "targets44": [
+   "button.grp \"A\" 40x44",
+   "button.grp \"B\" 40x44",
+   "button.grp \"C\" 40x44",
+   "button.grp \"D\" 40x44",
+   "div.well \"+100-20-40-\u221e\" 44x156"
+  ],
+  "targets24": [],
+  "contrastFails": [],
+  "contrastSummary": {
+   "checked": 115,
+   "measured": 115,
+   "unparseable": 0
+  },
+  "errors": []
+ },
+ "1024/mix-comp": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [
+   "span \"CH 5/6\"",
+   "span \"CH 7/8\"",
+   "span \"USB/BT\"",
+   "span.nm \"USB/BT Return\""
+  ],
+  "small": [
+   "span.prov.COMMANDED \"SNT\" 11px",
+   "span.prov.COMMANDED \"SNT\" 11px",
+   "span.prov.COMMANDED \"SNT\" 11px",
+   "span.prov.COMMANDED \"SNT\" 11px",
+   "span.prov.UNSYNCED \"UNK\" 11px",
+   "span.prov.UNSYNCED \"UNK\" 11px",
+   "span.prov.UNSYNCED \"UNK\" 11px",
+   "span.prov.COMMANDED \"SNT\" 11px"
+  ],
+  "targets44": [
+   "button.grp \"A\" 40x44",
+   "button.grp \"B\" 40x44",
+   "button.grp \"C\" 40x44",
+   "button.grp \"D\" 40x44",
+   "div.well \"+100-20-40-\u221e\" 44x156"
+  ],
+  "targets24": [],
+  "contrastFails": [],
+  "contrastSummary": {
+   "checked": 111,
+   "measured": 111,
+   "unparseable": 0
+  },
+  "errors": []
+ },
+ "1024/mix-fxsend": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [
+   "span \"CH 5/6\"",
+   "span \"CH 7/8\"",
+   "span \"USB/BT\"",
+   "span.nm \"USB/BT Return\""
+  ],
+  "small": [
+   "span.prov.COMMANDED \"SNT\" 11px",
+   "span.prov.COMMANDED \"SNT\" 11px",
+   "span.prov.COMMANDED \"SNT\" 11px",
+   "span.prov.COMMANDED \"SNT\" 11px",
+   "span.prov.UNSYNCED \"UNK\" 11px",
+   "span.prov.UNSYNCED \"UNK\" 11px",
+   "span.prov.UNSYNCED \"UNK\" 11px",
+   "span.prov.COMMANDED \"SNT\" 11px"
+  ],
+  "targets44": [
+   "button.grp \"A\" 40x44",
+   "button.grp \"B\" 40x44",
+   "button.grp \"C\" 40x44",
+   "button.grp \"D\" 40x44",
+   "div.well \"+100-20-40-\u221e\" 44x156"
+  ],
+  "targets24": [],
+  "contrastFails": [],
+  "contrastSummary": {
+   "checked": 113,
+   "measured": 113,
+   "unparseable": 0
+  },
+  "errors": []
+ },
+ "1024/sends": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [],
+  "small": [],
+  "targets44": [],
+  "targets24": [],
+  "contrastFails": [],
+  "contrastSummary": {
+   "checked": 56,
+   "measured": 56,
+   "unparseable": 0
+  },
+  "errors": []
+ },
+ "1024/channel": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [],
+  "small": [],
+  "targets44": [],
+  "targets24": [],
+  "contrastFails": [],
+  "contrastSummary": {
+   "checked": 85,
+   "measured": 85,
+   "unparseable": 0
+  },
+  "errors": []
+ },
+ "1024/fx": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [],
+  "small": [],
+  "targets44": [],
+  "targets24": [],
+  "contrastFails": [],
+  "contrastSummary": {
+   "checked": 79,
+   "measured": 79,
+   "unparseable": 0
+  },
+  "errors": []
+ },
+ "1024/stage": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [
+   "span.nm \"Channel 5/6\"",
+   "span.nm \"Channel 7/8\"",
+   "span.nm \"USB/BT Return\""
+  ],
+  "small": [],
+  "targets44": [],
+  "targets24": [],
+  "contrastFails": [],
+  "contrastSummary": {
+   "checked": 90,
+   "measured": 90,
+   "unparseable": 0
+  },
+  "errors": []
+ },
+ "1024/show": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [],
+  "small": [],
+  "targets44": [],
+  "targets24": [],
+  "contrastFails": [],
+  "contrastSummary": {
+   "checked": 33,
+   "measured": 33,
+   "unparseable": 0
+  },
+  "errors": []
+ },
+ "1024/output": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [],
+  "small": [],
+  "targets44": [],
+  "targets24": [],
+  "contrastFails": [],
+  "contrastSummary": {
+   "checked": 50,
+   "measured": 50,
+   "unparseable": 0
+  },
+  "errors": []
+ },
+ "1024/safety": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [],
+  "small": [],
+  "targets44": [],
+  "targets24": [],
+  "contrastFails": [],
+  "contrastSummary": {
+   "checked": 43,
+   "measured": 43,
+   "unparseable": 0
+  },
+  "errors": []
+ },
+ "1024/mix-offline": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [
+   "span \"CH 5/6\"",
+   "span \"CH 7/8\"",
+   "span \"USB/BT\"",
+   "span.nm \"USB/BT Return\""
+  ],
+  "small": [
+   "span.prov.UNSYNCED \"UNK\" 11px",
+   "span.prov.UNSYNCED \"UNK\" 11px",
+   "span.prov.UNSYNCED \"UNK\" 11px",
+   "span.prov.UNSYNCED \"UNK\" 11px",
+   "span.prov.UNSYNCED \"UNK\" 11px",
+   "span.prov.UNSYNCED \"UNK\" 11px",
+   "span.prov.UNSYNCED \"UNK\" 11px",
+   "span.prov.UNSYNCED \"UNK\" 11px"
+  ],
+  "targets44": [
+   "button.grp \"A\" 40x44",
+   "button.grp \"B\" 40x44",
+   "button.grp \"C\" 40x44",
+   "button.grp \"D\" 40x44",
+   "div.well \"+100-20-40-\u221e\" 44x156"
+  ],
+  "targets24": [],
+  "contrastFails": [],
+  "contrastSummary": {
+   "checked": 142,
+   "measured": 142,
+   "unparseable": 0
+  },
+  "errors": []
+ },
+ "768/mix-eq": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [
+   "#btn-lock \"LOCK\"",
+   "#btn-muteall \"MUTE ALL\"",
+   "span \"Channel 1\"",
+   "span.nm \"USB/BT Return\""
+  ],
+  "small": [
+   "span.prov.COMMANDED \"SNT\" 11px",
+   "span.prov.COMMANDED \"SNT\" 11px",
+   "span.prov.COMMANDED \"SNT\" 11px",
+   "span.prov.COMMANDED \"SNT\" 11px",
+   "span.prov.UNSYNCED \"UNK\" 11px",
+   "span.prov.UNSYNCED \"UNK\" 11px",
+   "span.prov.UNSYNCED \"UNK\" 11px"
+  ],
+  "targets44": [
+   "#btn-lock \"LOCK\" 41x44",
+   "#btn-muteall \"MUTE ALL\" 44x44",
+   "button.grp \"A\" 31x44",
+   "button.grp \"B\" 31x44",
+   "button.grp \"C\" 31x44",
+   "button.grp \"D\" 31x44"
+  ],
+  "targets24": [],
+  "contrastFails": [],
+  "contrastSummary": {
+   "checked": 132,
+   "measured": 132,
+   "unparseable": 0
+  },
+  "errors": []
+ },
+ "768/mix-source": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [
+   "#btn-lock \"LOCK\"",
+   "#btn-muteall \"MUTE ALL\"",
+   "span \"Channel 1\"",
+   "span.nm \"USB/BT Return\""
+  ],
+  "small": [
+   "span.prov.COMMANDED \"SNT\" 11px",
+   "span.prov.COMMANDED \"SNT\" 11px",
+   "span.prov.COMMANDED \"SNT\" 11px",
+   "span.prov.COMMANDED \"SNT\" 11px",
+   "span.prov.UNSYNCED \"UNK\" 11px",
+   "span.prov.UNSYNCED \"UNK\" 11px",
+   "span.prov.UNSYNCED \"UNK\" 11px"
+  ],
+  "targets44": [
+   "#btn-lock \"LOCK\" 41x44",
+   "#btn-muteall \"MUTE ALL\" 44x44",
+   "button.grp \"A\" 31x44",
+   "button.grp \"B\" 31x44",
+   "button.grp \"C\" 31x44",
+   "button.grp \"D\" 31x44"
+  ],
+  "targets24": [],
+  "contrastFails": [],
+  "contrastSummary": {
+   "checked": 106,
+   "measured": 106,
+   "unparseable": 0
+  },
+  "errors": []
+ },
+ "768/mix-comp": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [
+   "#btn-lock \"LOCK\"",
+   "#btn-muteall \"MUTE ALL\"",
+   "span \"Channel 1\"",
+   "span.nm \"USB/BT Return\""
+  ],
+  "small": [
+   "span.prov.COMMANDED \"SNT\" 11px",
+   "span.prov.COMMANDED \"SNT\" 11px",
+   "span.prov.COMMANDED \"SNT\" 11px",
+   "span.prov.COMMANDED \"SNT\" 11px",
+   "span.prov.UNSYNCED \"UNK\" 11px",
+   "span.prov.UNSYNCED \"UNK\" 11px",
+   "span.prov.UNSYNCED \"UNK\" 11px"
+  ],
+  "targets44": [
+   "#btn-lock \"LOCK\" 41x44",
+   "#btn-muteall \"MUTE ALL\" 44x44",
+   "button.grp \"A\" 31x44",
+   "button.grp \"B\" 31x44",
+   "button.grp \"C\" 31x44",
+   "button.grp \"D\" 31x44"
+  ],
+  "targets24": [],
+  "contrastFails": [],
+  "contrastSummary": {
+   "checked": 102,
+   "measured": 102,
+   "unparseable": 0
+  },
+  "errors": []
+ },
+ "768/mix-fxsend": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [
+   "#btn-lock \"LOCK\"",
+   "#btn-muteall \"MUTE ALL\"",
+   "span \"Channel 1\"",
+   "span.nm \"USB/BT Return\""
+  ],
+  "small": [
+   "span.prov.COMMANDED \"SNT\" 11px",
+   "span.prov.COMMANDED \"SNT\" 11px",
+   "span.prov.COMMANDED \"SNT\" 11px",
+   "span.prov.COMMANDED \"SNT\" 11px",
+   "span.prov.UNSYNCED \"UNK\" 11px",
+   "span.prov.UNSYNCED \"UNK\" 11px",
+   "span.prov.UNSYNCED \"UNK\" 11px"
+  ],
+  "targets44": [
+   "#btn-lock \"LOCK\" 41x44",
+   "#btn-muteall \"MUTE ALL\" 44x44",
+   "button.grp \"A\" 31x44",
+   "button.grp \"B\" 31x44",
+   "button.grp \"C\" 31x44",
+   "button.grp \"D\" 31x44"
+  ],
+  "targets24": [],
+  "contrastFails": [],
+  "contrastSummary": {
+   "checked": 104,
+   "measured": 104,
+   "unparseable": 0
+  },
+  "errors": []
+ },
+ "768/sends": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [
+   "#btn-lock \"LOCK\"",
+   "#btn-muteall \"MUTE ALL\""
+  ],
+  "small": [],
+  "targets44": [
+   "#btn-lock \"LOCK\" 41x44",
+   "#btn-muteall \"MUTE ALL\" 44x44"
+  ],
+  "targets24": [],
+  "contrastFails": [],
+  "contrastSummary": {
+   "checked": 56,
+   "measured": 56,
+   "unparseable": 0
+  },
+  "errors": []
+ },
+ "768/channel": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [
+   "#btn-lock \"LOCK\"",
+   "#btn-muteall \"MUTE ALL\""
+  ],
+  "small": [],
+  "targets44": [
+   "#btn-lock \"LOCK\" 41x44",
+   "#btn-muteall \"MUTE ALL\" 44x44"
+  ],
+  "targets24": [],
+  "contrastFails": [],
+  "contrastSummary": {
+   "checked": 85,
+   "measured": 85,
+   "unparseable": 0
+  },
+  "errors": []
+ },
+ "768/fx": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [
+   "#btn-lock \"LOCK\"",
+   "#btn-muteall \"MUTE ALL\""
+  ],
+  "small": [],
+  "targets44": [
+   "#btn-lock \"LOCK\" 41x44",
+   "#btn-muteall \"MUTE ALL\" 44x44"
+  ],
+  "targets24": [],
+  "contrastFails": [],
+  "contrastSummary": {
+   "checked": 79,
+   "measured": 79,
+   "unparseable": 0
+  },
+  "errors": []
+ },
+ "768/stage": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [
+   "#btn-lock \"LOCK\"",
+   "#btn-muteall \"MUTE ALL\"",
+   "span.nm \"Channel 5/6\"",
+   "span.nm \"Channel 7/8\"",
+   "span.nm \"USB/BT Return\""
+  ],
+  "small": [],
+  "targets44": [
+   "#btn-lock \"LOCK\" 41x44",
+   "#btn-muteall \"MUTE ALL\" 44x44"
+  ],
+  "targets24": [],
+  "contrastFails": [],
+  "contrastSummary": {
+   "checked": 90,
+   "measured": 90,
+   "unparseable": 0
+  },
+  "errors": []
+ },
+ "768/show": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [
+   "#btn-lock \"LOCK\"",
+   "#btn-muteall \"MUTE ALL\""
+  ],
+  "small": [],
+  "targets44": [
+   "#btn-lock \"LOCK\" 41x44",
+   "#btn-muteall \"MUTE ALL\" 44x44"
+  ],
+  "targets24": [],
+  "contrastFails": [],
+  "contrastSummary": {
+   "checked": 33,
+   "measured": 33,
+   "unparseable": 0
+  },
+  "errors": []
+ },
+ "768/output": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [
+   "#btn-lock \"LOCK\"",
+   "#btn-muteall \"MUTE ALL\""
+  ],
+  "small": [],
+  "targets44": [
+   "#btn-lock \"LOCK\" 41x44",
+   "#btn-muteall \"MUTE ALL\" 44x44"
+  ],
+  "targets24": [],
+  "contrastFails": [],
+  "contrastSummary": {
+   "checked": 50,
+   "measured": 50,
+   "unparseable": 0
+  },
+  "errors": []
+ },
+ "768/safety": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [
+   "#btn-lock \"LOCK\"",
+   "#btn-muteall \"MUTE ALL\""
+  ],
+  "small": [],
+  "targets44": [
+   "#btn-lock \"LOCK\" 41x44",
+   "#btn-muteall \"MUTE ALL\" 44x44"
+  ],
+  "targets24": [],
+  "contrastFails": [],
+  "contrastSummary": {
+   "checked": 43,
+   "measured": 43,
+   "unparseable": 0
+  },
+  "errors": []
+ },
+ "768/mix-offline": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [
+   "#btn-lock \"LOCK\"",
+   "#btn-muteall \"MUTE ALL\"",
+   "span \"Channel 1\"",
+   "span.nm \"USB/BT Return\""
+  ],
+  "small": [
+   "span.prov.UNSYNCED \"UNK\" 11px",
+   "span.prov.UNSYNCED \"UNK\" 11px",
+   "span.prov.UNSYNCED \"UNK\" 11px",
+   "span.prov.UNSYNCED \"UNK\" 11px",
+   "span.prov.UNSYNCED \"UNK\" 11px",
+   "span.prov.UNSYNCED \"UNK\" 11px",
+   "span.prov.UNSYNCED \"UNK\" 11px"
+  ],
+  "targets44": [
+   "button.grp \"A\" 31x44",
+   "button.grp \"B\" 31x44",
+   "button.grp \"C\" 31x44",
+   "button.grp \"D\" 31x44"
+  ],
+  "targets24": [],
+  "contrastFails": [],
+  "contrastSummary": {
+   "checked": 133,
+   "measured": 133,
+   "unparseable": 0
+  },
+  "errors": []
+ },
+ "390/mix-eq": {
+  "docOverflowX": 0,
+  "stageOverflowX": 10,
+  "clipped": [],
+  "small": [
+   "span.prov.COMMANDED \"SNT\" 11px",
+   "span.prov.COMMANDED \"SNT\" 11px"
+  ],
+  "targets44": [
+   "#link \"CONNECTED\" 108x40"
+  ],
+  "targets24": [],
+  "contrastFails": [],
+  "contrastSummary": {
+   "checked": 96,
+   "measured": 96,
+   "unparseable": 0
+  },
+  "errors": []
+ },
+ "390/mix-source": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [],
+  "small": [
+   "span.prov.COMMANDED \"SNT\" 11px",
+   "span.prov.COMMANDED \"SNT\" 11px"
+  ],
+  "targets44": [
+   "#link \"CONNECTED\" 108x40"
+  ],
+  "targets24": [],
+  "contrastFails": [],
+  "contrastSummary": {
+   "checked": 70,
+   "measured": 70,
+   "unparseable": 0
+  },
+  "errors": []
+ },
+ "390/mix-comp": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [],
+  "small": [
+   "span.prov.COMMANDED \"SNT\" 11px",
+   "span.prov.COMMANDED \"SNT\" 11px"
+  ],
+  "targets44": [
+   "#link \"CONNECTED\" 108x40"
+  ],
+  "targets24": [],
+  "contrastFails": [],
+  "contrastSummary": {
+   "checked": 66,
+   "measured": 66,
+   "unparseable": 0
+  },
+  "errors": []
+ },
+ "390/mix-fxsend": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [],
+  "small": [
+   "span.prov.COMMANDED \"SNT\" 11px",
+   "span.prov.COMMANDED \"SNT\" 11px"
+  ],
+  "targets44": [
+   "#link \"CONNECTED\" 108x40"
+  ],
+  "targets24": [],
+  "contrastFails": [],
+  "contrastSummary": {
+   "checked": 68,
+   "measured": 68,
+   "unparseable": 0
+  },
+  "errors": []
+ },
+ "390/sends": {
+  "docOverflowX": 0,
+  "stageOverflowX": 167,
+  "clipped": [],
+  "small": [],
+  "targets44": [
+   "#link \"CONNECTED\" 108x40"
+  ],
+  "targets24": [],
+  "contrastFails": [],
+  "contrastSummary": {
+   "checked": 54,
+   "measured": 54,
+   "unparseable": 0
+  },
+  "errors": []
+ },
+ "390/channel": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [],
+  "small": [],
+  "targets44": [
+   "#link \"CONNECTED\" 108x40"
+  ],
+  "targets24": [],
+  "contrastFails": [],
+  "contrastSummary": {
+   "checked": 83,
+   "measured": 83,
+   "unparseable": 0
+  },
+  "errors": []
+ },
+ "390/fx": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [],
+  "small": [],
+  "targets44": [
+   "#link \"CONNECTED\" 108x40"
+  ],
+  "targets24": [],
+  "contrastFails": [],
+  "contrastSummary": {
+   "checked": 77,
+   "measured": 77,
+   "unparseable": 0
+  },
+  "errors": []
+ },
+ "390/stage": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [
+   "span.nm \"Channel 5/6\"",
+   "span.nm \"Channel 7/8\"",
+   "span.nm \"USB/BT Return\""
+  ],
+  "small": [],
+  "targets44": [
+   "#link \"CONNECTED\" 108x40"
+  ],
+  "targets24": [],
+  "contrastFails": [],
+  "contrastSummary": {
+   "checked": 88,
+   "measured": 88,
+   "unparseable": 0
+  },
+  "errors": []
+ },
+ "390/show": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [],
+  "small": [],
+  "targets44": [
+   "#link \"CONNECTED\" 108x40"
+  ],
+  "targets24": [],
+  "contrastFails": [],
+  "contrastSummary": {
+   "checked": 31,
+   "measured": 31,
+   "unparseable": 0
+  },
+  "errors": []
+ },
+ "390/output": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [],
+  "small": [],
+  "targets44": [
+   "#link \"CONNECTED\" 108x40",
+   "#geq-0 \"63 Hz\" 30x202",
+   "#geq-1 \"125 Hz\" 30x202",
+   "#geq-2 \"250 Hz\" 30x202",
+   "#geq-3 \"500 Hz\" 30x202",
+   "#geq-4 \"1k Hz\" 30x202",
+   "#geq-5 \"2k Hz\" 30x202",
+   "#geq-6 \"4k Hz\" 30x202",
+   "#geq-7 \"8k Hz\" 30x202",
+   "#geq-8 \"16k Hz\" 30x202"
+  ],
+  "targets24": [],
+  "contrastFails": [],
+  "contrastSummary": {
+   "checked": 48,
+   "measured": 48,
+   "unparseable": 0
+  },
+  "errors": []
+ },
+ "390/safety": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [],
+  "small": [],
+  "targets44": [
+   "#link \"CONNECTED\" 108x40"
+  ],
+  "targets24": [],
+  "contrastFails": [],
+  "contrastSummary": {
+   "checked": 41,
+   "measured": 41,
+   "unparseable": 0
+  },
+  "errors": []
+ },
+ "390/mix-offline": {
+  "docOverflowX": 0,
+  "stageOverflowX": 10,
+  "clipped": [],
+  "small": [
+   "span.prov.UNSYNCED \"UNK\" 11px",
+   "span.prov.UNSYNCED \"UNK\" 11px"
+  ],
+  "targets44": [
+   "#link \"NO MIXER\" 94x40"
+  ],
+  "targets24": [],
+  "contrastFails": [],
+  "contrastSummary": {
+   "checked": 97,
+   "measured": 97,
+   "unparseable": 0
+  },
+  "errors": []
+ },
+ "_physicalMidiCalls": []
+}

@@ -213,11 +213,37 @@ class Flow8AudioMeter:
         self._frames = 0                 # incremented from the audio thread
         self._last_frame_at = 0.0
         self.overflows = 0
+        self._reset_stats()
         self.status: dict[str, Any] = {"state": "stopped", "detail": "Meters are off.", "device": None, "mode": None}
 
     @property
     def is_running(self) -> bool:
         return self._running.is_set()
+
+    def _reset_stats(self) -> None:
+        # shortcut: plain counters updated without a lock from two threads; a torn
+        # read is off by one sample, fine for diagnostics, not for accounting.
+        self._frames = 0
+        self.overflows = 0
+        self._cb_total_s = 0.0
+        self._cb_max_s = 0.0
+        self._publish_count = 0
+        self._publish_total_s = 0.0
+        self._publish_max_s = 0.0
+
+    def stats(self) -> dict[str, Any]:
+        """Capture health since the stream started: callbacks, overflows, publish timing."""
+        frames, published = self._frames, self._publish_count
+        intervals = max(published - 1, 0)
+        return {
+            "frames": frames,
+            "overflows": self.overflows,
+            "callbackMaxMs": round(self._cb_max_s * 1000.0, 3),
+            "callbackMeanMs": round(self._cb_total_s / frames * 1000.0, 3) if frames else 0.0,
+            "publishCount": published,
+            "publishIntervalMaxMs": round(self._publish_max_s * 1000.0, 3),
+            "publishIntervalMeanMs": round(self._publish_total_s / intervals * 1000.0, 3) if intervals else 0.0,
+        }
 
     def _set_status(self, state: str, detail: str, device: Optional[CaptureDevice] = None) -> None:
         self.status = {
@@ -267,11 +293,16 @@ class Flow8AudioMeter:
             meter = LevelMeter(device.capture_map, device.sample_rate)
 
             def callback(indata, frames, time_info, status):  # audio thread
+                t0 = time.perf_counter()
                 if status:
                     self.overflows += 1
-                self._frames += 1
                 self._last_frame_at = time.monotonic()
                 meter.process(indata)
+                spent = time.perf_counter() - t0
+                self._cb_total_s += spent
+                if spent > self._cb_max_s:
+                    self._cb_max_s = spent
+                self._frames += 1
 
             try:
                 stream = backend.InputStream(
@@ -287,6 +318,7 @@ class Flow8AudioMeter:
                 self._set_status("error", f"Cannot open {device.name}: {exc}", device)
                 return False
 
+            self._reset_stats()
             self._stream, self._meter = stream, meter
             self._last_frame_at = time.monotonic()
             self._running.set()
@@ -310,6 +342,7 @@ class Flow8AudioMeter:
 
     def _publish_loop(self) -> None:
         last_frames = -1
+        last_publish = 0.0
         while self._running.is_set():
             time.sleep(self._interval)
             stream, meter = self._stream, self._meter
@@ -332,6 +365,14 @@ class Flow8AudioMeter:
                 self._publish(meter.read())
             except Exception:
                 logger.exception("meter publish failed")
+            now = time.perf_counter()
+            if self._publish_count:
+                gap = now - last_publish
+                self._publish_total_s += gap
+                if gap > self._publish_max_s:
+                    self._publish_max_s = gap
+            self._publish_count += 1
+            last_publish = now
 
     def _close(self, state: str, detail: str) -> None:
         with self._lock:

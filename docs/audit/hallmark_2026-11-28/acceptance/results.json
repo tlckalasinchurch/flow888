@@ -1,0 +1,3256 @@
+{
+ "1280x800/day/mix": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [
+   "h1.sr-only \"Mix: MAIN on the faders,\""
+  ],
+  "small": [],
+  "targets44": [],
+  "targets24": [],
+  "contrastFails": [],
+  "geo": {
+   "fader": [
+    {
+     "id": "fdr-CH-1",
+     "known": true,
+     "err": 0.3,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-CH-2",
+     "known": true,
+     "err": 0.3,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-CH-3",
+     "known": true,
+     "err": 0.3,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-CH-4",
+     "known": true,
+     "err": 0.3,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-CH-5-6",
+     "known": false,
+     "err": 0.3,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-CH-7-8",
+     "known": false,
+     "err": 0.3,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-USB-BT",
+     "known": false,
+     "err": 0.3,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-MAIN",
+     "known": true,
+     "err": 0,
+     "dashedWhenUnknown": true,
+     "inside": true
+    }
+   ],
+   "ticks": [],
+   "names": [],
+   "eq": {
+    "labels": [
+     "50",
+     "100",
+     "200",
+     "500",
+     "1k",
+     "2k",
+     "5k",
+     "10k"
+    ],
+    "logErr": 4.691526507372146e-05,
+    "labelOverlaps": 0,
+    "nodeColours": [
+     "rgb(70, 209, 106)",
+     "rgb(59, 155, 240)",
+     "rgb(180, 108, 224)",
+     "rgb(230, 184, 63)"
+    ],
+    "nodesAscending": true,
+    "freqQControls": 0,
+    "fixedCells": 8
+   },
+   "mainOut": {
+    "meters": 1,
+    "meterSid": "main",
+    "spacerVisible": false,
+    "readout": "+0.0SNT"
+   },
+   "badges": []
+  },
+  "errors": []
+ },
+ "1280x800/day/mix-source": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [
+   "h1.sr-only \"Mix: MAIN on the faders,\""
+  ],
+  "small": [],
+  "targets44": [],
+  "targets24": [],
+  "contrastFails": [],
+  "geo": {
+   "fader": [
+    {
+     "id": "fdr-CH-1",
+     "known": true,
+     "err": 0.3,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-CH-2",
+     "known": true,
+     "err": 0.3,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-CH-3",
+     "known": true,
+     "err": 0.3,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-CH-4",
+     "known": true,
+     "err": 0.3,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-CH-5-6",
+     "known": false,
+     "err": 0.3,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-CH-7-8",
+     "known": false,
+     "err": 0.3,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-USB-BT",
+     "known": false,
+     "err": 0.3,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-MAIN",
+     "known": true,
+     "err": 0,
+     "dashedWhenUnknown": true,
+     "inside": true
+    }
+   ],
+   "ticks": [],
+   "names": [],
+   "eq": {},
+   "mainOut": {
+    "meters": 1,
+    "meterSid": "main",
+    "spacerVisible": false,
+    "readout": "+0.0SNT"
+   },
+   "badges": []
+  },
+  "errors": []
+ },
+ "1280x800/day/mix-monsend": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [
+   "h1.sr-only \"Mix: MAIN on the faders,\""
+  ],
+  "small": [],
+  "targets44": [],
+  "targets24": [],
+  "contrastFails": [],
+  "geo": {
+   "fader": [
+    {
+     "id": "fdr-CH-1",
+     "known": true,
+     "err": 0.3,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-CH-2",
+     "known": true,
+     "err": 0.3,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-CH-3",
+     "known": true,
+     "err": 0.3,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-CH-4",
+     "known": true,
+     "err": 0.3,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-CH-5-6",
+     "known": false,
+     "err": 0.3,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-CH-7-8",
+     "known": false,
+     "err": 0.3,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-USB-BT",
+     "known": false,
+     "err": 0.3,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-MAIN",
+     "known": true,
+     "err": 0,
+     "dashedWhenUnknown": true,
+     "inside": true
+    }
+   ],
+   "ticks": [],
+   "names": [],
+   "eq": {},
+   "mainOut": {
+    "meters": 1,
+    "meterSid": "main",
+    "spacerVisible": false,
+    "readout": "+0.0SNT"
+   },
+   "badges": []
+  },
+  "errors": []
+ },
+ "1280x800/day/sends": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [],
+  "small": [],
+  "targets44": [],
+  "targets24": [],
+  "contrastFails": [],
+  "errors": []
+ },
+ "1280x800/day/channel": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [],
+  "small": [],
+  "targets44": [],
+  "targets24": [],
+  "contrastFails": [],
+  "errors": []
+ },
+ "1280x800/day/fx": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [],
+  "small": [],
+  "targets44": [],
+  "targets24": [],
+  "contrastFails": [],
+  "errors": []
+ },
+ "1280x800/day/stage": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [],
+  "small": [],
+  "targets44": [],
+  "targets24": [],
+  "contrastFails": [],
+  "errors": []
+ },
+ "1280x800/day/show": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [],
+  "small": [],
+  "targets44": [],
+  "targets24": [],
+  "contrastFails": [],
+  "errors": []
+ },
+ "1280x800/day/output": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [],
+  "small": [],
+  "targets44": [],
+  "targets24": [],
+  "contrastFails": [],
+  "errors": []
+ },
+ "1280x800/day/safety": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [],
+  "small": [],
+  "targets44": [],
+  "targets24": [],
+  "contrastFails": [],
+  "errors": []
+ },
+ "1280x800/night/mix": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [
+   "h1.sr-only \"Mix: MAIN on the faders,\""
+  ],
+  "small": [],
+  "targets44": [],
+  "targets24": [],
+  "contrastFails": [],
+  "geo": {
+   "fader": [
+    {
+     "id": "fdr-CH-1",
+     "known": true,
+     "err": 0.3,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-CH-2",
+     "known": true,
+     "err": 0.3,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-CH-3",
+     "known": true,
+     "err": 0.3,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-CH-4",
+     "known": true,
+     "err": 0.3,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-CH-5-6",
+     "known": false,
+     "err": 0.3,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-CH-7-8",
+     "known": false,
+     "err": 0.3,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-USB-BT",
+     "known": false,
+     "err": 0.3,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-MAIN",
+     "known": true,
+     "err": 0,
+     "dashedWhenUnknown": true,
+     "inside": true
+    }
+   ],
+   "ticks": [],
+   "names": [],
+   "eq": {
+    "labels": [
+     "50",
+     "100",
+     "200",
+     "500",
+     "1k",
+     "2k",
+     "5k",
+     "10k"
+    ],
+    "logErr": 4.691526507372146e-05,
+    "labelOverlaps": 0,
+    "nodeColours": [
+     "rgb(255, 122, 110)",
+     "rgb(255, 122, 110)",
+     "rgb(255, 122, 110)",
+     "rgb(255, 122, 110)"
+    ],
+    "nodesAscending": true,
+    "freqQControls": 0,
+    "fixedCells": 8
+   },
+   "mainOut": {
+    "meters": 1,
+    "meterSid": "main",
+    "spacerVisible": false,
+    "readout": "+0.0SNT"
+   },
+   "badges": []
+  },
+  "errors": []
+ },
+ "1280x800/night/mix-source": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [
+   "h1.sr-only \"Mix: MAIN on the faders,\""
+  ],
+  "small": [],
+  "targets44": [],
+  "targets24": [],
+  "contrastFails": [],
+  "geo": {
+   "fader": [
+    {
+     "id": "fdr-CH-1",
+     "known": true,
+     "err": 0.3,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-CH-2",
+     "known": true,
+     "err": 0.3,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-CH-3",
+     "known": true,
+     "err": 0.3,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-CH-4",
+     "known": true,
+     "err": 0.3,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-CH-5-6",
+     "known": false,
+     "err": 0.3,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-CH-7-8",
+     "known": false,
+     "err": 0.3,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-USB-BT",
+     "known": false,
+     "err": 0.3,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-MAIN",
+     "known": true,
+     "err": 0,
+     "dashedWhenUnknown": true,
+     "inside": true
+    }
+   ],
+   "ticks": [],
+   "names": [],
+   "eq": {},
+   "mainOut": {
+    "meters": 1,
+    "meterSid": "main",
+    "spacerVisible": false,
+    "readout": "+0.0SNT"
+   },
+   "badges": []
+  },
+  "errors": []
+ },
+ "1280x800/night/mix-monsend": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [
+   "h1.sr-only \"Mix: MAIN on the faders,\""
+  ],
+  "small": [],
+  "targets44": [],
+  "targets24": [],
+  "contrastFails": [],
+  "geo": {
+   "fader": [
+    {
+     "id": "fdr-CH-1",
+     "known": true,
+     "err": 0.3,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-CH-2",
+     "known": true,
+     "err": 0.3,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-CH-3",
+     "known": true,
+     "err": 0.3,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-CH-4",
+     "known": true,
+     "err": 0.3,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-CH-5-6",
+     "known": false,
+     "err": 0.3,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-CH-7-8",
+     "known": false,
+     "err": 0.3,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-USB-BT",
+     "known": false,
+     "err": 0.3,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-MAIN",
+     "known": true,
+     "err": 0,
+     "dashedWhenUnknown": true,
+     "inside": true
+    }
+   ],
+   "ticks": [],
+   "names": [],
+   "eq": {},
+   "mainOut": {
+    "meters": 1,
+    "meterSid": "main",
+    "spacerVisible": false,
+    "readout": "+0.0SNT"
+   },
+   "badges": []
+  },
+  "errors": []
+ },
+ "1280x800/night/sends": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [],
+  "small": [],
+  "targets44": [],
+  "targets24": [],
+  "contrastFails": [],
+  "errors": []
+ },
+ "1280x800/night/channel": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [],
+  "small": [],
+  "targets44": [],
+  "targets24": [],
+  "contrastFails": [],
+  "errors": []
+ },
+ "1280x800/night/fx": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [],
+  "small": [],
+  "targets44": [],
+  "targets24": [],
+  "contrastFails": [],
+  "errors": []
+ },
+ "1280x800/night/stage": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [],
+  "small": [],
+  "targets44": [],
+  "targets24": [],
+  "contrastFails": [],
+  "errors": []
+ },
+ "1280x800/night/show": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [],
+  "small": [],
+  "targets44": [],
+  "targets24": [],
+  "contrastFails": [],
+  "errors": []
+ },
+ "1280x800/night/output": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [],
+  "small": [],
+  "targets44": [],
+  "targets24": [],
+  "contrastFails": [],
+  "errors": []
+ },
+ "1280x800/night/safety": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [],
+  "small": [],
+  "targets44": [],
+  "targets24": [],
+  "contrastFails": [],
+  "errors": []
+ },
+ "1180x820/day/mix": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [
+   "h1.sr-only \"Mix: MAIN on the faders,\""
+  ],
+  "small": [],
+  "targets44": [],
+  "targets24": [],
+  "contrastFails": [],
+  "geo": {
+   "fader": [
+    {
+     "id": "fdr-CH-1",
+     "known": true,
+     "err": 0.1,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-CH-2",
+     "known": true,
+     "err": 0,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-CH-3",
+     "known": true,
+     "err": 0.1,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-CH-4",
+     "known": true,
+     "err": 0.1,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-CH-5-6",
+     "known": false,
+     "err": 0,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-CH-7-8",
+     "known": false,
+     "err": 0,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-USB-BT",
+     "known": false,
+     "err": 0,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-MAIN",
+     "known": true,
+     "err": 0,
+     "dashedWhenUnknown": true,
+     "inside": true
+    }
+   ],
+   "ticks": [],
+   "names": [],
+   "eq": {
+    "labels": [
+     "50",
+     "100",
+     "200",
+     "500",
+     "1k",
+     "2k",
+     "5k",
+     "10k"
+    ],
+    "logErr": 4.691526507372146e-05,
+    "labelOverlaps": 0,
+    "nodeColours": [
+     "rgb(70, 209, 106)",
+     "rgb(59, 155, 240)",
+     "rgb(180, 108, 224)",
+     "rgb(230, 184, 63)"
+    ],
+    "nodesAscending": true,
+    "freqQControls": 0,
+    "fixedCells": 8
+   },
+   "mainOut": {
+    "meters": 1,
+    "meterSid": "main",
+    "spacerVisible": false,
+    "readout": "+0.0SNT"
+   },
+   "badges": []
+  },
+  "errors": []
+ },
+ "1180x820/day/mix-source": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [
+   "h1.sr-only \"Mix: MAIN on the faders,\""
+  ],
+  "small": [],
+  "targets44": [],
+  "targets24": [],
+  "contrastFails": [],
+  "geo": {
+   "fader": [
+    {
+     "id": "fdr-CH-1",
+     "known": true,
+     "err": 0.1,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-CH-2",
+     "known": true,
+     "err": 0,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-CH-3",
+     "known": true,
+     "err": 0.1,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-CH-4",
+     "known": true,
+     "err": 0.1,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-CH-5-6",
+     "known": false,
+     "err": 0,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-CH-7-8",
+     "known": false,
+     "err": 0,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-USB-BT",
+     "known": false,
+     "err": 0,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-MAIN",
+     "known": true,
+     "err": 0,
+     "dashedWhenUnknown": true,
+     "inside": true
+    }
+   ],
+   "ticks": [],
+   "names": [],
+   "eq": {},
+   "mainOut": {
+    "meters": 1,
+    "meterSid": "main",
+    "spacerVisible": false,
+    "readout": "+0.0SNT"
+   },
+   "badges": []
+  },
+  "errors": []
+ },
+ "1180x820/day/mix-monsend": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [
+   "h1.sr-only \"Mix: MAIN on the faders,\""
+  ],
+  "small": [],
+  "targets44": [],
+  "targets24": [],
+  "contrastFails": [],
+  "geo": {
+   "fader": [
+    {
+     "id": "fdr-CH-1",
+     "known": true,
+     "err": 0.1,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-CH-2",
+     "known": true,
+     "err": 0,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-CH-3",
+     "known": true,
+     "err": 0.1,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-CH-4",
+     "known": true,
+     "err": 0.1,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-CH-5-6",
+     "known": false,
+     "err": 0,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-CH-7-8",
+     "known": false,
+     "err": 0,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-USB-BT",
+     "known": false,
+     "err": 0,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-MAIN",
+     "known": true,
+     "err": 0,
+     "dashedWhenUnknown": true,
+     "inside": true
+    }
+   ],
+   "ticks": [],
+   "names": [],
+   "eq": {},
+   "mainOut": {
+    "meters": 1,
+    "meterSid": "main",
+    "spacerVisible": false,
+    "readout": "+0.0SNT"
+   },
+   "badges": []
+  },
+  "errors": []
+ },
+ "1180x820/day/sends": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [],
+  "small": [],
+  "targets44": [],
+  "targets24": [],
+  "contrastFails": [],
+  "errors": []
+ },
+ "1180x820/day/channel": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [],
+  "small": [],
+  "targets44": [],
+  "targets24": [],
+  "contrastFails": [],
+  "errors": []
+ },
+ "1180x820/day/fx": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [],
+  "small": [],
+  "targets44": [],
+  "targets24": [],
+  "contrastFails": [],
+  "errors": []
+ },
+ "1180x820/day/stage": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [
+   "span.nm \"USB/BT Return\""
+  ],
+  "small": [],
+  "targets44": [],
+  "targets24": [],
+  "contrastFails": [],
+  "errors": []
+ },
+ "1180x820/day/show": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [],
+  "small": [],
+  "targets44": [],
+  "targets24": [],
+  "contrastFails": [],
+  "errors": []
+ },
+ "1180x820/day/output": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [],
+  "small": [],
+  "targets44": [],
+  "targets24": [],
+  "contrastFails": [],
+  "errors": []
+ },
+ "1180x820/day/safety": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [],
+  "small": [],
+  "targets44": [],
+  "targets24": [],
+  "contrastFails": [],
+  "errors": []
+ },
+ "1180x820/night/mix": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [
+   "h1.sr-only \"Mix: MAIN on the faders,\""
+  ],
+  "small": [],
+  "targets44": [],
+  "targets24": [],
+  "contrastFails": [],
+  "geo": {
+   "fader": [
+    {
+     "id": "fdr-CH-1",
+     "known": true,
+     "err": 0.1,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-CH-2",
+     "known": true,
+     "err": 0,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-CH-3",
+     "known": true,
+     "err": 0.1,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-CH-4",
+     "known": true,
+     "err": 0.1,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-CH-5-6",
+     "known": false,
+     "err": 0,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-CH-7-8",
+     "known": false,
+     "err": 0,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-USB-BT",
+     "known": false,
+     "err": 0,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-MAIN",
+     "known": true,
+     "err": 0,
+     "dashedWhenUnknown": true,
+     "inside": true
+    }
+   ],
+   "ticks": [],
+   "names": [],
+   "eq": {
+    "labels": [
+     "50",
+     "100",
+     "200",
+     "500",
+     "1k",
+     "2k",
+     "5k",
+     "10k"
+    ],
+    "logErr": 4.691526507372146e-05,
+    "labelOverlaps": 0,
+    "nodeColours": [
+     "rgb(255, 122, 110)",
+     "rgb(255, 122, 110)",
+     "rgb(255, 122, 110)",
+     "rgb(255, 122, 110)"
+    ],
+    "nodesAscending": true,
+    "freqQControls": 0,
+    "fixedCells": 8
+   },
+   "mainOut": {
+    "meters": 1,
+    "meterSid": "main",
+    "spacerVisible": false,
+    "readout": "+0.0SNT"
+   },
+   "badges": []
+  },
+  "errors": []
+ },
+ "1180x820/night/mix-source": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [
+   "h1.sr-only \"Mix: MAIN on the faders,\""
+  ],
+  "small": [],
+  "targets44": [],
+  "targets24": [],
+  "contrastFails": [],
+  "geo": {
+   "fader": [
+    {
+     "id": "fdr-CH-1",
+     "known": true,
+     "err": 0.1,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-CH-2",
+     "known": true,
+     "err": 0,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-CH-3",
+     "known": true,
+     "err": 0.1,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-CH-4",
+     "known": true,
+     "err": 0.1,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-CH-5-6",
+     "known": false,
+     "err": 0,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-CH-7-8",
+     "known": false,
+     "err": 0,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-USB-BT",
+     "known": false,
+     "err": 0,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-MAIN",
+     "known": true,
+     "err": 0,
+     "dashedWhenUnknown": true,
+     "inside": true
+    }
+   ],
+   "ticks": [],
+   "names": [],
+   "eq": {},
+   "mainOut": {
+    "meters": 1,
+    "meterSid": "main",
+    "spacerVisible": false,
+    "readout": "+0.0SNT"
+   },
+   "badges": []
+  },
+  "errors": []
+ },
+ "1180x820/night/mix-monsend": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [
+   "h1.sr-only \"Mix: MAIN on the faders,\""
+  ],
+  "small": [],
+  "targets44": [],
+  "targets24": [],
+  "contrastFails": [],
+  "geo": {
+   "fader": [
+    {
+     "id": "fdr-CH-1",
+     "known": true,
+     "err": 0.1,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-CH-2",
+     "known": true,
+     "err": 0,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-CH-3",
+     "known": true,
+     "err": 0.1,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-CH-4",
+     "known": true,
+     "err": 0.1,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-CH-5-6",
+     "known": false,
+     "err": 0,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-CH-7-8",
+     "known": false,
+     "err": 0,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-USB-BT",
+     "known": false,
+     "err": 0,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-MAIN",
+     "known": true,
+     "err": 0,
+     "dashedWhenUnknown": true,
+     "inside": true
+    }
+   ],
+   "ticks": [],
+   "names": [],
+   "eq": {},
+   "mainOut": {
+    "meters": 1,
+    "meterSid": "main",
+    "spacerVisible": false,
+    "readout": "+0.0SNT"
+   },
+   "badges": []
+  },
+  "errors": []
+ },
+ "1180x820/night/sends": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [],
+  "small": [],
+  "targets44": [],
+  "targets24": [],
+  "contrastFails": [],
+  "errors": []
+ },
+ "1180x820/night/channel": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [],
+  "small": [],
+  "targets44": [],
+  "targets24": [],
+  "contrastFails": [],
+  "errors": []
+ },
+ "1180x820/night/fx": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [],
+  "small": [],
+  "targets44": [],
+  "targets24": [],
+  "contrastFails": [],
+  "errors": []
+ },
+ "1180x820/night/stage": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [
+   "span.nm \"USB/BT Return\""
+  ],
+  "small": [],
+  "targets44": [],
+  "targets24": [],
+  "contrastFails": [],
+  "errors": []
+ },
+ "1180x820/night/show": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [],
+  "small": [],
+  "targets44": [],
+  "targets24": [],
+  "contrastFails": [],
+  "errors": []
+ },
+ "1180x820/night/output": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [],
+  "small": [],
+  "targets44": [],
+  "targets24": [],
+  "contrastFails": [],
+  "errors": []
+ },
+ "1180x820/night/safety": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [],
+  "small": [],
+  "targets44": [],
+  "targets24": [],
+  "contrastFails": [],
+  "errors": []
+ },
+ "1024x768/day/mix": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [
+   "h1.sr-only \"Mix: MAIN on the faders,\"",
+   "span.nm \"USB/BT Return\""
+  ],
+  "small": [],
+  "targets44": [
+   "#fdr-CH-1 \"+100-20-40-∞\" 44x136"
+  ],
+  "targets24": [],
+  "contrastFails": [],
+  "geo": {
+   "fader": [
+    {
+     "id": "fdr-CH-1",
+     "known": true,
+     "err": 0,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-CH-2",
+     "known": true,
+     "err": 0,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-CH-3",
+     "known": true,
+     "err": 0,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-CH-4",
+     "known": true,
+     "err": 0,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-CH-5-6",
+     "known": false,
+     "err": 0,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-CH-7-8",
+     "known": false,
+     "err": 0,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-USB-BT",
+     "known": false,
+     "err": 0,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-MAIN",
+     "known": true,
+     "err": 0,
+     "dashedWhenUnknown": true,
+     "inside": true
+    }
+   ],
+   "ticks": [],
+   "names": [],
+   "eq": {
+    "labels": [
+     "100",
+     "1k",
+     "10k"
+    ],
+    "logErr": 4.0124299207633385e-05,
+    "labelOverlaps": 0,
+    "nodeColours": [
+     "rgb(70, 209, 106)",
+     "rgb(59, 155, 240)",
+     "rgb(180, 108, 224)",
+     "rgb(230, 184, 63)"
+    ],
+    "nodesAscending": true,
+    "freqQControls": 0,
+    "fixedCells": 8
+   },
+   "mainOut": {
+    "meters": 1,
+    "meterSid": "main",
+    "spacerVisible": false,
+    "readout": "+0.0SNT"
+   },
+   "badges": []
+  },
+  "errors": []
+ },
+ "1024x768/day/mix-source": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [
+   "h1.sr-only \"Mix: MAIN on the faders,\"",
+   "span.nm \"USB/BT Return\""
+  ],
+  "small": [],
+  "targets44": [
+   "#fdr-CH-1 \"+100-20-40-∞\" 44x136"
+  ],
+  "targets24": [],
+  "contrastFails": [],
+  "geo": {
+   "fader": [
+    {
+     "id": "fdr-CH-1",
+     "known": true,
+     "err": 0,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-CH-2",
+     "known": true,
+     "err": 0,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-CH-3",
+     "known": true,
+     "err": 0,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-CH-4",
+     "known": true,
+     "err": 0,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-CH-5-6",
+     "known": false,
+     "err": 0,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-CH-7-8",
+     "known": false,
+     "err": 0,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-USB-BT",
+     "known": false,
+     "err": 0,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-MAIN",
+     "known": true,
+     "err": 0,
+     "dashedWhenUnknown": true,
+     "inside": true
+    }
+   ],
+   "ticks": [],
+   "names": [],
+   "eq": {},
+   "mainOut": {
+    "meters": 1,
+    "meterSid": "main",
+    "spacerVisible": false,
+    "readout": "+0.0SNT"
+   },
+   "badges": []
+  },
+  "errors": []
+ },
+ "1024x768/day/mix-monsend": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [
+   "h1.sr-only \"Mix: MAIN on the faders,\"",
+   "span.nm \"USB/BT Return\""
+  ],
+  "small": [],
+  "targets44": [
+   "#fdr-CH-1 \"+100-20-40-∞\" 44x136"
+  ],
+  "targets24": [],
+  "contrastFails": [],
+  "geo": {
+   "fader": [
+    {
+     "id": "fdr-CH-1",
+     "known": true,
+     "err": 0,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-CH-2",
+     "known": true,
+     "err": 0,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-CH-3",
+     "known": true,
+     "err": 0,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-CH-4",
+     "known": true,
+     "err": 0,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-CH-5-6",
+     "known": false,
+     "err": 0,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-CH-7-8",
+     "known": false,
+     "err": 0,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-USB-BT",
+     "known": false,
+     "err": 0,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-MAIN",
+     "known": true,
+     "err": 0,
+     "dashedWhenUnknown": true,
+     "inside": true
+    }
+   ],
+   "ticks": [],
+   "names": [],
+   "eq": {},
+   "mainOut": {
+    "meters": 1,
+    "meterSid": "main",
+    "spacerVisible": false,
+    "readout": "+0.0SNT"
+   },
+   "badges": []
+  },
+  "errors": []
+ },
+ "1024x768/day/sends": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [],
+  "small": [],
+  "targets44": [],
+  "targets24": [],
+  "contrastFails": [],
+  "errors": []
+ },
+ "1024x768/day/channel": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [],
+  "small": [],
+  "targets44": [],
+  "targets24": [],
+  "contrastFails": [],
+  "errors": []
+ },
+ "1024x768/day/fx": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [],
+  "small": [],
+  "targets44": [],
+  "targets24": [],
+  "contrastFails": [],
+  "errors": []
+ },
+ "1024x768/day/stage": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [
+   "span.nm \"Channel 5/6\"",
+   "span.nm \"Channel 7/8\"",
+   "span.nm \"USB/BT Return\""
+  ],
+  "small": [],
+  "targets44": [],
+  "targets24": [],
+  "contrastFails": [],
+  "errors": []
+ },
+ "1024x768/day/show": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [],
+  "small": [],
+  "targets44": [],
+  "targets24": [],
+  "contrastFails": [],
+  "errors": []
+ },
+ "1024x768/day/output": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [],
+  "small": [],
+  "targets44": [],
+  "targets24": [],
+  "contrastFails": [],
+  "errors": []
+ },
+ "1024x768/day/safety": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [],
+  "small": [],
+  "targets44": [],
+  "targets24": [],
+  "contrastFails": [],
+  "errors": []
+ },
+ "1024x768/night/mix": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [
+   "h1.sr-only \"Mix: MAIN on the faders,\"",
+   "span.nm \"USB/BT Return\""
+  ],
+  "small": [],
+  "targets44": [
+   "#fdr-CH-1 \"+100-20-40-∞\" 44x136"
+  ],
+  "targets24": [],
+  "contrastFails": [],
+  "geo": {
+   "fader": [
+    {
+     "id": "fdr-CH-1",
+     "known": true,
+     "err": 0,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-CH-2",
+     "known": true,
+     "err": 0,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-CH-3",
+     "known": true,
+     "err": 0,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-CH-4",
+     "known": true,
+     "err": 0,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-CH-5-6",
+     "known": false,
+     "err": 0,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-CH-7-8",
+     "known": false,
+     "err": 0,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-USB-BT",
+     "known": false,
+     "err": 0,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-MAIN",
+     "known": true,
+     "err": 0,
+     "dashedWhenUnknown": true,
+     "inside": true
+    }
+   ],
+   "ticks": [],
+   "names": [],
+   "eq": {
+    "labels": [
+     "100",
+     "1k",
+     "10k"
+    ],
+    "logErr": 4.0124299207633385e-05,
+    "labelOverlaps": 0,
+    "nodeColours": [
+     "rgb(255, 122, 110)",
+     "rgb(255, 122, 110)",
+     "rgb(255, 122, 110)",
+     "rgb(255, 122, 110)"
+    ],
+    "nodesAscending": true,
+    "freqQControls": 0,
+    "fixedCells": 8
+   },
+   "mainOut": {
+    "meters": 1,
+    "meterSid": "main",
+    "spacerVisible": false,
+    "readout": "+0.0SNT"
+   },
+   "badges": []
+  },
+  "errors": []
+ },
+ "1024x768/night/mix-source": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [
+   "h1.sr-only \"Mix: MAIN on the faders,\"",
+   "span.nm \"USB/BT Return\""
+  ],
+  "small": [],
+  "targets44": [
+   "#fdr-CH-1 \"+100-20-40-∞\" 44x136"
+  ],
+  "targets24": [],
+  "contrastFails": [],
+  "geo": {
+   "fader": [
+    {
+     "id": "fdr-CH-1",
+     "known": true,
+     "err": 0,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-CH-2",
+     "known": true,
+     "err": 0,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-CH-3",
+     "known": true,
+     "err": 0,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-CH-4",
+     "known": true,
+     "err": 0,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-CH-5-6",
+     "known": false,
+     "err": 0,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-CH-7-8",
+     "known": false,
+     "err": 0,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-USB-BT",
+     "known": false,
+     "err": 0,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-MAIN",
+     "known": true,
+     "err": 0,
+     "dashedWhenUnknown": true,
+     "inside": true
+    }
+   ],
+   "ticks": [],
+   "names": [],
+   "eq": {},
+   "mainOut": {
+    "meters": 1,
+    "meterSid": "main",
+    "spacerVisible": false,
+    "readout": "+0.0SNT"
+   },
+   "badges": []
+  },
+  "errors": []
+ },
+ "1024x768/night/mix-monsend": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [
+   "h1.sr-only \"Mix: MAIN on the faders,\"",
+   "span.nm \"USB/BT Return\""
+  ],
+  "small": [],
+  "targets44": [
+   "#fdr-CH-1 \"+100-20-40-∞\" 44x136"
+  ],
+  "targets24": [],
+  "contrastFails": [],
+  "geo": {
+   "fader": [
+    {
+     "id": "fdr-CH-1",
+     "known": true,
+     "err": 0,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-CH-2",
+     "known": true,
+     "err": 0,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-CH-3",
+     "known": true,
+     "err": 0,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-CH-4",
+     "known": true,
+     "err": 0,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-CH-5-6",
+     "known": false,
+     "err": 0,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-CH-7-8",
+     "known": false,
+     "err": 0,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-USB-BT",
+     "known": false,
+     "err": 0,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-MAIN",
+     "known": true,
+     "err": 0,
+     "dashedWhenUnknown": true,
+     "inside": true
+    }
+   ],
+   "ticks": [],
+   "names": [],
+   "eq": {},
+   "mainOut": {
+    "meters": 1,
+    "meterSid": "main",
+    "spacerVisible": false,
+    "readout": "+0.0SNT"
+   },
+   "badges": []
+  },
+  "errors": []
+ },
+ "1024x768/night/sends": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [],
+  "small": [],
+  "targets44": [],
+  "targets24": [],
+  "contrastFails": [],
+  "errors": []
+ },
+ "1024x768/night/channel": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [],
+  "small": [],
+  "targets44": [],
+  "targets24": [],
+  "contrastFails": [],
+  "errors": []
+ },
+ "1024x768/night/fx": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [],
+  "small": [],
+  "targets44": [],
+  "targets24": [],
+  "contrastFails": [],
+  "errors": []
+ },
+ "1024x768/night/stage": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [
+   "span.nm \"Channel 5/6\"",
+   "span.nm \"Channel 7/8\"",
+   "span.nm \"USB/BT Return\""
+  ],
+  "small": [],
+  "targets44": [],
+  "targets24": [],
+  "contrastFails": [],
+  "errors": []
+ },
+ "1024x768/night/show": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [],
+  "small": [],
+  "targets44": [],
+  "targets24": [],
+  "contrastFails": [],
+  "errors": []
+ },
+ "1024x768/night/output": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [],
+  "small": [],
+  "targets44": [],
+  "targets24": [],
+  "contrastFails": [],
+  "errors": []
+ },
+ "1024x768/night/safety": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [],
+  "small": [],
+  "targets44": [],
+  "targets24": [],
+  "contrastFails": [],
+  "errors": []
+ },
+ "768x1024/day/mix": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [
+   "h1.sr-only \"Mix: MAIN on the faders,\"",
+   "span \"Channel 1\"",
+   "span.nm \"Channel 5/6\"",
+   "span.nm \"Channel 7/8\"",
+   "span.nm \"USB/BT Return\""
+  ],
+  "small": [],
+  "targets44": [],
+  "targets24": [],
+  "contrastFails": [],
+  "geo": {
+   "fader": [
+    {
+     "id": "fdr-CH-1",
+     "known": true,
+     "err": 0,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-CH-2",
+     "known": true,
+     "err": 0,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-CH-3",
+     "known": true,
+     "err": 0,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-CH-4",
+     "known": true,
+     "err": 0,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-CH-5-6",
+     "known": false,
+     "err": 0,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-CH-7-8",
+     "known": false,
+     "err": 0,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-USB-BT",
+     "known": false,
+     "err": 0,
+     "dashedWhenUnknown": true,
+     "inside": true
+    }
+   ],
+   "ticks": [],
+   "names": [],
+   "eq": {
+    "labels": [
+     "100",
+     "1k",
+     "10k"
+    ],
+    "logErr": 4.0124299207633385e-05,
+    "labelOverlaps": 0,
+    "nodeColours": [
+     "rgb(70, 209, 106)",
+     "rgb(59, 155, 240)",
+     "rgb(180, 108, 224)",
+     "rgb(230, 184, 63)"
+    ],
+    "nodesAscending": true,
+    "freqQControls": 0,
+    "fixedCells": 8
+   },
+   "mainOut": {},
+   "badges": []
+  },
+  "errors": []
+ },
+ "768x1024/day/mix-source": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [
+   "h1.sr-only \"Mix: MAIN on the faders,\"",
+   "span \"Channel 1\"",
+   "span.nm \"Channel 5/6\"",
+   "span.nm \"Channel 7/8\"",
+   "span.nm \"USB/BT Return\""
+  ],
+  "small": [],
+  "targets44": [],
+  "targets24": [],
+  "contrastFails": [],
+  "geo": {
+   "fader": [
+    {
+     "id": "fdr-CH-1",
+     "known": true,
+     "err": 0,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-CH-2",
+     "known": true,
+     "err": 0,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-CH-3",
+     "known": true,
+     "err": 0,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-CH-4",
+     "known": true,
+     "err": 0,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-CH-5-6",
+     "known": false,
+     "err": 0,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-CH-7-8",
+     "known": false,
+     "err": 0,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-USB-BT",
+     "known": false,
+     "err": 0,
+     "dashedWhenUnknown": true,
+     "inside": true
+    }
+   ],
+   "ticks": [],
+   "names": [],
+   "eq": {},
+   "mainOut": {},
+   "badges": []
+  },
+  "errors": []
+ },
+ "768x1024/day/mix-monsend": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [
+   "h1.sr-only \"Mix: MAIN on the faders,\"",
+   "span \"Channel 1\"",
+   "span.nm \"Channel 5/6\"",
+   "span.nm \"Channel 7/8\"",
+   "span.nm \"USB/BT Return\""
+  ],
+  "small": [],
+  "targets44": [],
+  "targets24": [],
+  "contrastFails": [],
+  "geo": {
+   "fader": [
+    {
+     "id": "fdr-CH-1",
+     "known": true,
+     "err": 0,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-CH-2",
+     "known": true,
+     "err": 0,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-CH-3",
+     "known": true,
+     "err": 0,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-CH-4",
+     "known": true,
+     "err": 0,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-CH-5-6",
+     "known": false,
+     "err": 0,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-CH-7-8",
+     "known": false,
+     "err": 0,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-USB-BT",
+     "known": false,
+     "err": 0,
+     "dashedWhenUnknown": true,
+     "inside": true
+    }
+   ],
+   "ticks": [],
+   "names": [],
+   "eq": {},
+   "mainOut": {},
+   "badges": []
+  },
+  "errors": []
+ },
+ "768x1024/day/sends": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [],
+  "small": [],
+  "targets44": [],
+  "targets24": [],
+  "contrastFails": [],
+  "errors": []
+ },
+ "768x1024/day/channel": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [],
+  "small": [],
+  "targets44": [],
+  "targets24": [],
+  "contrastFails": [],
+  "errors": []
+ },
+ "768x1024/day/fx": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [],
+  "small": [],
+  "targets44": [],
+  "targets24": [],
+  "contrastFails": [],
+  "errors": []
+ },
+ "768x1024/day/stage": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [
+   "span.nm \"Channel 5/6\"",
+   "span.nm \"Channel 7/8\"",
+   "span.nm \"USB/BT Return\""
+  ],
+  "small": [],
+  "targets44": [],
+  "targets24": [],
+  "contrastFails": [],
+  "errors": []
+ },
+ "768x1024/day/show": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [],
+  "small": [],
+  "targets44": [],
+  "targets24": [],
+  "contrastFails": [],
+  "errors": []
+ },
+ "768x1024/day/output": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [],
+  "small": [],
+  "targets44": [],
+  "targets24": [],
+  "contrastFails": [],
+  "errors": []
+ },
+ "768x1024/day/safety": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [],
+  "small": [],
+  "targets44": [],
+  "targets24": [],
+  "contrastFails": [],
+  "errors": []
+ },
+ "768x1024/night/mix": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [
+   "h1.sr-only \"Mix: MAIN on the faders,\"",
+   "span \"Channel 1\"",
+   "span.nm \"Channel 5/6\"",
+   "span.nm \"Channel 7/8\"",
+   "span.nm \"USB/BT Return\""
+  ],
+  "small": [],
+  "targets44": [],
+  "targets24": [],
+  "contrastFails": [],
+  "geo": {
+   "fader": [
+    {
+     "id": "fdr-CH-1",
+     "known": true,
+     "err": 0,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-CH-2",
+     "known": true,
+     "err": 0,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-CH-3",
+     "known": true,
+     "err": 0,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-CH-4",
+     "known": true,
+     "err": 0,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-CH-5-6",
+     "known": false,
+     "err": 0,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-CH-7-8",
+     "known": false,
+     "err": 0,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-USB-BT",
+     "known": false,
+     "err": 0,
+     "dashedWhenUnknown": true,
+     "inside": true
+    }
+   ],
+   "ticks": [],
+   "names": [],
+   "eq": {
+    "labels": [
+     "100",
+     "1k",
+     "10k"
+    ],
+    "logErr": 4.0124299207633385e-05,
+    "labelOverlaps": 0,
+    "nodeColours": [
+     "rgb(255, 122, 110)",
+     "rgb(255, 122, 110)",
+     "rgb(255, 122, 110)",
+     "rgb(255, 122, 110)"
+    ],
+    "nodesAscending": true,
+    "freqQControls": 0,
+    "fixedCells": 8
+   },
+   "mainOut": {},
+   "badges": []
+  },
+  "errors": []
+ },
+ "768x1024/night/mix-source": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [
+   "h1.sr-only \"Mix: MAIN on the faders,\"",
+   "span \"Channel 1\"",
+   "span.nm \"Channel 5/6\"",
+   "span.nm \"Channel 7/8\"",
+   "span.nm \"USB/BT Return\""
+  ],
+  "small": [],
+  "targets44": [],
+  "targets24": [],
+  "contrastFails": [],
+  "geo": {
+   "fader": [
+    {
+     "id": "fdr-CH-1",
+     "known": true,
+     "err": 0,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-CH-2",
+     "known": true,
+     "err": 0,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-CH-3",
+     "known": true,
+     "err": 0,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-CH-4",
+     "known": true,
+     "err": 0,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-CH-5-6",
+     "known": false,
+     "err": 0,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-CH-7-8",
+     "known": false,
+     "err": 0,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-USB-BT",
+     "known": false,
+     "err": 0,
+     "dashedWhenUnknown": true,
+     "inside": true
+    }
+   ],
+   "ticks": [],
+   "names": [],
+   "eq": {},
+   "mainOut": {},
+   "badges": []
+  },
+  "errors": []
+ },
+ "768x1024/night/mix-monsend": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [
+   "h1.sr-only \"Mix: MAIN on the faders,\"",
+   "span \"Channel 1\"",
+   "span.nm \"Channel 5/6\"",
+   "span.nm \"Channel 7/8\"",
+   "span.nm \"USB/BT Return\""
+  ],
+  "small": [],
+  "targets44": [],
+  "targets24": [],
+  "contrastFails": [],
+  "geo": {
+   "fader": [
+    {
+     "id": "fdr-CH-1",
+     "known": true,
+     "err": 0,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-CH-2",
+     "known": true,
+     "err": 0,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-CH-3",
+     "known": true,
+     "err": 0,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-CH-4",
+     "known": true,
+     "err": 0,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-CH-5-6",
+     "known": false,
+     "err": 0,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-CH-7-8",
+     "known": false,
+     "err": 0,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-USB-BT",
+     "known": false,
+     "err": 0,
+     "dashedWhenUnknown": true,
+     "inside": true
+    }
+   ],
+   "ticks": [],
+   "names": [],
+   "eq": {},
+   "mainOut": {},
+   "badges": []
+  },
+  "errors": []
+ },
+ "768x1024/night/sends": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [],
+  "small": [],
+  "targets44": [],
+  "targets24": [],
+  "contrastFails": [],
+  "errors": []
+ },
+ "768x1024/night/channel": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [],
+  "small": [],
+  "targets44": [],
+  "targets24": [],
+  "contrastFails": [],
+  "errors": []
+ },
+ "768x1024/night/fx": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [],
+  "small": [],
+  "targets44": [],
+  "targets24": [],
+  "contrastFails": [],
+  "errors": []
+ },
+ "768x1024/night/stage": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [
+   "span.nm \"Channel 5/6\"",
+   "span.nm \"Channel 7/8\"",
+   "span.nm \"USB/BT Return\""
+  ],
+  "small": [],
+  "targets44": [],
+  "targets24": [],
+  "contrastFails": [],
+  "errors": []
+ },
+ "768x1024/night/show": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [],
+  "small": [],
+  "targets44": [],
+  "targets24": [],
+  "contrastFails": [],
+  "errors": []
+ },
+ "768x1024/night/output": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [],
+  "small": [],
+  "targets44": [],
+  "targets24": [],
+  "contrastFails": [],
+  "errors": []
+ },
+ "768x1024/night/safety": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [],
+  "small": [],
+  "targets44": [],
+  "targets24": [],
+  "contrastFails": [],
+  "errors": []
+ },
+ "320x640/day/mix": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [
+   "h1.sr-only \"Mix: MAIN on the faders,\"",
+   "span.t \"4-BAND · CH 1 · Channel \""
+  ],
+  "small": [],
+  "targets44": [
+   "button.grp \"A\" 40x44",
+   "button.grp \"B\" 40x44",
+   "button.grp \"C\" 40x44",
+   "button.grp \"D\" 40x44"
+  ],
+  "targets24": [],
+  "contrastFails": [],
+  "geo": {
+   "fader": [
+    {
+     "id": "fdr-CH-1",
+     "known": true,
+     "err": 0,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-MAIN",
+     "known": true,
+     "err": 0,
+     "dashedWhenUnknown": true,
+     "inside": true
+    }
+   ],
+   "ticks": [],
+   "names": [],
+   "eq": {
+    "labels": [
+     "100",
+     "1k",
+     "10k"
+    ],
+    "logErr": 4.0124299207633385e-05,
+    "labelOverlaps": 0,
+    "nodeColours": [
+     "rgb(70, 209, 106)",
+     "rgb(59, 155, 240)",
+     "rgb(180, 108, 224)",
+     "rgb(230, 184, 63)"
+    ],
+    "nodesAscending": true,
+    "freqQControls": 0,
+    "fixedCells": 8
+   },
+   "mainOut": {
+    "meters": 1,
+    "meterSid": "main",
+    "spacerVisible": false,
+    "readout": "+0.0SNT"
+   },
+   "badges": []
+  },
+  "errors": []
+ },
+ "320x640/day/mix-source": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [
+   "h1.sr-only \"Mix: MAIN on the faders,\""
+  ],
+  "small": [],
+  "targets44": [
+   "button.grp \"A\" 40x44",
+   "button.grp \"B\" 40x44",
+   "button.grp \"C\" 40x44",
+   "button.grp \"D\" 40x44"
+  ],
+  "targets24": [],
+  "contrastFails": [],
+  "geo": {
+   "fader": [
+    {
+     "id": "fdr-CH-1",
+     "known": true,
+     "err": 0,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-MAIN",
+     "known": true,
+     "err": 0,
+     "dashedWhenUnknown": true,
+     "inside": true
+    }
+   ],
+   "ticks": [],
+   "names": [],
+   "eq": {},
+   "mainOut": {
+    "meters": 1,
+    "meterSid": "main",
+    "spacerVisible": false,
+    "readout": "+0.0SNT"
+   },
+   "badges": []
+  },
+  "errors": []
+ },
+ "320x640/day/mix-monsend": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [
+   "h1.sr-only \"Mix: MAIN on the faders,\"",
+   "span.t \"CH 1 · Channel 1\""
+  ],
+  "small": [],
+  "targets44": [
+   "button.grp \"A\" 40x44",
+   "button.grp \"B\" 40x44",
+   "button.grp \"C\" 40x44",
+   "button.grp \"D\" 40x44"
+  ],
+  "targets24": [],
+  "contrastFails": [],
+  "geo": {
+   "fader": [
+    {
+     "id": "fdr-CH-1",
+     "known": true,
+     "err": 0,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-MAIN",
+     "known": true,
+     "err": 0,
+     "dashedWhenUnknown": true,
+     "inside": true
+    }
+   ],
+   "ticks": [],
+   "names": [],
+   "eq": {},
+   "mainOut": {
+    "meters": 1,
+    "meterSid": "main",
+    "spacerVisible": false,
+    "readout": "+0.0SNT"
+   },
+   "badges": []
+  },
+  "errors": []
+ },
+ "320x640/day/sends": {
+  "docOverflowX": 0,
+  "stageOverflowX": 237,
+  "clipped": [],
+  "small": [],
+  "targets44": [],
+  "targets24": [],
+  "contrastFails": [],
+  "errors": []
+ },
+ "320x640/day/channel": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [],
+  "small": [],
+  "targets44": [],
+  "targets24": [],
+  "contrastFails": [],
+  "errors": []
+ },
+ "320x640/day/fx": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [],
+  "small": [],
+  "targets44": [],
+  "targets24": [],
+  "contrastFails": [],
+  "errors": []
+ },
+ "320x640/day/stage": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [
+   "span.nm \"Channel 5/6\"",
+   "span.nm \"Channel 7/8\"",
+   "span.nm \"USB/BT Return\""
+  ],
+  "small": [],
+  "targets44": [],
+  "targets24": [],
+  "contrastFails": [],
+  "errors": []
+ },
+ "320x640/day/show": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [],
+  "small": [],
+  "targets44": [],
+  "targets24": [],
+  "contrastFails": [],
+  "errors": []
+ },
+ "320x640/day/output": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [],
+  "small": [],
+  "targets44": [
+   "#geq-0 \"63 Hz\" 27x202",
+   "#geq-1 \"125 Hz\" 27x202",
+   "#geq-2 \"250 Hz\" 27x202",
+   "#geq-3 \"500 Hz\" 27x202",
+   "#geq-4 \"1k Hz\" 27x202",
+   "#geq-5 \"2k Hz\" 27x202",
+   "#geq-6 \"4k Hz\" 27x202",
+   "#geq-7 \"8k Hz\" 27x202",
+   "#geq-8 \"16k Hz\" 27x202"
+  ],
+  "targets24": [],
+  "contrastFails": [],
+  "errors": []
+ },
+ "320x640/day/safety": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [],
+  "small": [],
+  "targets44": [],
+  "targets24": [],
+  "contrastFails": [],
+  "errors": []
+ },
+ "320x640/night/mix": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [
+   "h1.sr-only \"Mix: MAIN on the faders,\"",
+   "span.t \"4-BAND · CH 1 · Channel \""
+  ],
+  "small": [],
+  "targets44": [
+   "button.grp \"A\" 40x44",
+   "button.grp \"B\" 40x44",
+   "button.grp \"C\" 40x44",
+   "button.grp \"D\" 40x44"
+  ],
+  "targets24": [],
+  "contrastFails": [],
+  "geo": {
+   "fader": [
+    {
+     "id": "fdr-CH-1",
+     "known": true,
+     "err": 0,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-MAIN",
+     "known": true,
+     "err": 0,
+     "dashedWhenUnknown": true,
+     "inside": true
+    }
+   ],
+   "ticks": [],
+   "names": [],
+   "eq": {
+    "labels": [
+     "100",
+     "1k",
+     "10k"
+    ],
+    "logErr": 4.0124299207633385e-05,
+    "labelOverlaps": 0,
+    "nodeColours": [
+     "rgb(255, 122, 110)",
+     "rgb(255, 122, 110)",
+     "rgb(255, 122, 110)",
+     "rgb(255, 122, 110)"
+    ],
+    "nodesAscending": true,
+    "freqQControls": 0,
+    "fixedCells": 8
+   },
+   "mainOut": {
+    "meters": 1,
+    "meterSid": "main",
+    "spacerVisible": false,
+    "readout": "+0.0SNT"
+   },
+   "badges": []
+  },
+  "errors": []
+ },
+ "320x640/night/mix-source": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [
+   "h1.sr-only \"Mix: MAIN on the faders,\""
+  ],
+  "small": [],
+  "targets44": [
+   "button.grp \"A\" 40x44",
+   "button.grp \"B\" 40x44",
+   "button.grp \"C\" 40x44",
+   "button.grp \"D\" 40x44"
+  ],
+  "targets24": [],
+  "contrastFails": [],
+  "geo": {
+   "fader": [
+    {
+     "id": "fdr-CH-1",
+     "known": true,
+     "err": 0,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-MAIN",
+     "known": true,
+     "err": 0,
+     "dashedWhenUnknown": true,
+     "inside": true
+    }
+   ],
+   "ticks": [],
+   "names": [],
+   "eq": {},
+   "mainOut": {
+    "meters": 1,
+    "meterSid": "main",
+    "spacerVisible": false,
+    "readout": "+0.0SNT"
+   },
+   "badges": []
+  },
+  "errors": []
+ },
+ "320x640/night/mix-monsend": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [
+   "h1.sr-only \"Mix: MAIN on the faders,\"",
+   "span.t \"CH 1 · Channel 1\""
+  ],
+  "small": [],
+  "targets44": [
+   "button.grp \"A\" 40x44",
+   "button.grp \"B\" 40x44",
+   "button.grp \"C\" 40x44",
+   "button.grp \"D\" 40x44"
+  ],
+  "targets24": [],
+  "contrastFails": [],
+  "geo": {
+   "fader": [
+    {
+     "id": "fdr-CH-1",
+     "known": true,
+     "err": 0,
+     "dashedWhenUnknown": true,
+     "inside": true
+    },
+    {
+     "id": "fdr-MAIN",
+     "known": true,
+     "err": 0,
+     "dashedWhenUnknown": true,
+     "inside": true
+    }
+   ],
+   "ticks": [],
+   "names": [],
+   "eq": {},
+   "mainOut": {
+    "meters": 1,
+    "meterSid": "main",
+    "spacerVisible": false,
+    "readout": "+0.0SNT"
+   },
+   "badges": []
+  },
+  "errors": []
+ },
+ "320x640/night/sends": {
+  "docOverflowX": 0,
+  "stageOverflowX": 237,
+  "clipped": [],
+  "small": [],
+  "targets44": [],
+  "targets24": [],
+  "contrastFails": [],
+  "errors": []
+ },
+ "320x640/night/channel": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [],
+  "small": [],
+  "targets44": [],
+  "targets24": [],
+  "contrastFails": [],
+  "errors": []
+ },
+ "320x640/night/fx": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [],
+  "small": [],
+  "targets44": [],
+  "targets24": [],
+  "contrastFails": [],
+  "errors": []
+ },
+ "320x640/night/stage": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [
+   "span.nm \"Channel 5/6\"",
+   "span.nm \"Channel 7/8\"",
+   "span.nm \"USB/BT Return\""
+  ],
+  "small": [],
+  "targets44": [],
+  "targets24": [],
+  "contrastFails": [],
+  "errors": []
+ },
+ "320x640/night/show": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [],
+  "small": [],
+  "targets44": [],
+  "targets24": [],
+  "contrastFails": [],
+  "errors": []
+ },
+ "320x640/night/output": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [],
+  "small": [],
+  "targets44": [
+   "#geq-0 \"63 Hz\" 27x202",
+   "#geq-1 \"125 Hz\" 27x202",
+   "#geq-2 \"250 Hz\" 27x202",
+   "#geq-3 \"500 Hz\" 27x202",
+   "#geq-4 \"1k Hz\" 27x202",
+   "#geq-5 \"2k Hz\" 27x202",
+   "#geq-6 \"4k Hz\" 27x202",
+   "#geq-7 \"8k Hz\" 27x202",
+   "#geq-8 \"16k Hz\" 27x202"
+  ],
+  "targets24": [],
+  "contrastFails": [],
+  "errors": []
+ },
+ "320x640/night/safety": {
+  "docOverflowX": 0,
+  "stageOverflowX": 0,
+  "clipped": [],
+  "small": [],
+  "targets44": [],
+  "targets24": [],
+  "contrastFails": [],
+  "errors": []
+ },
+ "_resize": [
+  {
+   "to": "1180x820",
+   "maxErr": 0.1,
+   "allInside": true
+  },
+  {
+   "to": "1024x768",
+   "maxErr": 0,
+   "allInside": true
+  },
+  {
+   "to": "1440x900",
+   "maxErr": 0.5,
+   "allInside": true
+  },
+  {
+   "to": "1280x800",
+   "maxErr": 0.3,
+   "allInside": true
+  }
+ ],
+ "_offline": {
+  "faders": [
+   {
+    "id": "fdr-CH-1",
+    "known": false,
+    "err": 0,
+    "dashedWhenUnknown": true,
+    "inside": true
+   },
+   {
+    "id": "fdr-CH-2",
+    "known": false,
+    "err": 0,
+    "dashedWhenUnknown": true,
+    "inside": true
+   },
+   {
+    "id": "fdr-CH-3",
+    "known": false,
+    "err": 0,
+    "dashedWhenUnknown": true,
+    "inside": true
+   },
+   {
+    "id": "fdr-CH-4",
+    "known": false,
+    "err": 0,
+    "dashedWhenUnknown": true,
+    "inside": true
+   },
+   {
+    "id": "fdr-CH-5-6",
+    "known": false,
+    "err": 0,
+    "dashedWhenUnknown": true,
+    "inside": true
+   },
+   {
+    "id": "fdr-CH-7-8",
+    "known": false,
+    "err": 0,
+    "dashedWhenUnknown": true,
+    "inside": true
+   },
+   {
+    "id": "fdr-USB-BT",
+    "known": false,
+    "err": 0,
+    "dashedWhenUnknown": true,
+    "inside": true
+   },
+   {
+    "id": "fdr-MAIN",
+    "known": false,
+    "err": 0,
+    "dashedWhenUnknown": true,
+    "inside": true
+   }
+  ],
+  "badges": [],
+  "readouts": [
+   "--",
+   "--",
+   "--",
+   "--",
+   "--",
+   "--",
+   "--",
+   "--"
+  ],
+  "eqNodesOn": 0,
+  "muteLabels": [
+   "MUTE ?",
+   "MUTE ?",
+   "MUTE ?",
+   "MUTE ?",
+   "MUTE ?",
+   "MUTE ?",
+   "MUTE ?"
+  ]
+ },
+ "_physicalMidiCalls": []
+}

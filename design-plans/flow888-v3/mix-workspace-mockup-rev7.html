@@ -1,0 +1,355 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>FLOW 888 · Mix workspace mockup rev 7 (review only)</title>
+<!--
+  Static review mockup, revision 7 (2026-11-27). NOT product code.
+  Master visual reference: the owner's approved image (design-plans/flow888-v3/reference-rev7.png).
+  Values below are sample values for review; the product shows only OBSERVED / COMMANDED values.
+  Scales use the same formulas as flow8/web_ui/v3/v3.js: fader dB (dbText), EQ centres (EQ_BANDS),
+  meter fraction (meterFrac). Adapted to FLOW 8 capability: see mix-workspace-blueprint.md section 0d.
+-->
+<style>
+@font-face { font-family: "Barlow Condensed"; src: url("../../flow8/web_ui/fonts/barlow-condensed-500.woff2") format("woff2"); font-weight: 500; }
+@font-face { font-family: "Barlow Condensed"; src: url("../../flow8/web_ui/fonts/barlow-condensed-600.woff2") format("woff2"); font-weight: 600; }
+@font-face { font-family: "Barlow Condensed"; src: url("../../flow8/web_ui/fonts/barlow-condensed-700.woff2") format("woff2"); font-weight: 700 800; }
+:root {
+  --well: #08090A; --chassis: #0E1113; --panel: #15181A; --card: #1B1E20; --raised: #23272A;
+  --line: #2C3033; --line-2: #3E4447;
+  --ink: #E8EAEB; --ink-2: #C4C9CB; --ink-3: #92999C;
+  --sel: #35B4B0; --sel-deep: #0C7C82; --sel-tint: #0F2E2E;
+  --amber: #E6B83F; --red: #E34B45; --green: #31E83B; --meter: #27D65B; --meter-mid: #E6D13F; --meter-hot: #F04444;
+  --mix-mon: #34D399; --mix-fx: #9870D8;
+  /* EQ band hues: EQ graph and band cards only (owner image rev 7; see blueprint 0d) */
+  --b1: #46D16A; --b2: #3B9BF0; --b3: #B46CE0; --b4: #E6B83F;
+  --font: "Barlow Condensed", "Segoe UI", system-ui, sans-serif;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: var(--well); color: var(--ink); font-family: var(--font); -webkit-font-smoothing: antialiased; font-feature-settings: "tnum"; }
+body { overflow: hidden; }
+.ic { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+button { font: inherit; color: inherit; background: none; border: 0; padding: 0; }
+
+.shell { display: grid; grid-template-rows: 56px 50px minmax(0, 1fr); gap: 8px; height: 100vh; padding: 8px 10px 10px; }
+
+/* ---- Row 1: global toolbar ---- */
+.bar { display: flex; align-items: center; gap: 10px; }
+.brand { display: flex; flex-direction: column; line-height: 0.95; margin-right: 18px; }
+.brand b { font-size: 30px; font-weight: 800; letter-spacing: 0.3px; }
+.brand small { font-size: 13px; font-weight: 600; letter-spacing: 1.6px; color: var(--ink-2); margin-top: 2px; }
+.pill { height: 40px; display: inline-flex; align-items: center; gap: 8px; padding: 0 14px; border-radius: 8px; border: 1px solid var(--line-2); background: var(--card); font-size: 17px; font-weight: 700; letter-spacing: 0.4px; }
+.pill.ok { color: var(--green); border-color: #1E6B2A; background: #0C1A0E; }
+.pill.ok .dot { width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--green); display: grid; place-items: center; }
+.pill.ok .dot::after { content: ""; width: 5px; height: 5px; border-radius: 50%; background: var(--green); }
+.sp { flex: 1; }
+.btn { height: 40px; display: inline-flex; align-items: center; gap: 8px; padding: 0 16px; border-radius: 6px; border: 1px solid var(--line-2); background: var(--card); font-size: 17px; font-weight: 700; letter-spacing: 0.5px; }
+.btn.dim { color: #8A9194; }
+.btn.lock { border-color: var(--sel); color: var(--sel); padding: 0 20px; }
+.btn.mute-all { border-color: #6B2421; color: #FF8A80; }
+.btn.sq { width: 48px; padding: 0; justify-content: center; }
+
+/* ---- Row 2: page tabs ---- */
+.tabs { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; }
+.tab { display: flex; align-items: center; justify-content: center; gap: 12px; border-radius: 6px; border: 1px solid var(--line); background: var(--panel); font-size: 19px; font-weight: 700; letter-spacing: 0.4px; color: var(--ink-2); }
+.tab .ic { width: 26px; height: 26px; }
+.tab[aria-current] { border-color: var(--sel); background: var(--sel-tint); color: var(--ink); }
+.tab[aria-current] .ic { color: var(--sel); }
+
+/* ---- Body: three columns ---- */
+.body { display: grid; grid-template-columns: 186px minmax(0, 1fr) 168px; gap: 8px; min-height: 0; }
+.col { display: flex; flex-direction: column; gap: 8px; min-height: 0; }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; }
+
+/* Left: processing */
+.left { padding: 8px; display: flex; flex-direction: column; gap: 6px; }
+.chhead { height: 46px; display: flex; align-items: center; gap: 10px; padding: 0 10px; border: 1px solid var(--line-2); border-radius: 5px; background: var(--card); }
+.chhead b { font-size: 22px; font-weight: 800; }
+.chhead span { font-size: 19px; font-weight: 600; color: var(--ink-2); }
+.chhead .ic { margin-left: auto; width: 18px; height: 18px; color: var(--ink-2); }
+.proc { height: 52px; display: flex; align-items: center; gap: 12px; padding: 0 12px; border: 1px solid var(--line); border-radius: 4px; background: var(--card); font-size: 17px; font-weight: 700; letter-spacing: 0.5px; color: var(--ink-2); }
+.proc .ic { color: var(--ink-3); }
+.proc[aria-pressed="true"] { background: var(--sel); border-color: var(--sel); color: #06201F; }
+.proc[aria-pressed="true"] .ic { color: #06201F; }
+.left .foot { margin-top: auto; display: flex; flex-direction: column; gap: 6px; }
+.left h3 { margin: 0; font-size: 12px; font-weight: 700; letter-spacing: 1.4px; color: var(--ink-3); }
+.grps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; }
+.grp { height: 40px; border: 1px solid var(--line-2); border-radius: 4px; background: var(--card); font-size: 16px; font-weight: 800; }
+.grp[aria-pressed="true"] { background: #3A0E0C; border-color: var(--red); color: #FFD9D6; }
+.grp[aria-pressed="mixed"] { border-style: dashed; color: var(--ink-3); }
+.preset { height: 52px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; border: 1px solid var(--line-2); border-radius: 5px; background: var(--card); font-size: 14px; font-weight: 700; letter-spacing: 0.6px; }
+.preset .ic { width: 20px; height: 20px; }
+
+/* Centre: EQ workspace */
+.eqp { flex: 0 0 auto; display: flex; flex-direction: column; padding: 0 0 8px; overflow: hidden; }
+.eqh { height: 42px; display: flex; align-items: center; gap: 14px; padding-right: 10px; border-bottom: 1px solid var(--line); }
+.eqh .tabx { height: 100%; display: grid; place-items: center; padding: 0 18px; background: var(--sel); color: #06201F; font-size: 20px; font-weight: 800; border-radius: 5px 0 0 0; }
+.eqh .t { font-size: 18px; font-weight: 600; color: var(--ink-2); letter-spacing: 0.5px; }
+.prov { font-size: 12px; font-weight: 800; letter-spacing: 0.8px; padding: 2px 7px; border-radius: 3px; border: 1px solid var(--line-2); color: var(--ink-3); }
+.flat { height: 30px; padding: 0 12px; border: 1px solid var(--line-2); border-radius: 4px; background: var(--card); font-size: 14px; font-weight: 700; letter-spacing: 0.6px; }
+.graph { margin: 6px 10px 0; position: relative; }
+.graph svg { display: block; width: 100%; }
+.bands { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 6px 10px 0; }
+.band { border: 1px solid var(--line-2); border-radius: 5px; background: var(--card); padding: 7px 9px 8px; position: relative; }
+.band .hd { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+.band .num { width: 22px; height: 22px; display: grid; place-items: center; border-radius: 3px; font-size: 14px; font-weight: 800; color: #08090A; }
+.band .nm { font-size: 18px; font-weight: 800; letter-spacing: 0.4px; }
+.band .hd .prov { margin-left: auto; }
+.band dl { display: grid; grid-template-columns: 44px 1fr; row-gap: 3px; margin: 0; font-size: 15px; }
+.band dt { color: var(--ink-3); font-weight: 600; }
+.band dd { margin: 0; font-weight: 700; text-align: right; padding-right: 56px; border-left: 1px solid var(--line); white-space: nowrap; }
+.band dd.fixed { color: var(--ink-2); }
+.band dd .ic { width: 12px; height: 12px; vertical-align: -1px; margin-left: 4px; color: var(--ink-3); }
+.knob { position: absolute; right: 10px; bottom: 12px; width: 42px; height: 42px; }
+
+/* Centre: fader bank */
+.bank { flex: 1; min-height: 0; display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; padding: 6px; }
+.strip { display: grid; grid-template-rows: 50px minmax(0, 1fr) 30px 42px; border: 1px solid var(--line); border-radius: 5px; background: var(--card); overflow: hidden; }
+.strip.sel { border: 2px solid var(--sel); background: #10302F; }
+.s-head { display: flex; flex-direction: column; align-items: center; justify-content: center; border-bottom: 1px solid var(--line); position: relative; line-height: 1.1; }
+.s-head b { font-size: 19px; font-weight: 800; }
+.s-head span { font-size: 16px; font-weight: 600; color: var(--ink-2); }
+.strip.sel .s-head { border-bottom-color: var(--sel); }
+.s-val .prov { font-size: 12px; padding: 1px 5px; letter-spacing: 0.4px; }
+.s-body { display: grid; grid-template-columns: 26px 12px 1fr; gap: 4px; padding: 8px 8px 4px 4px; min-height: 0; }
+.scale { position: relative; font-size: 12px; color: var(--ink-2); font-weight: 600; }
+.scale span { position: absolute; right: 0; transform: translateY(-50%); }
+.meter { position: relative; background: #0B0D0E; border-radius: 2px; overflow: hidden; }
+.meter i { position: absolute; left: 1px; right: 1px; height: 2px; }
+.meter.none { background: repeating-linear-gradient(0deg, #15181A 0 3px, #0B0D0E 3px 5px); }
+.fwell { position: relative; }
+.fwell .slot { position: absolute; left: 50%; top: 4px; bottom: 4px; width: 4px; margin-left: -2px; background: #050606; border-radius: 2px; box-shadow: inset 0 0 0 1px #2A2E30; }
+.fwell .fill { position: absolute; left: 50%; bottom: 4px; width: 4px; margin-left: -2px; background: var(--sel-deep); border-radius: 2px; }
+.strip.sel .fwell .fill { background: var(--sel); }
+.fwell .tick { position: absolute; left: 50%; width: 12px; margin-left: 6px; height: 1px; background: #33393C; }
+.fwell .cap { position: absolute; left: 50%; width: 38px; height: 24px; margin-left: -19px; transform: translateY(50%); border-radius: 3px; background: linear-gradient(#DCE3E6 0 44%, #8D979B 44% 56%, #C9D2D6 56%); border: 1px solid #5B6468; }
+.s-val { white-space: nowrap; display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 18px; font-weight: 700; }
+.strip.sel .s-val { color: #FFFFFF; }
+.s-mute { margin: 0 6px 6px; border: 1px solid var(--line-2); border-radius: 4px; background: var(--raised); font-size: 16px; font-weight: 800; letter-spacing: 0.8px; display: flex; align-items: center; justify-content: center; gap: 6px; }
+.s-mute .ic { width: 18px; height: 18px; }
+.s-mute[aria-pressed="true"] { background: var(--red); border-color: var(--red); color: #08090A; }
+.strip.sel .s-mute { border-color: var(--sel); color: var(--sel); }
+
+/* Right: main + buses */
+.right { display: flex; flex-direction: column; gap: 8px; min-height: 0; }
+.mainout { padding: 0 10px 10px; display: flex; flex-direction: column; }
+.mainout h2 { margin: 0; height: 40px; display: flex; align-items: center; font-size: 20px; font-weight: 800; letter-spacing: 0.4px; border-bottom: 1px solid var(--line); }
+.mfader { height: 220px; display: grid; grid-template-columns: 14px 12px 28px 1fr; gap: 4px; padding: 10px 0 6px; }
+.mfader .lbl { writing-mode: vertical-rl; transform: rotate(180deg); font-size: 12px; font-weight: 700; letter-spacing: 1px; color: var(--ink-3); text-align: center; }
+.mainbtn { height: 44px; display: grid; place-items: center; border-radius: 5px; background: var(--sel); color: #06201F; font-size: 21px; font-weight: 800; letter-spacing: 0.6px; }
+.mval { height: 36px; display: grid; place-items: center; margin-top: 6px; border: 1px solid var(--line); border-radius: 4px; background: var(--well); font-size: 18px; font-weight: 700; }
+.bus { height: 74px; display: grid; grid-template-columns: 34px 1fr 22px; align-items: center; gap: 4px; padding: 0 8px 0 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); }
+.bus .ic { width: 26px; height: 26px; }
+.bus b { display: block; font-size: 19px; font-weight: 800; }
+.bus span { display: block; font-size: 17px; font-weight: 600; color: var(--ink-2); }
+.bus .ch { width: 18px; height: 18px; color: var(--ink-2); }
+.bus.mon .ic:first-child, .bus.mon b { color: var(--mix-mon); }
+.bus.fx .ic:first-child, .bus.fx b { color: var(--mix-fx); }
+/* iPad 10.2" landscape (1024) and similar: same composition, tighter columns */
+@media (max-width: 1100px) {
+  .body { grid-template-columns: 160px minmax(0, 1fr) 148px; }
+  .brand b { font-size: 26px; }
+  .tab { font-size: 17px; gap: 8px; }
+  .band { padding: 6px 7px 7px; }
+  .band .nm { font-size: 16px; }
+  .band dl { grid-template-columns: 34px 1fr; font-size: 14px; }
+  .band dd { padding-right: 40px; }
+  .knob { width: 32px; height: 32px; right: 6px; bottom: 10px; }
+  .graph svg { height: 150px !important; }
+  .s-head b { font-size: 17px; } .s-head span { font-size: 14px; }
+  .s-val { font-size: 15px; gap: 4px; }
+  .s-body { grid-template-columns: 24px 10px 1fr; padding-right: 4px; }
+  .fwell .cap { width: 32px; margin-left: -16px; }
+  .s-mute { font-size: 14px; gap: 4px; margin: 0 4px 5px; }
+  .mfader { height: 200px; }
+  .bus b { font-size: 17px; } .bus span { font-size: 15px; }
+}
+.review { position: fixed; right: 12px; bottom: 0; font-size: 12px; color: var(--ink-3); letter-spacing: 0.8px; }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-mic" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3M8 21h8"/></symbol>
+  <symbol id="i-eq" viewBox="0 0 24 24"><path d="M2 12h3l2-6 3 12 3-9 2 5 2-2h5"/></symbol>
+  <symbol id="i-comp" viewBox="0 0 24 24"><path d="M4 20 13 11h7M4 4v16h16"/></symbol>
+  <symbol id="i-fxsend" viewBox="0 0 24 24"><circle cx="6" cy="12" r="2.5"/><path d="M8.5 11 17 5M8.5 13 17 19"/><circle cx="18.5" cy="4.5" r="1.8"/><circle cx="18.5" cy="19.5" r="1.8"/></symbol>
+  <symbol id="i-spk" viewBox="0 0 24 24"><path d="M4 9h4l5-4v14l-5-4H4zM16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"/></symbol>
+  <symbol id="i-mute" viewBox="0 0 24 24"><path d="M4 9h4l5-4v14l-5-4H4zM16 9l5 6M21 9l-5 6"/></symbol>
+  <symbol id="i-phones" viewBox="0 0 24 24"><path d="M4 15v-3a8 8 0 0 1 16 0v3"/><rect x="3" y="14" width="4" height="7" rx="1.5"/><rect x="17" y="14" width="4" height="7" rx="1.5"/></symbol>
+  <symbol id="i-fx" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M8 12c1.3-3 2.7-3 4 0s2.7 3 4 0"/></symbol>
+  <symbol id="i-mix" viewBox="0 0 24 24"><path d="M6 3v18M12 3v18M18 3v18"/><rect x="4" y="13" width="4" height="3" rx="1"/><rect x="10" y="7" width="4" height="3" rx="1"/><rect x="16" y="11" width="4" height="3" rx="1"/></symbol>
+  <symbol id="i-wave" viewBox="0 0 24 24"><path d="M2 12h3l2-5 3 10 3-12 3 12 2-5h4"/></symbol>
+  <symbol id="i-show" viewBox="0 0 24 24"><rect x="3" y="9" width="18" height="12" rx="1"/><path d="M3 9 5 4l4 4M9 8 11 3l4 4M15 7l2-4 4 4"/></symbol>
+  <symbol id="i-out" viewBox="0 0 24 24"><path d="M4 9h4l5-4v14l-5-4H4zM17 9v6M20 7v10"/></symbol>
+  <symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9 7 7M17 17l2.1 2.1M4.9 19.1 7 17M17 7l2.1-2.1"/></symbol>
+  <symbol id="i-usb" viewBox="0 0 24 24"><path d="M3 12h14M17 12l-3-3M17 12l-3 3M7 12V8h4M11 12v4h3"/><circle cx="19.5" cy="12" r="1.8"/></symbol>
+  <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="1.5"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></symbol>
+  <symbol id="i-undo" viewBox="0 0 24 24"><path d="M9 7 4 12l5 5M4 12h11a5 5 0 0 1 0 10h-3"/></symbol>
+  <symbol id="i-redo" viewBox="0 0 24 24"><path d="m15 7 5 5-5 5M20 12H9a5 5 0 0 0 0 10h3"/></symbol>
+  <symbol id="i-chev" viewBox="0 0 24 24"><path d="m9 5 7 7-7 7"/></symbol>
+  <symbol id="i-preset" viewBox="0 0 24 24"><path d="M4 6h6l2 2h8v11H4z"/></symbol>
+  <symbol id="i-strip" viewBox="0 0 24 24"><path d="M7 3v18M17 3v18"/><rect x="4" y="13" width="6" height="3" rx="1"/><rect x="14" y="6" width="6" height="3" rx="1"/></symbol>
+  <symbol id="i-in" viewBox="0 0 24 24"><path d="M4 12h11M11 8l4 4-4 4M19 4v16"/></symbol>
+</svg>
+
+<div class="shell">
+  <header class="bar">
+    <div class="brand"><b>FLOW 888</b><small>LIVE CONSOLE</small></div>
+    <span class="pill ok"><span class="dot"></span>CONNECTED</span>
+    <span class="pill"><svg class="ic"><use href="#i-usb"/></svg>USB MIDI</span>
+    <span class="sp"></span>
+    <button class="btn"><svg class="ic"><use href="#i-undo"/></svg>UNDO</button>
+    <button class="btn dim"><svg class="ic"><use href="#i-redo"/></svg>REDO</button>
+    <span class="sp"></span>
+    <button class="btn lock"><svg class="ic"><use href="#i-lock"/></svg>LOCK</button>
+    <button class="btn mute-all"><svg class="ic"><use href="#i-mute"/></svg>MUTE ALL</button>
+    <button class="btn sq" aria-label="Settings"><svg class="ic"><use href="#i-gear"/></svg></button>
+  </header>
+
+  <nav class="tabs">
+    <button class="tab" aria-current="page"><svg class="ic"><use href="#i-mix"/></svg>MIX</button>
+    <button class="tab"><svg class="ic"><use href="#i-wave"/></svg>FX</button>
+    <button class="tab"><svg class="ic"><use href="#i-phones"/></svg>MY MON</button>
+    <button class="tab"><svg class="ic"><use href="#i-show"/></svg>SHOW</button>
+    <button class="tab"><svg class="ic"><use href="#i-out"/></svg>OUTPUT</button>
+    <button class="tab"><svg class="ic"><use href="#i-gear"/></svg>SETUP</button>
+  </nav>
+
+  <div class="body">
+    <aside class="panel left">
+      <div class="chhead"><b>CH 4</b><span>Vocal</span><svg class="ic"><use href="#i-chev"/></svg></div>
+      <button class="proc"><svg class="ic"><use href="#i-mic"/></svg>SOURCE</button>
+      <button class="proc" aria-pressed="true"><svg class="ic"><use href="#i-eq"/></svg>EQ</button>
+      <button class="proc"><svg class="ic"><use href="#i-comp"/></svg>COMP</button>
+      <button class="proc"><svg class="ic"><use href="#i-fxsend"/></svg>FX SEND</button>
+      <button class="proc"><svg class="ic"><use href="#i-spk"/></svg>MON SEND</button>
+      <button class="proc"><svg class="ic"><use href="#i-strip"/></svg>CHANNEL</button>
+      <div class="foot">
+        <h3>MUTE GROUPS</h3>
+        <div class="grps"><button class="grp" aria-pressed="false">A</button><button class="grp" aria-pressed="true">B</button><button class="grp" aria-pressed="mixed">C</button><button class="grp" aria-pressed="false">D</button></div>
+        <button class="preset"><svg class="ic"><use href="#i-preset"/></svg>PRESET</button>
+      </div>
+    </aside>
+
+    <section class="col">
+      <div class="panel eqp" id="eqp">
+        <div class="eqh"><span class="tabx">EQ</span><span class="t">4-BAND PEQ · CH 4 Vocal</span><span class="sp"></span><span class="prov">SNT</span><button class="flat">FLAT</button></div>
+        <div class="graph" id="graph"></div>
+        <div class="bands" id="bands"></div>
+      </div>
+      <div class="panel bank" id="bank"></div>
+    </section>
+
+    <aside class="right">
+      <div class="panel mainout">
+        <h2>MAIN OUT</h2>
+        <div class="mfader" id="mfader"></div>
+        <div class="mainbtn">MAIN</div>
+        <div class="mval">0.0 dB</div>
+      </div>
+      <div class="bus mon"><svg class="ic"><use href="#i-phones"/></svg><div><b>MON 1</b><span>-3.0 dB</span></div><svg class="ic ch"><use href="#i-chev"/></svg></div>
+      <div class="bus mon"><svg class="ic"><use href="#i-phones"/></svg><div><b>MON 2</b><span>-6.0 dB</span></div><svg class="ic ch"><use href="#i-chev"/></svg></div>
+      <div class="bus fx"><svg class="ic"><use href="#i-fx"/></svg><div><b>FX 1</b><span>CHURCH</span></div><svg class="ic ch"><use href="#i-chev"/></svg></div>
+      <div class="bus fx"><svg class="ic"><use href="#i-fx"/></svg><div><b>FX 2</b><span>DELAY 1/2</span></div><svg class="ic ch"><use href="#i-chev"/></svg></div>
+    </aside>
+  </div>
+</div>
+<div class="review">REVIEW MOCKUP · REV 7 · SAMPLE VALUES</div>
+
+<script>
+// Same curves as flow8/web_ui/v3/v3.js. Sample values only.
+const dbToRaw = (db) => (db === -Infinity ? 0 : db >= 0 ? 101 + (db / 10) * 26 : 101 + (db / 70) * 101);
+const meterFrac = (db) => Math.max(0, Math.min(1, (db + 60) / 60));
+// FLOW 8 fader curve is steep above 0 dB, so only these labels fit without overlap
+const TICKS = [[10, '+10'], [0, '0'], [-12, '-12'], [-24, '-24'], [-40, '-40'], [-Infinity, '-∞']];
+
+function meterHtml(peakDb) {
+  if (peakDb == null) return '<div class="meter none" title="no meter source"></div>';
+  const N = 30; const lit = Math.round(meterFrac(peakDb) * N); let s = '';
+  for (let k = 0; k < N; k++) {
+    const db = -60 + (k + 0.5) * 2; // segment centre
+    const col = db > -6 ? 'var(--meter-hot)' : db > -18 ? 'var(--meter-mid)' : 'var(--meter)';
+    s += `<i style="bottom:${(k / N) * 100}%;background:${k < lit ? col : '#16191B'}"></i>`;
+  }
+  return `<div class="meter">${s}</div>`;
+}
+function faderHtml(db) {
+  const y = (dbToRaw(db) / 127);
+  const ticks = TICKS.map(([d]) => `<span class="tick" style="bottom:calc(4px + (100% - 8px) * ${dbToRaw(d) / 127})"></span>`).join('');
+  return `<div class="fwell"><span class="slot"></span><span class="fill" style="height:calc((100% - 8px) * ${y})"></span>${ticks}<span class="cap" style="bottom:calc(4px + (100% - 8px) * ${y})"></span></div>`;
+}
+function scaleHtml() {
+  return `<div class="scale">${TICKS.map(([d, t]) => `<span style="bottom:calc(4px + (100% - 8px) * ${dbToRaw(d) / 127} - 7px)">${t}</span>`).join('')}</div>`;
+}
+const fmt = (db) => (db === -Infinity ? '-∞' : `${db > 0 ? '+' : ''}${db.toFixed(1)} dB`);
+
+// 7 input strips of the FLOW 8 (no 8th strip). USB/BT has no meter source.
+const STRIPS = [
+  ['CH 1', 'Kick', -6.0, -14, false], ['CH 2', 'Snare', -4.5, -10, false], ['CH 3', 'Bass', -12.0, -26, true],
+  ['CH 4', 'Vocal', 0.0, -12, false, true], ['CH 5/6', 'Guitar', -6.5, -18, false], ['CH 7/8', 'Keys', -8.0, -20, false],
+  ['USB/BT', 'Pad', -12.0, null, false],
+];
+document.getElementById('bank').innerHTML = STRIPS.map(([n, nm, db, pk, muted, sel]) => `
+  <section class="strip${sel ? ' sel' : ''}">
+    <div class="s-head"><b>${n}</b><span>${nm}</span></div>
+    <div class="s-body">${scaleHtml()}${meterHtml(pk)}${faderHtml(db)}</div>
+    <div class="s-val">${fmt(db)}<span class="prov">SNT</span></div>
+    <button class="s-mute" aria-pressed="${muted}"><svg class="ic"><use href="#i-mute"/></svg>MUTE</button>
+  </section>`).join('');
+document.getElementById('mfader').innerHTML = `<div class="lbl">MAIN L+R</div>${meterHtml(-8)}${scaleHtml()}${faderHtml(0)}`;
+
+// EQ: FLOW 8 fixed centres (v3.js EQ_BANDS) and the same response shape as eqGeometry().
+const BANDS = [
+  { name: 'LOW', hz: 20, label: '20 Hz', shape: 'shelf', gain: 5.0, c: 'var(--b1)' },
+  { name: 'LOW MID', hz: 300, label: '300 Hz', shape: 'peak', gain: -4.0, c: 'var(--b2)' },
+  { name: 'HI MID', hz: 1500, label: '1.5 kHz', shape: 'peak', gain: 3.0, c: 'var(--b3)' },
+  { name: 'HIGH', hz: 20000, label: '20 kHz', shape: 'shelf', gain: -2.5, c: 'var(--b4)' },
+];
+const W = 1000, H = 230, PADL = 44, PADR = 16, TOP = 8, BOT = 26;
+const xOf = (hz) => PADL + (Math.log10(hz / 20) / 3) * (W - PADL - PADR);
+const yOf = (db) => TOP + ((12 - db) / 24) * (H - TOP - BOT);
+const resp = (hz) => BANDS.reduce((s, b, k) => s + (b.shape === 'shelf'
+  ? b.gain / (1 + Math.pow(k === 0 ? hz / 120 : 8000 / hz, 2))
+  : b.gain * Math.exp(-Math.pow(Math.log2(hz / b.hz) / 0.9, 2))), 0);
+// colour each stretch of the curve by the nearest band centre (geometric midpoints)
+const cuts = [20, Math.sqrt(20 * 300) * 1.6, Math.sqrt(300 * 1500), Math.sqrt(1500 * 20000), 20000];
+let svg = '';
+[-12, -6, 0, 6, 12].forEach((d) => { svg += `<line x1="${PADL}" x2="${W - PADR}" y1="${yOf(d)}" y2="${yOf(d)}" stroke="${d ? '#24292B' : '#3E4447'}" stroke-width="${d ? 1 : 1.5}"/><text x="${PADL - 8}" y="${yOf(d) + 5}" text-anchor="end" fill="#C4C9CB" font-size="15" font-weight="600">${d > 0 ? '+' : ''}${d}</text>`; });
+[20, 30, 40, 50, 60, 70, 80, 90, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 9000, 10000, 20000].forEach((hz) => {
+  svg += `<line x1="${xOf(hz)}" x2="${xOf(hz)}" y1="${TOP}" y2="${H - BOT}" stroke="#1E2224"/>`;
+});
+[[20, '20'], [50, '50'], [100, '100'], [200, '200'], [500, '500'], [1000, '1k'], [2000, '2k'], [5000, '5k'], [10000, '10k'], [20000, '20k']].forEach(([hz, t]) => {
+  svg += `<text x="${xOf(hz)}" y="${H - 6}" text-anchor="middle" fill="#C4C9CB" font-size="15" font-weight="600">${t}</text>`;
+});
+svg += `<rect x="${PADL}" y="${TOP}" width="${W - PADL - PADR}" height="${H - TOP - BOT}" fill="none" stroke="#2C3033"/>`;
+for (let s = 0; s < 4; s++) {
+  const pts = [];
+  for (let i = 0; i <= 60; i++) { const hz = cuts[s] * Math.pow(cuts[s + 1] / cuts[s], i / 60); pts.push([xOf(hz), yOf(resp(hz))]); }
+  const line = pts.map((p) => p.map((v) => v.toFixed(1)).join(',')).join(' ');
+  const area = `${pts[0][0]},${yOf(0)} ${line} ${pts[pts.length - 1][0]},${yOf(0)}`;
+  svg += `<polygon points="${area}" fill="${BANDS[s].c}" fill-opacity="0.22"/><polyline points="${line}" fill="none" stroke="${BANDS[s].c}" stroke-width="3"/>`;
+}
+BANDS.forEach((b, k) => {
+  const x = Math.min(Math.max(xOf(b.hz), PADL + 14), W - PADR - 14);
+  const y = yOf(resp(b.hz));
+  svg += `<circle cx="${x}" cy="${y}" r="15" fill="${b.c}" stroke="#08090A" stroke-width="2"/><text x="${x}" y="${y + 6}" text-anchor="middle" font-size="17" font-weight="800" fill="#08090A">${k + 1}</text>`;
+});
+document.getElementById('graph').innerHTML = `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" style="height:${H * 0.75}px">${svg}</svg>`;
+
+const knob = (db, c) => {
+  const a = (db / 15) * 135; const r = (deg, rad) => [21 + rad * Math.sin((deg * Math.PI) / 180), 21 - rad * Math.cos((deg * Math.PI) / 180)];
+  const [x1, y1] = r(a, 13);
+  return `<svg class="knob" viewBox="0 0 42 42"><circle cx="21" cy="21" r="18" fill="#101314" stroke="#5B6468" stroke-width="2"/><circle cx="21" cy="21" r="13" fill="#1B1E20"/><line x1="21" y1="21" x2="${x1.toFixed(1)}" y2="${y1.toFixed(1)}" stroke="#E8EAEB" stroke-width="3" stroke-linecap="round"/></svg>`;
+};
+document.getElementById('bands').innerHTML = BANDS.map((b, k) => `
+  <div class="band">
+    <div class="hd"><span class="num" style="background:${b.c}">${k + 1}</span><span class="nm" style="color:${b.c}">${b.name}</span><span class="prov">SNT</span></div>
+    <dl><dt>Freq</dt><dd class="fixed">${b.label}<svg class="ic"><use href="#i-lock"/></svg></dd>
+        <dt>Gain</dt><dd>${b.gain > 0 ? '+' : ''}${b.gain.toFixed(1)} dB</dd>
+        <dt>Q</dt><dd class="fixed">fixed<svg class="ic"><use href="#i-lock"/></svg></dd></dl>
+    ${knob(b.gain, b.c)}
+  </div>`).join('');
+</script>
+</body>
+</html>

@@ -146,6 +146,10 @@ class Flow8Service:
         self._watchdog_stop = threading.Event()
         self._auto_reconnect = bool(auto_connect)
         self._last_reconnect_attempt = 0.0
+        # Timing of the lock-held device enumeration in check_connection_health.
+        self._health_count = 0
+        self._health_last_ms: Optional[float] = None
+        self._health_max_ms: Optional[float] = None
 
         # Staged change plans: guard -> preview snapshot, so commit can refuse a plan
         # whose targeted values changed after the engineer reviewed them.
@@ -438,12 +442,18 @@ class Flow8Service:
             if listener in self._listeners:
                 self._listeners.remove(listener)
 
-    def _notify_listeners(self, param_id: str, value: Any) -> None:
+    def _notify_listeners(self, param_id: str, value: Any, source: EventSource = None) -> None:
         with self._lock:
             callbacks = list(self._listeners)
         for cb in callbacks:
             try:
-                cb(param_id, value)
+                cb(param_id, value, source)
+            except TypeError:
+                # Some listeners (e.g. test lambdas) only accept (param_id, value).
+                try:
+                    cb(param_id, value)
+                except Exception:
+                    logger.exception("FLOW 8 state listener failed for %s", param_id)
             except Exception:
                 logger.exception("FLOW 8 state listener failed for %s", param_id)
 
@@ -538,12 +548,18 @@ class Flow8Service:
         with self._lock:
             if not self._connected:
                 return False
+            t0 = time.perf_counter()
             try:
                 out_id = self.midi_out.find_device_id()
                 in_id = self.midi_in.find_device_id()
             except Exception:
                 out_id = None
                 in_id = None
+            # Device enumeration runs while holding self._lock; MIDI IN and meters wait on it.
+            spent_ms = (time.perf_counter() - t0) * 1000.0
+            self._health_count += 1
+            self._health_last_ms = spent_ms
+            self._health_max_ms = max(self._health_max_ms or 0.0, spent_ms)
             if out_id is None or in_id is None:
                 logger.warning("FLOW 8 USB MIDI endpoint disappeared; disconnecting and reconciling.")
                 self._drop_connection()
@@ -647,7 +663,10 @@ class Flow8Service:
             )
             return
 
-        self._notify_listeners(decoded.param_id, value)
+        # Notify listeners WITH provenance so UI can sync fader/pan/mute readings.
+        # Use the decoded source if available, otherwise default to PHYSICAL_HARDWARE.
+        src = getattr(decoded, "source", None) or EventSource.PHYSICAL_HARDWARE
+        self._notify_listeners(decoded.param_id, value, src)
 
     def telemetry_status(self) -> dict[str, Any]:
         """Inbound telemetry counters plus the link state, for the hub and the probe."""
@@ -658,6 +677,12 @@ class Flow8Service:
             "device": self.midi_in.device_info[1],
             "watchdog": self.watchdog_running,
             "autoReconnect": self._auto_reconnect,
+            "inboundCallback": self.midi_in.callback_stats(),
+            "healthCheck": {
+                "count": self._health_count,
+                "lastMs": None if self._health_last_ms is None else round(self._health_last_ms, 3),
+                "maxMs": None if self._health_max_ms is None else round(self._health_max_ms, 3),
+            },
         })
         return status
     # -- High-level UI dispatch methods -------------------------------------

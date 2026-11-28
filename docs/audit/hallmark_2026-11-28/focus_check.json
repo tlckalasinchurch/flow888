@@ -1,0 +1,50 @@
+{
+ "day/mix": {
+  "focusable_reached": 56,
+  "failures": []
+ },
+ "day/fx": {
+  "focusable_reached": 50,
+  "failures": []
+ },
+ "day/stage": {
+  "focusable_reached": 28,
+  "failures": []
+ },
+ "day/show": {
+  "focusable_reached": 19,
+  "failures": []
+ },
+ "day/output": {
+  "focusable_reached": 27,
+  "failures": []
+ },
+ "day/safety": {
+  "focusable_reached": 12,
+  "failures": []
+ },
+ "night/mix": {
+  "focusable_reached": 56,
+  "failures": []
+ },
+ "night/fx": {
+  "focusable_reached": 50,
+  "failures": []
+ },
+ "night/stage": {
+  "focusable_reached": 28,
+  "failures": []
+ },
+ "night/show": {
+  "focusable_reached": 19,
+  "failures": []
+ },
+ "night/output": {
+  "focusable_reached": 27,
+  "failures": []
+ },
+ "night/safety": {
+  "focusable_reached": 12,
+  "failures": []
+ }
+}

@@ -9,16 +9,18 @@ enforces flow888's command boundary and safety policy:
 
 from __future__ import annotations
 
+import gzip
 import http.server
 import json
 import logging
+import math
 import queue
 import re
 import socket
 import threading
 import time
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Callable, Optional
 
 from flow8.domain_model import LOGICAL_CHANNELS
 from flow8.presets import list_channel_presets
@@ -27,7 +29,7 @@ from flow8.service import MAIN_CHANNEL, RECALL_SCOPES, SCENE_CAPACITY, Flow8Serv
 from flow8.show_mode import compile_mode, unset_steps
 from flow8.show_mode_store import ShowModeStore
 from flow8.snapshot_library import SnapshotLibrary, default_library_path
-from flow8.state_model import ParameterProvenance
+from flow8.state_model import ParameterProvenance, EventSource
 
 logger = logging.getLogger(__name__)
 
@@ -88,6 +90,19 @@ _OFFLINE_ACTIONS = frozenset({
 })
 
 
+def latency_percentiles(values: list[float]) -> dict[str, Any]:
+    """Nearest-rank p50/p95/p99 and max of *values*; None for each when empty."""
+    ordered = sorted(values)
+    n = len(ordered)
+    if not n:
+        return {"n": 0, "p50": None, "p95": None, "p99": None, "max": None}
+
+    def rank(p: float) -> float:
+        return ordered[max(math.ceil(p * n) - 1, 0)]
+
+    return {"n": n, "p50": rank(0.50), "p95": rank(0.95), "p99": rank(0.99), "max": ordered[-1]}
+
+
 def get_lan_ips() -> list[str]:
     """Return non-loopback IPv4 addresses for LAN clients."""
     ips: list[str] = []
@@ -136,6 +151,10 @@ class Flow8LanHub:
         self._thread: Optional[threading.Thread] = None
         self._sse_lock = threading.Lock()
         self._subscribers: list[tuple[queue.Queue[bytes], Optional[str]]] = []
+        self._sse_dropped_meter_frames = 0
+        self._sse_removed_clients = 0
+        # Set by the launcher to Flow8AudioMeter.stats; None when meters are off.
+        self.meter_stats_source: Optional[Callable[[], dict[str, Any]]] = None
         self._listening = False
         self._scribbles: dict[int, dict[str, str]] = {}
         self._scene_lock = threading.Lock()
@@ -192,8 +211,15 @@ class Flow8LanHub:
                     self._send_json(404, {"error": f"missing asset: {filename}"})
                     return
                 body = asset_path.read_bytes()
+                # Text assets compress about 4x; that matters for an iPad on venue Wi-Fi. Fonts are already compressed.
+                gzipped = content_type.startswith(("text/", "application/javascript")) and "gzip" in (self.headers.get("Accept-Encoding") or "")
+                if gzipped:
+                    body = gzip.compress(body, compresslevel=6)
                 self.send_response(200)
                 self.send_header("Content-Type", content_type)
+                self.send_header("Vary", "Accept-Encoding")
+                if gzipped:
+                    self.send_header("Content-Encoding", "gzip")
                 # The console is served from disk on every request: never let a
                 # browser (desktop or iPad Safari) reuse a cached copy after an update.
                 self.send_header("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0")
@@ -215,6 +241,16 @@ class Flow8LanHub:
                     return
                 if route == "/app.js":
                     self._send_asset("app.js", "application/javascript; charset=utf-8")
+                    return
+                # FLOW 888 v3 console: same API and safety path, new surface.
+                if route in ("/v3", "/v3/", "/v3/index.html"):
+                    self._send_asset("v3/index.html", "text/html; charset=utf-8")
+                    return
+                if route == "/v3/v3.css":
+                    self._send_asset("v3/v3.css", "text/css; charset=utf-8")
+                    return
+                if route == "/v3/v3.js":
+                    self._send_asset("v3/v3.js", "application/javascript; charset=utf-8")
                     return
                 font = FONT_PATH.match(route)
                 if font:
@@ -288,7 +324,11 @@ class Flow8LanHub:
                                 self.wfile.write(msg)
                                 self.wfile.flush()
                             except queue.Empty:
-                                pass
+                                # broadcast() dropped this client (queue full on a state
+                                # event): end the stream so EventSource reconnects and reloads.
+                                with hub._sse_lock:
+                                    if (q, client_id) not in hub._subscribers:
+                                        break
                             if time.time() - last_ping > 15.0:
                                 self.wfile.write(b": ping\n\n")
                                 self.wfile.flush()
@@ -299,6 +339,9 @@ class Flow8LanHub:
                         with hub._sse_lock:
                             if (q, client_id) in hub._subscribers:
                                 hub._subscribers.remove((q, client_id))
+                        # The "Connection: keep-alive" header above would keep the socket open
+                        # waiting for another request; close it so the client sees the end.
+                        self.close_connection = True
                     return
 
                 self._send_json(404, {"error": "not found"})
@@ -370,7 +413,7 @@ class Flow8LanHub:
             return
         self.broadcast({"type": "state"})
 
-    def _on_service_event(self, param_id: str, value: Any) -> None:
+    def _on_service_event(self, param_id: str, value: Any, source: Any = None) -> None:
         # The service reports a real parameter id only for values the mixer sent
         # over MIDI IN (hardware moves). "__name__" ids are internal state events.
         if param_id.startswith("__"):
@@ -382,7 +425,10 @@ class Flow8LanHub:
         with self._scene_lock:
             if self._current_scene is not None:
                 self._scene_edited = True
-        self.broadcast({"type": "rx", "paramId": param_id, "value": value})
+        # Attach a minimal source tag so the UI can tell hardware-observed from
+        # software-commanded when it builds its RX-update map (see app.js RX_UPDATE_MAP).
+        tag = "hw" if source is EventSource.PHYSICAL_HARDWARE else "sw"
+        self.broadcast({"type": "rx", "paramId": param_id, "value": value, "_source": tag})
 
     def publish_meters(self, levels: dict[str, dict[str, float]]) -> bool:
         """Publish one meter frame from a measured audio source.
@@ -447,11 +493,26 @@ class Flow8LanHub:
                 except queue.Full:
                     if not droppable:
                         dead.append(item)
+                    else:
+                        self._sse_dropped_meter_frames += 1
                 except Exception:
                     dead.append(item)
             for item in dead:
                 if item in self._subscribers:
                     self._subscribers.remove(item)
+                    self._sse_removed_clients += 1
+
+    def sse_stats(self) -> dict[str, Any]:
+        """Event-stream health: client count, queue depths, dropped frames, removed clients."""
+        with self._sse_lock:
+            depths = [q.qsize() for q, _ in self._subscribers]
+            return {
+                "clients": len(depths),
+                "maxQueueDepth": max(depths, default=0),
+                "queueDepths": depths,
+                "droppedMeterFrames": self._sse_dropped_meter_frames,
+                "removedClients": self._sse_removed_clients,
+            }
 
     def _dispatch_snapshot(self) -> dict[str, Any]:
         """Counts of outbound commands and the last dispatch outcome.
@@ -459,13 +520,14 @@ class Flow8LanHub:
         driverDispatched only means WinMM accepted the short message; it is not
         proof the mixer applied it (docs/product/FLOW8_EVIDENCE_REGISTER.md).
         """
-        log = self.service.command_boundary.command_log
+        boundary = self.service.command_boundary
+        log = boundary.command_log
         last = log[-1] if log else None
         return {
-            "commands": len(log),
-            "accepted": sum(1 for entry in log if entry.command_accepted),
-            "driverDispatched": sum(1 for entry in log if entry.driver_dispatched),
-            "rejected": sum(1 for entry in log if not entry.success),
+            **boundary.command_counts,
+            "logLength": len(log),
+            # Time to the driver return (not to the mixer), over the bounded log window.
+            "latencyUs": latency_percentiles([e.latency_us for e in log if e.driver_dispatched]),
             "last": None if last is None else {
                 "paramId": last.param_id,
                 "status": last.dispatch_status,
@@ -477,6 +539,8 @@ class Flow8LanHub:
     def status_snapshot(self) -> dict[str, Any]:
         return {
             "status": "ok",
+            "meterStats": self.meter_stats_source() if self.meter_stats_source else None,
+            "sse": self.sse_stats(),
             "midiConnected": self.service.is_connected,
             "midiOutOpen": self.service.midi_out_open,
             "midiInOpen": self.service.midi_in_open,

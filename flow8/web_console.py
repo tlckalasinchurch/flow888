@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import logging
 import os
 import shutil
 import subprocess
@@ -160,6 +161,7 @@ def run(
         port = hub.start()
         if not getattr(args, "no_meters", False):
             meter = meter_factory(hub.publish_meters, hub.set_meter_status)
+            hub.meter_stats_source = getattr(meter, "stats", None)
             meter.start()
         lan_urls = hub.lan_urls() if hasattr(hub, "lan_urls") else []
         _print_banner(port, lan_urls, meter.status if meter is not None else None)
@@ -208,6 +210,8 @@ def run(
 
 def main(argv: Optional[list[str]] = None) -> int:
     args = build_parser().parse_args(argv)
+    # Timestamped INFO log on stderr, so a show's reconnects and drops can be read back.
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
     return run(args)
 
 

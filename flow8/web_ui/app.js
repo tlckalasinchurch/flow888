@@ -27,11 +27,11 @@
   const savePrefs = () => { try { localStorage.setItem('flow8.prefs', JSON.stringify(prefs)); } catch (_) { /* not stored */ } };
 
   // Strip legends as printed on the FLOW 8 panel.
-  const STRIP_TAG = { 1: 'MIC 1', 2: 'MIC 2', 3: 'COMBO 3', 4: 'COMBO 4', 5: 'LINE 5/6', 6: 'LINE 7/8', 7: 'USB/BT' };
+  const STRIP_TAG = { 1: 'ไมค์ 1', 2: 'ไมค์ 2', 3: 'คอมโบ 3', 4: 'คอมโบ 4', 5: 'ไลน์ 5/6', 6: 'ไลน์ 7/8', 7: 'USB/BT' };
   const LAYERS = {
-    main: { label: 'MAIN', name: 'Main L/R', color: '#E6E8EB' },
-    mon1: { label: 'MON 1', name: 'Monitor 1', color: '#34D399' },
-    mon2: { label: 'MON 2', name: 'Monitor 2', color: '#34D399' },
+    main: { label: 'บัสขั้นหลัก', name: 'Main L/R', color: '#E6E8EB' },
+    mon1: { label: 'MON 1', name: 'MON 1', color: '#34D399' },
+    mon2: { label: 'MON 2', name: 'MON 2', color: '#34D399' },
     fx1: { label: 'FX 1', name: 'FX 1 engine', color: '#A78BFA' },
     fx2: { label: 'FX 2', name: 'FX 2 engine', color: '#A78BFA' },
   };
@@ -43,13 +43,78 @@
   // not say what the frequency means (corner or centre) and gives no Q, so no
   // response curve is drawn. Only the gain values are exact.
   const BANDS = [
-    { key: 'low', label: 'LOW', shortLabel: '1 LOW', hz: '20 Hz', shape: 'Shelving', color: '#2EF2E2' },
-    { key: 'low_mid', label: 'LO MID', shortLabel: '2 LOW MID', hz: '300 Hz', shape: null, color: '#52E59A' },
-    { key: 'hi_mid', label: 'HI MID', shortLabel: '3 HIGH MID', hz: '1.5 kHz', shape: null, color: '#FFB45B' },
-    { key: 'hi', label: 'HIGH', shortLabel: '4 HIGH', hz: '20 kHz', shape: 'Shelving', color: '#BC71FF' },
+    { key: 'low', label: 'ต่ำ', shortLabel: '1 ต่ำ', hz: '20 Hz', shape: 'Shelving', color: '#2EF2E2' },
+    { key: 'low_mid', label: 'กลาง-ต่ำ', shortLabel: '2 กลาง-ต่ำ', hz: '300 Hz', shape: null, color: '#52E59A' },
+    { key: 'hi_mid', label: 'กลาง-สูง', shortLabel: '3 กลาง-สูง', hz: '1.5 kHz', shape: null, color: '#FFB45B' },
+    { key: 'hi', label: 'สูง', shortLabel: '4 สูง', hz: '20 kHz', shape: 'Shelving', color: '#BC71FF' },
   ];
   const EQ_SPEC_NOTE = 'ความถี่ตามสเปกผู้ผลิต (Quick Start Guide V1.0) · Q ไม่ทราบ';
   const GEQ_BANDS = ['63', '125', '250', '500', '1k', '2k', '4k', '8k', '16k'];
+
+  // ---------- Thai UI labels (readout, inspector, EQ, value settings) ----------
+  const TH = {
+    mixer: 'มิกเซอร์',
+    sound: 'เสียง',
+    presets: 'พรีเซ็ต',
+    setup: 'การตั้งค่า',
+    none: 'ไม่มี',
+    unknown: 'ไม่ทราบ',
+    select: 'เลือก',
+    connecting: 'กำลังเชื่อมต่อ',
+    mixerOnline: 'มิกเซอร์ออนไลน์',
+    disconnected: 'ไม่เชื่อมต่อ',
+    mixerNotConnected: 'ไม่เชื่อมต่อมิกเซอร์',
+    mute: 'มิวต์',
+    muted: 'มิวต์แล้ว',
+    muteAll: 'มิวต์ทั้งหมด',
+    unmuteAll: 'ยกเลิกมิวต์',
+    allMuted: 'มิวต์ทั้งหมด',
+    allInputsMuted: 'มิวต์อินพุตทั้งหมด',
+    rename: 'เปลี่ยนชื่อ',
+    presets: 'พรีเซ็ต',
+    reset: 'รีเซ็ต',
+    confirm: 'ยืนยัน',
+    name: 'ชื่อ',
+    copy: 'คัดลอก',
+    paste: 'วาง',
+    load: 'โหลด',
+    save: 'บันทึก',
+    discard: 'เพิกถอน',
+    commit: 'ตกลง',
+    ok: 'ตกลง',
+    cancel: 'ยกเลิก',
+    recall: 'เรียกคืน',
+    capture: 'บันทึก',
+    layer: 'ชั้น',
+    tab: 'แท็บ',
+    chan: 'ช่อง',
+    gain: 'ค่าเพิ่มเสียง',
+    lowCut: 'หักเสียงต่ำ',
+    comp: 'คอนเพรสเซอร์',
+    pan: 'แพน',
+    balance: 'บาลาน์ซ์',
+    level: 'ระดับ',
+    limit: 'ลิมิตเตอร์',
+    input: 'อินพุต',
+    dsp: 'DSP',
+    fx: 'เอฟเฟกต์',
+    preset: 'พรีเซ็ต',
+    fxMute: 'มิวต์ FX',
+    tapTempo: 'จังหวะ (TAP)',
+    eq: 'อีควอไลซ์',
+    low: 'ต่ำ',
+    lowMid: 'กลาง-ต่ำ',
+    hiMid: 'กลาง-สูง',
+    high: 'สูง',
+    lowCutNote: 'หักเสียงต่ำ (Low Cut)',
+    // scene
+    scene: 'ฉาก',
+    noScene: 'ไม่มีฉาก',
+    edited: 'แก้ไขแล้ว',
+    // status
+    linkError: 'ไม่สามารถควบคุมมิกเซอร์ได้',
+  };
+
   // Preset names as the FLOW 8 app (v1.14) shows them. Tap tempo exists on FX 2 only.
   const FX_ENGINE = {
     fx1: {
@@ -231,7 +296,22 @@
     document.body.classList.toggle('offline', !connected);
     const banner = document.getElementById('conn-banner');
     banner.hidden = connected;
-    banner.textContent = message || 'MIXER NOT CONNECTED — controls are locked. Connect the FLOW 8 to the host computer by USB.';
+    // One short line; the full diagnosis stays in the header detail, the title and Setup > Connection.
+    banner.innerHTML = '<span>Mixer not connected to the host computer. Values show "--" until it reconnects.</span> '
+      + '<button type="button" class="banner-link">Details</button>';
+    banner.title = message || 'Connect the FLOW 8 to the host computer by USB.';
+    banner.querySelector('.banner-link').onclick = openRoutingFromPill;
+    const detail = document.getElementById('conn-detail');
+    if (detail) {
+      if (!connected) {
+        detail.textContent = message || '';
+        detail.title = message || '';
+        detail.hidden = false;
+      } else {
+        detail.textContent = '';
+        detail.hidden = true;
+      }
+    }
     const pill = document.getElementById('status-pill');
     pill.classList.toggle('online', connected);
     pill.classList.toggle('offline', !connected);
@@ -313,6 +393,11 @@
     `<span class="scribble-prov prov-${p}" role="img" aria-label="${esc(hint)}" title="${esc(hint)}">` +
     `<span class="prov-long">${provCode(p)}</span><span class="prov-short" aria-hidden="true">${PROV_SHORT[p] || p}</span></span>`;
   const provTitle = (p) => (PROV[p] ? PROV[p][1] : p);
+  // Only a value the app sent or the mixer reported may be shown as a value; anything else is "--".
+  const isKnown = (p) => p === 'COMMANDED' || p === 'OBSERVED';
+  const sendKnown = (ch, target) => isKnown(ch.sendsProvenance && ch.sendsProvenance[target]);
+  const UNK = '--';
+  const sendText = (ch, target) => (sendKnown(ch, target) ? midiToDbStr((ch.sends && ch.sends[target]) || 0) : UNK);
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const lockReason = (key) => (session && session.locked && session.locked[key]) || 'Not available over MIDI.';
 
@@ -414,7 +499,9 @@
     } else {
       document.querySelectorAll('[data-meter-ring]').forEach((el) => el.setAttribute('stroke-dasharray', '0 100'));
     }
-    requestAnimationFrame(frame);
+    // Meters need every frame; with no meter feed only the RX/link lamps change, so 10 Hz is enough.
+    if (live) requestAnimationFrame(frame);
+    else setTimeout(() => requestAnimationFrame(frame), 100);
   }
 
   // ---------- EQ gain display: the four commanded band gains, no response curve ----------
@@ -497,8 +584,10 @@
       ptrEl.setAttribute('y2', y);
       valEl.textContent = onMove(v);
     };
+    let dragging = false;
     svg.onpointerdown = (e) => {
       svg.setPointerCapture(e.pointerId);
+      dragging = true;
       startY = e.clientY;
       startVal = current;
       beginDragGesture();
@@ -514,6 +603,13 @@
     svg.onpointerup = (e) => {
       if (!svg.hasPointerCapture(e.pointerId)) return;
       svg.releasePointerCapture(e.pointerId);
+      dragging = false;
+      endDragGesture(() => onCommit(current, true), current);
+    };
+    // A cancelled touch (call, OS gesture, palm) still closes the gesture, so undo gets one step.
+    svg.onlostpointercapture = () => {
+      if (!dragging) return;
+      dragging = false;
       endDragGesture(() => onCommit(current, true), current);
     };
     const syncKeys = attachSliderKeys(svg, {
@@ -647,6 +743,13 @@
       syncKeys();
       endDragGesture(() => onCommit(val, true), val);
     };
+    // A cancelled touch never fires pointerup: clear the grab and close the gesture here.
+    well.onlostpointercapture = () => {
+      if (!well.classList.contains('grab')) return;
+      well.classList.remove('grab');
+      syncKeys();
+      endDragGesture(() => onCommit(val, true), val);
+    };
   }
 
   // Selecting a strip (or the master) opens the Inspector. The keyboard opens it too.
@@ -677,19 +780,23 @@
     const gainStr = ch.index <= 4 ? gainText(ch.gain) : 'LINE';
     const compVal = ch.index <= 4 ? Math.round(((ch.compressor || 0) / 127) * 100) : null;
     const s = ch.sends || {};
-    const bar = (label, v, color) => `<div class="ov-send-row"><span>${label}</span><div class="ov-send-track"><div class="ov-send-fill" style="width:${Math.round(((v || 0) / 127) * 100)}%;background:${color}"></div></div></div>`;
+    const bar = (label, target, color) => {
+      if (!sendKnown(ch, target)) return `<div class="ov-send-row unknown" title="${esc(provTitle('UNSYNCED'))}"><span>${label}</span><div class="ov-send-track"></div></div>`;
+      return `<div class="ov-send-row"><span>${label}</span><div class="ov-send-track"><div class="ov-send-fill" style="width:${Math.round(((s[target] || 0) / 127) * 100)}%;background:${color}"></div></div></div>`;
+    };
+    const eqKnown = isKnown(ch.eqProvenance);
     return `<div class="strip-info">
       <div class="ov-head"><span class="ov-tag">${ch.index <= 4 ? 'GAIN' : 'INPUT'}</span><span class="ov-gain" title="${esc(lockReason('gain'))}">${gainStr}</span></div>
       <div class="ov-chips">
         <span class="ov-chip locked" title="${esc(lockReason('routing'))}">Ø</span>
         ${ch.index <= 2 ? `<span class="ov-chip locked" title="${esc(lockReason('phantom'))}">48V</span>` : ''}
         ${ch.index >= 5 && ch.index <= 6 ? `<span class="ov-chip locked" title="${esc(lockReason('stereoLink'))}">LINK</span>` : ''}
-        ${ch.index <= 4 ? `<span class="ov-chip">LC ${hpfHz(ch.lowCut || 0)}</span>` : ''}
+        ${ch.index <= 4 ? `<span class="ov-chip">LC ${isKnown(ch.lowCutProvenance) ? hpfHz(ch.lowCut || 0) : UNK}</span>` : ''}
       </div>
-      <div class="ov-sends">${bar('M1', s.mon1, '#34D399')}${bar('M2', s.mon2, '#34D399')}${bar('FX1', s.fx1, '#A78BFA')}${bar('FX2', s.fx2, '#A78BFA')}</div>
+      <div class="ov-sends">${bar('M1', 'mon1', '#34D399')}${bar('M2', 'mon2', '#34D399')}${bar('FX1', 'fx1', '#A78BFA')}${bar('FX2', 'fx2', '#A78BFA')}</div>
       <div class="ov-curves">
-        <svg class="ov-eq-svg" viewBox="0 0 60 22" preserveAspectRatio="none" role="button" tabindex="0" aria-label="Open EQ for channel ${ch.index}"><line x1="0" y1="11" x2="60" y2="11" stroke="#242933" stroke-width="1"/>${eqGainBarsSvg(channelGainsDb(ch), 60, 22)}</svg>
-        <div class="ov-comp-box" role="button" tabindex="0" aria-label="Open compressor for channel ${ch.index}">${compVal == null ? '—' : ch.compressorProvenance === 'UNSYNCED' ? '--' : `${compVal}%`}</div>
+        <svg class="ov-eq-svg" viewBox="0 0 60 22" preserveAspectRatio="none" role="button" tabindex="0" aria-label="Open EQ for channel ${ch.index}"><line x1="0" y1="11" x2="60" y2="11" stroke="#242933" stroke-width="1"${eqKnown ? '' : ' stroke-dasharray="3 3"'}/>${eqKnown ? eqGainBarsSvg(channelGainsDb(ch), 60, 22) : ''}</svg>
+        <div class="ov-comp-box" role="button" tabindex="0" aria-label="Open compressor for channel ${ch.index}">${compVal == null ? '—' : !isKnown(ch.compressorProvenance) ? UNK : `${compVal}%`}</div>
       </div>
     </div>`;
   }
@@ -702,7 +809,9 @@
     const muteAllBtn = document.getElementById('btn-mute-all');
     muteAllBtn.textContent = allMuted ? 'UNMUTE ALL' : 'MUTE ALL';
     muteAllBtn.dataset.hold = allMuted ? '' : 'arm'; // only muting needs the hold
-    muteAllBtn.title = allMuted ? 'Restore every input mute to unmuted.' : 'Hold 0.6 s to mute all inputs.';
+    muteAllBtn.title = allMuted
+      ? 'Restore every input mute to unmuted. Master fader is controlled separately.'
+      : 'Hold 0.6 s to mute all inputs. Master fader is separate.';
     document.getElementById('all-muted-chip').hidden = !allMuted;
     const bank = document.getElementById('console-bank');
     bank.innerHTML = '';
@@ -782,7 +891,7 @@
     const m = masterOf(activeLayer);
     const mUnk = m.prov === 'UNSYNCED';
     const mainBal = session.channels.find((c) => c.index === 8);
-    const selected = insp && insp.kind === 'bus' && insp.id === activeLayer;
+    const selected = (insp && insp.kind === 'bus' && insp.id === activeLayer) || selectedCh === 8;
     const strip = document.createElement('div');
     strip.dataset.strip = m.sid;
     strip.className = 'strip master' + (selected ? ' selected' : '') + (mUnk ? ' fader-unk' : '');
@@ -865,19 +974,21 @@
   }
 
   // A labelled horizontal level control (send or bus level).
-  function levelRow({ label, color, value, aria, focusKey, onCommit, disabled = false }) {
+  function levelRow({ label, color, value, aria, focusKey, onCommit, disabled = false, unknown = false }) {
     const row = document.createElement('div');
-    row.className = 'level-row';
+    row.className = `level-row${unknown ? ' unknown' : ''}`;
     row.style.setProperty('--c', color);
+    const text = unknown ? UNK : midiToDbStr(value);
     row.innerHTML = `
       <span class="level-lbl">${label}</span>
-      <input class="studio-range" type="range" min="0" max="127" value="${value}" data-focus-key="${focusKey}"
-        aria-label="${esc(aria)}" aria-valuetext="${midiToDbStr(value)}" ${disabled ? 'disabled' : ''} />
-      <span class="level-val">${midiToDbStr(value)}</span>`;
+      <input class="studio-range" type="range" min="0" max="127" value="${unknown ? 0 : value}" data-focus-key="${focusKey}"
+        aria-label="${esc(aria)}" aria-valuetext="${unknown ? 'unknown' : text}" ${disabled ? 'disabled' : ''} />
+      <span class="level-val" title="${unknown ? esc(provTitle('UNSYNCED')) : ''}">${text}</span>`;
     const rng = row.querySelector('input');
     const paint = () => rng.style.setProperty('--fill', `${(rng.value / 127) * 100}%`);
-    paint();
+    if (unknown) rng.style.setProperty('--fill', '0%'); else paint();
     rng.oninput = () => {
+      row.classList.remove('unknown');
       row.querySelector('.level-val').textContent = midiToDbStr(+rng.value);
       rng.setAttribute('aria-valuetext', midiToDbStr(+rng.value));
       paint();
@@ -932,9 +1043,9 @@
     const keys = document.createElement('div');
     keys.className = 'insp-keys';
     keys.innerHTML = `
-      <button class="mute-switch ${ch.mute ? 'muted' : ''}" data-focus-key="insp-mute" aria-pressed="${ch.mute}">${ch.mute ? 'MUTED' : 'MUTE'}</button>
-      <button class="key-btn" data-focus-key="insp-rename">✎ RENAME</button>
-      <button class="key-btn accent" data-focus-key="insp-presets">★ PRESETS</button>`;
+      <button class="mute-switch ${ch.mute ? 'muted' : ''}" data-focus-key="insp-mute" aria-pressed="${ch.mute}">${ch.mute ? 'มิวต์แล้ว' : 'มิวต์'}</button>
+      <button class="key-btn" data-focus-key="insp-rename">× เปลี่ยนชื่อ</button>
+      <button class="key-btn accent" data-focus-key="insp-presets">★ พรีเซ็ต</button>`;
     keys.children[0].onclick = () => postAction({ action: 'setMute', channel: idx, value: !ch.mute }).then(scheduleReload);
     keys.children[1].onclick = () => openScribbleModal(ch);
     keys.children[2].onclick = () => { closeInspector(); selectChannel(idx, 'presets'); };
@@ -942,29 +1053,29 @@
 
     // Input stage.
     const has14 = idx <= 4;
-    const input = section('INPUT', has14 ? (idx <= 2 ? 'MIC · XLR' : 'COMBO · XLR / TRS') : (idx === 7 ? 'USB / BLUETOOTH' : 'STEREO LINE'));
+    const input = section('อินพุต', has14 ? (idx <= 2 ? 'MIC · XLR' : 'COMBO · XLR / TRS') : (idx === 7 ? 'USB / BLUETOOTH' : 'STEREO LINE'));
     const knobs = document.createElement('div');
     knobs.className = 'knob-row';
     if (has14) {
       knobs.appendChild(createRotaryKnob({
-        label: 'GAIN', valueText: gainText(ch.gain), raw: ch.gain, min: 0, max: 127, color: '#FFB020',
+        label: 'ค่าเพิ่มเสียง', valueText: gainText(ch.gain), raw: ch.gain, min: 0, max: 127, color: '#FFB020',
         locked: lockReason('gain'),
       }));
       knobs.appendChild(createRotaryKnob({
-        label: 'LOW CUT', valueText: hpfHz(ch.lowCut), raw: ch.lowCut, min: 0, max: 127, color: '#FFB020',
+        label: 'หักเสียงต่ำ', valueText: hpfHz(ch.lowCut), raw: ch.lowCut, min: 0, max: 127, color: '#FFB020',
         focusKey: `insp:${sid}:lowcut`,
         onMove: hpfHz,
         onCommit: (v, quiet) => sendAction({ action: 'setLowCut', channel: idx, value: v }, quiet),
       }));
       knobs.appendChild(createRotaryKnob({
-        label: 'COMP', valueText: `${ch.compressor}%`, raw: ch.compressor, min: 0, max: 100, color: '#A78BFA',
+        label: 'คอนเพรสเซอร์', valueText: `${ch.compressor}%`, raw: ch.compressor, min: 0, max: 100, color: '#A78BFA',
         focusKey: `insp:${sid}:comp`,
         onMove: (v) => `${v}%`,
         onCommit: (v, quiet) => sendAction({ action: 'setCompressor', channel: idx, value: v }, quiet),
       }));
     }
     knobs.appendChild(createRotaryKnob({
-      label: has14 ? 'PAN' : 'BALANCE', valueText: panText(ch.pan), raw: ch.pan, min: 0, max: 127, color: '#3FD2E0', bipolar: true,
+      label: has14 ? 'แพน' : 'บาลาน์ซ์', valueText: panText(ch.pan), raw: ch.pan, min: 0, max: 127, color: '#3FD2E0', bipolar: true,
       focusKey: `insp:${sid}:pan`,
       onMove: panText,
       onCommit: (v, quiet) => sendAction({ action: 'setPan', channel: idx, value: v }, quiet),
@@ -980,10 +1091,10 @@
     body.appendChild(input.el);
 
     // 4-band EQ: band knobs with the manufacturer-spec frequency under each.
-    const eq = section('EQ · 4-BAND', `<span title="${esc(provTitle(ch.eqProvenance))}">${provCode(ch.eqProvenance)}</span>`);
+    const eq = section('อีควอไลซ์ 4 แบนด์', `<span title="${esc(provTitle(ch.eqProvenance))}">${provCode(ch.eqProvenance)}</span>`);
     const resetBtn = document.createElement('button');
     resetBtn.className = 'key-btn small';
-    resetBtn.textContent = 'RESET';
+    resetBtn.textContent = 'รีเซ็ต';
     resetBtn.dataset.focusKey = 'insp-eq-flat';
     resetBtn.setAttribute('aria-label', `Review an EQ reset for ${name}`);
     resetBtn.onclick = () => openEqResetPlan(ch);
@@ -1057,9 +1168,9 @@
     document.getElementById('insp-sub').textContent = `${layer.name} · ${provCode(m.prov)}`;
     document.getElementById('inspector').style.setProperty('--insp-accent', layer.color);
 
-    const lvl = section(id.startsWith('fx') ? 'FX RETURN LEVEL' : 'LEVEL', provCode(m.prov));
+    const lvl = section(id.startsWith('fx') ? 'FX คืนระดับ' : 'ระดับ', provCode(m.prov));
     lvl.body.appendChild(levelRow({
-      label: 'LEVEL', color: layer.color, value: m.fader, aria: `${layer.label} level`, focusKey: `insp:${id}:level`,
+      label: 'ระดับ', color: layer.color, value: m.fader, aria: `${layer.label} level`, focusKey: `insp:${id}:level`,
       onCommit: m.commit,
     }));
     if (id === 'main') {
@@ -1081,11 +1192,11 @@
       // The mixer reports neither, so an unsent value shows "--" (UNSYNCED).
       const dsp = (session.busDsp && session.busDsp[id]) || null;
       const limKnown = dsp && dsp.limiterProvenance !== 'UNSYNCED';
-      const lim = section('LIMITER', dsp ? provCode(dsp.limiterProvenance) : 'UNSYNCED');
+      const lim = section('ลิมิตเตอร์', dsp ? provCode(dsp.limiterProvenance) : 'UNSYNCED');
       const row = document.createElement('div');
       row.className = 'knob-row';
       row.appendChild(createRotaryKnob({
-        label: 'LIMIT', valueText: limKnown ? limiterText(dsp.limiter) : '--', raw: limKnown ? dsp.limiter : null,
+        label: 'ลิมิตเตอร์', valueText: limKnown ? limiterText(dsp.limiter) : '--', raw: limKnown ? dsp.limiter : null,
         min: 0, max: 127, color: '#FFB020', focusKey: `insp:${id}:limiter`,
         onMove: limiterText,
         onCommit: (v, quiet) => sendAction({ action: 'setBusLimiter', bus: id, value: v }, quiet),
@@ -1097,7 +1208,7 @@
       lim.body.appendChild(limNote);
       body.appendChild(lim.el);
 
-      const geq = section('GRAPHIC EQ · 9-BAND', '±15 dB');
+      const geq = section('กราฟิกอีควอไลซ์ 9 แบนด์', '±15 dB');
       const bands = document.createElement('div');
       bands.className = 'geq geq-live';
       GEQ_BANDS.forEach((bandLabel, i) => {
@@ -1687,8 +1798,17 @@
     if (pasteBtn) pasteBtn.hidden = !dspClipboard;
   }
 
+
+  function setDetail(text) {
+    const el = document.getElementById('conn-detail');
+    if (el && text) el.textContent = text;
+    else if (el) el.textContent = '';
+  }
+
+
   function selectChannel(idx, switchTab = null) {
-    selectedCh = Math.max(1, Math.min(7, Number(idx) || 1));
+    const n = Number(idx);
+    selectedCh = n === 8 ? 8 : (n >= 1 && n <= 7 ? n : 1);
     if (switchTab) setTopTab(switchTab);
     else {
       updateSelectBadge();
@@ -1715,6 +1835,8 @@
         body: JSON.stringify({ action: 'setActiveView', view, clientId }),
       }).catch(() => {});
     }
+    const tabLabel = { mixer: 'Mixer', stage: 'Stage', setup: 'Setup', sound: 'Sound', presets: 'Presets' }[tab] || tab;
+    setDetail('Active layer: ' + (LAYERS[activeLayer] ? LAYERS[activeLayer].label : '') + ' · Tab: ' + tabLabel);
     renderView();
   }
 
@@ -1764,14 +1886,15 @@
       const meta = eqBands.find((b) => b.key === selectedEqBand) || eqBands[0];
       const isLc = meta.key === 'lc';
       const rawVal = isLc ? (ch.lowCut || 0) : (ch.eq[meta.key] ?? 64);
+      const valKnown = isKnown(isLc ? ch.lowCutProvenance : ch.eqProvenance);
       const band = BANDS.find((b) => b.key === meta.key);
       side.innerHTML = `
         <div class="sec-hdr"><span class="sec-title">${esc(chName(ch))} · ${meta.label}</span>
           <button class="key-btn" id="btn-eq-reset">RESET</button></div>
         <div class="num-row"><span class="num-lbl">SOURCE</span><span class="num-val" title="${esc(provTitle(ch.eqProvenance))}">${provCode(ch.eqProvenance)}</span></div>
         <div class="num-row"><span class="num-lbl">TYPE</span><span class="num-val">${isLc ? 'High Pass · 12 dB/oct' : (band.shape ? `${band.shape} <span class="lock-chip">SPEC</span>` : 'ไม่ระบุในสเปก')}</span></div>
-        <div class="num-row"><span class="num-lbl">FREQ</span><span class="num-val">${isLc ? hpfHz(rawVal) : `${band.hz} <span class="lock-chip">SPEC</span>`}</span></div>
-        <div class="num-row"><span class="num-lbl">${isLc ? 'CUTOFF' : 'GAIN'}</span><span class="num-val" id="eq-side-val">${isLc ? hpfHz(rawVal) : eqText(rawVal)}</span></div>
+        <div class="num-row"><span class="num-lbl">FREQ</span><span class="num-val">${isLc ? (valKnown ? hpfHz(rawVal) : UNK) : `${band.hz} <span class="lock-chip">SPEC</span>`}</span></div>
+        <div class="num-row"><span class="num-lbl">${isLc ? 'CUTOFF' : 'GAIN'}</span><span class="num-val" id="eq-side-val">${!valKnown ? UNK : isLc ? hpfHz(rawVal) : eqText(rawVal)}</span></div>
         <input class="studio-range" id="eq-side-range" type="range" min="0" max="127" value="${rawVal}" aria-label="${meta.label} value" />
         <div class="num-row"><span class="num-lbl">Q</span><span class="num-val">${isLc ? '—' : 'ไม่ทราบ'}</span></div>
         <p class="sec-note" style="margin:0">เลื่อนแถบด้านบน ค่าที่ส่งคือค่าตัวเลขนี้ (ส่งเมื่อปล่อยแถบ)</p>`;
@@ -1912,22 +2035,22 @@
     grid.innerHTML = `
       <section class="insp-sec">
         <div class="sec-hdr"><span class="sec-title">CHANNEL ${String(ch.index).padStart(2, '0')}</span><button class="key-btn" id="cue-rename">RENAME</button></div>
-        <p class="sec-note" style="margin:0 0 6px;">${esc(chName(ch))} · Pan ${panText(ch.pan)} · ${ch.mute ? 'MUTED' : 'ACTIVE'}</p>
-        <div class="num-row"><span class="num-lbl">PREAMP GAIN</span><span class="num-val">${ch.index <= 4 ? gainText(ch.gain) : 'LINE'} <span class="lock-chip">LOCKED</span></span></div>
-        ${ch.index <= 4 ? `<div class="num-row"><span class="num-lbl">LOW CUT</span><span class="num-val">${hpfHz(ch.lowCut || 0)}</span></div>` : ''}
+        <p class="sec-note" style="margin:0 0 6px;">${esc(chName(ch))} · Pan ${isKnown(ch.panProvenance) ? panText(ch.pan) : UNK} · ${!isKnown(ch.muteProvenance) ? 'MUTE --' : ch.mute ? 'มิวต์แล้ว' : 'ACTIVE'}</p>
+        <div class="num-row"><span class="num-lbl">PREAMP GAIN</span><span class="num-val">${ch.index <= 4 ? (isKnown(ch.gainProvenance) ? gainText(ch.gain) : UNK) : 'LINE'} <span class="lock-chip">LOCKED</span></span></div>
+        ${ch.index <= 4 ? `<div class="num-row"><span class="num-lbl">LOW CUT</span><span class="num-val">${isKnown(ch.lowCutProvenance) ? hpfHz(ch.lowCut || 0) : UNK}</span></div>` : ''}
       </section>
       <section class="insp-sec">
         <div class="sec-hdr"><span class="sec-title">4-BAND EQ</span><button class="key-btn accent" id="cue-go-eq">OPEN EQ</button></div>
         <svg class="preset-preview-svg" style="height:64px" viewBox="0 0 180 64" preserveAspectRatio="none">
-          <line x1="0" y1="32" x2="180" y2="32" stroke="#242A35" stroke-width="1"/>
-          ${eqGainBarsSvg(channelGainsDb(ch), 180, 64)}
+          <line x1="0" y1="32" x2="180" y2="32" stroke="#242A35" stroke-width="1"${isKnown(ch.eqProvenance) ? '' : ' stroke-dasharray="4 4"'}/>
+          ${isKnown(ch.eqProvenance) ? eqGainBarsSvg(channelGainsDb(ch), 180, 64) : ''}
         </svg>
       </section>
       <section class="insp-sec">
         <div class="sec-hdr"><span class="sec-title">COMP & SENDS</span><button class="key-btn" id="cue-go-sends">SENDS</button></div>
-        <div class="num-row"><span class="num-lbl">COMP</span><span class="num-val">${ch.index <= 4 ? `${Math.round(((ch.compressor || 0) / 127) * 100)}%` : 'N/A'}</span></div>
-        <div class="num-row"><span class="num-lbl">MON 1 / MON 2</span><span class="num-val">${midiToDbStr(ch.sends?.mon1 || 0)} / ${midiToDbStr(ch.sends?.mon2 || 0)}</span></div>
-        <div class="num-row"><span class="num-lbl">FX 1 / FX 2</span><span class="num-val">${midiToDbStr(ch.sends?.fx1 || 0)} / ${midiToDbStr(ch.sends?.fx2 || 0)}</span></div>
+        <div class="num-row"><span class="num-lbl">COMP</span><span class="num-val">${ch.index <= 4 ? (isKnown(ch.compressorProvenance) ? `${Math.round(((ch.compressor || 0) / 127) * 100)}%` : UNK) : 'N/A'}</span></div>
+        <div class="num-row"><span class="num-lbl">MON 1 / MON 2</span><span class="num-val">${sendText(ch, 'mon1')} / ${sendText(ch, 'mon2')}</span></div>
+        <div class="num-row"><span class="num-lbl">FX 1 / FX 2</span><span class="num-val">${sendText(ch, 'fx1')} / ${sendText(ch, 'fx2')}</span></div>
       </section>
     `;
     grid.querySelector('#cue-rename').onclick = () => openScribbleModal(ch);
@@ -1945,11 +2068,11 @@
     left.className = 'insp-sec';
     left.innerHTML = `
       <div class="sec-hdr"><span class="sec-title">INPUT · CH ${String(ch.index).padStart(2, '0')} (${esc(chName(ch))})</span></div>
-      <div class="num-row"><span class="num-lbl">GAIN</span><span class="num-val">${ch.index <= 4 ? gainText(ch.gain) : 'LINE'} <span class="lock-chip" title="${esc(lockReason('gain'))}">LOCKED</span></span></div>
-      <div class="num-row"><span class="num-lbl">+48V PHANTOM</span><span class="num-val">${ch.index <= 2 ? (ch.phantom ? 'ON' : 'OFF') : 'N/A'} <span class="lock-chip" title="${esc(lockReason('phantom'))}">HOST ONLY</span></span></div>
+      <div class="num-row"><span class="num-lbl">GAIN</span><span class="num-val">${ch.index <= 4 ? (isKnown(ch.gainProvenance) ? gainText(ch.gain) : UNK) : 'LINE'} <span class="lock-chip" title="${esc(lockReason('gain'))}">LOCKED</span></span></div>
+      <div class="num-row"><span class="num-lbl">+48V PHANTOM</span><span class="num-val">${ch.index <= 2 ? (!isKnown(ch.phantomProvenance) || ch.phantom == null ? 'UNKNOWN' : ch.phantom ? 'ON' : 'OFF') : 'N/A'} <span class="lock-chip" title="${esc(lockReason('phantom'))}">HOST ONLY</span></span></div>
       <div class="num-row"><span class="num-lbl">PHASE (Ø)</span><span class="num-val">NORMAL <span class="lock-chip">LOCKED</span></span></div>
       <div class="num-row"><span class="num-lbl">STEREO LINK</span><span class="num-val">${ch.index >= 5 && ch.index <= 6 ? 'LINKED PAIR' : 'MONO'} <span class="lock-chip">LOCKED</span></span></div>
-      ${ch.index <= 4 ? `<div class="num-row"><span class="num-lbl">LOW CUT</span><span class="num-val" id="inp-lc-val">${hpfHz(ch.lowCut || 0)}</span></div>
+      ${ch.index <= 4 ? `<div class="num-row"><span class="num-lbl">LOW CUT</span><span class="num-val" id="inp-lc-val">${isKnown(ch.lowCutProvenance) ? hpfHz(ch.lowCut || 0) : UNK}</span></div>
       <input class="studio-range" id="inp-lc-rng" type="range" min="0" max="127" value="${ch.lowCut || 0}" aria-label="Low cut" />` : '<p class="sec-note">Low cut applies to Channels 1–4 only.</p>'}
     `;
     if (ch.index <= 4) {
@@ -1976,14 +2099,15 @@
       pane.appendChild(sec);
       return;
     }
-    const pct = Math.round(((ch.compressor || 0) / 127) * 100);
-    sec.innerHTML = `<div class="sec-hdr"><span class="sec-title">1-KNOB COMPRESSOR · CH ${String(ch.index).padStart(2, '0')} (${esc(chName(ch))})</span><span class="sec-meta">${pct}%</span></div>`;
+    const compKnown = isKnown(ch.compressorProvenance);
+    const pct = compKnown ? `${Math.round(((ch.compressor || 0) / 127) * 100)}%` : UNK;
+    sec.innerHTML = `<div class="sec-hdr"><span class="sec-title">1-KNOB COMPRESSOR · CH ${String(ch.index).padStart(2, '0')} (${esc(chName(ch))})</span><span class="sec-meta">${pct}</span></div>`;
     const row = document.createElement('div');
     row.style.display = 'flex';
     row.style.alignItems = 'center';
     row.style.gap = '20px';
     row.appendChild(createRotaryKnob({
-      label: 'COMP', valueText: `${pct}%`, raw: ch.compressor || 0, min: 0, max: 127,
+      label: 'COMP', valueText: pct, raw: ch.compressor || 0, min: 0, max: 127,
       color: '#34D399', big: true, focusKey: `cue-comp:${ch.index}`,
       onMove: (v) => `${Math.round((v / 127) * 100)}%`,
       onCommit: (v, quiet) => sendAction({ action: 'setCompressor', channel: ch.index, value: v, unit: 'raw' }, quiet),
@@ -2007,6 +2131,7 @@
         label: LAYERS[target].label,
         color: LAYERS[target].color,
         value: ch.sends ? ch.sends[target] : 0,
+        unknown: !sendKnown(ch, target),
         aria: `${chName(ch)} send to ${LAYERS[target].label}`,
         focusKey: `cue-send:${ch.index}:${target}`,
         onCommit: (v, quiet) => sendAction({ action: 'setSend', channel: ch.index, target, value: v }, quiet),
@@ -2112,7 +2237,7 @@
   // changed value once, as one ledger step, so a single UNDO restores the mix.
   function planValueText(parameter, raw) {
     if (raw === null || raw === undefined) return 'unknown';
-    if (parameter === 'mute') return raw ? 'MUTED' : 'OPEN';
+    if (parameter === 'mute') return raw ? 'มิวต์แล้ว' : 'เปิด';
     if (parameter === 'pan') return panText(raw);
     if (parameter === 'low_cut') return hpfHz(raw);
     if (parameter === 'compressor') return `${Math.round((raw / 127) * 100)}%`;
@@ -2282,7 +2407,12 @@
         desc: 'แนะนำลด Preamp Gain ที่ตัวเครื่อง FLOW 8 เพื่อป้องกันเสียงแตก (ไม่สามารถปรับ Gain ผ่าน LAN เพื่อความปลอดภัย)',
       });
     }
-    if (ch.index <= 4 && (ch.lowCut || 0) < 10) {
+    // Advice reads only values the app sent or the mixer reported; an unknown value is named, not guessed.
+    const lcKnown = isKnown(ch.lowCutProvenance);
+    const eqKnown = isKnown(ch.eqProvenance);
+    const fx1Known = sendKnown(ch, 'fx1');
+    const unknownParts = ch.index <= 4 ? [!lcKnown && 'Low Cut', !eqKnown && 'EQ', !fx1Known && 'FX 1 send'].filter(Boolean) : [];
+    if (ch.index <= 4 && lcKnown && (ch.lowCut || 0) < 10) {
       cards.push({
         badge: 'HPF',
         title: 'เปิด Low Cut 100 Hz เพื่อลดเสียงลม/เสียงฮัม',
@@ -2294,7 +2424,7 @@
       });
     }
     const eqFlat = ['low', 'low_mid', 'hi_mid', 'hi'].every((k) => Math.abs(eqRawToDb(ch.eq[k] ?? 64)) < 0.3);
-    if (eqFlat && ch.index <= 4) {
+    if (eqKnown && eqFlat && ch.index <= 4) {
       cards.push({
         badge: 'SMART EQ',
         title: 'ปรับ EQ ลดความก้อง & เพิ่มความคมชัดเสียงร้อง/พูด',
@@ -2305,7 +2435,7 @@
         ],
       });
     }
-    if (ch.index <= 4 && (ch.sends?.fx1 || 0) === 0) {
+    if (ch.index <= 4 && fx1Known && (ch.sends?.fx1 || 0) === 0) {
       cards.push({
         badge: 'SPACE',
         title: 'เพิ่ม Reverb FX 1 เล็กน้อย (-18 dB)',
@@ -2314,6 +2444,13 @@
           channel: ch.index, parameter: 'send_fx1', value: 76,
           reason: 'A little reverb space (-18 dB)', risk: 'low',
         }],
+      });
+    }
+    if (unknownParts.length) {
+      cards.push({
+        badge: 'UNKNOWN',
+        title: `ยังไม่รู้ค่า ${unknownParts.join(', ')} ของ CH ${String(ch.index).padStart(2, '0')}`,
+        desc: 'แอปยังไม่เคยส่งค่าเหล่านี้ และมิกเซอร์ไม่ได้รายงานกลับ ตรวจที่ตัวเครื่องก่อน จึงยังไม่แนะนำอะไรจากค่าเหล่านี้',
       });
     }
     if (!cards.length) {
@@ -2448,7 +2585,7 @@
     const nav = document.getElementById('layer-tabs');
     if (!nav) return;
     nav.innerHTML = LAYER_ORDER.map((id) =>
-      `<button class="layer-tab${id === activeLayer ? ' active' : ''}" role="tab" aria-selected="${id === activeLayer}" data-layer="${id}">${LAYER_TABS[id]}</button>`).join('');
+      `<button class="layer-tab${id === activeLayer ? ' active' : ''}" aria-pressed="${id === activeLayer}" data-layer="${id}">${LAYER_TABS[id]}</button>`).join('');
     nav.querySelectorAll('.layer-tab').forEach((b) => { b.onclick = () => setLayer(b.dataset.layer); });
   }
 
@@ -2460,7 +2597,7 @@
     const unk = ch.faderProvenance === 'UNSYNCED';
     const hasComp = ch.index <= 4; // the console exposes the compressor on channels 1-4 only
     const tile = (id, icon, en, th, tab, off) => off
-      ? `<button class="sp-tile unavailable" disabled aria-disabled="true" title="${esc(off)}">${icon}<span><b>${en}</b><i>${th}</i></span><em>Not available</em></button>`
+      ? `<button class="sp-tile unavailable" disabled aria-disabled="true" title="${esc(off)}">${icon}<span><b>${en}</b><i>${th}</i><em>Not available</em></span></button>`
       : `<button class="sp-tile${topTab === tab ? ' active' : ''}" data-tab="${tab}">${icon}<span><b>${en}</b><i>${th}</i></span></button>`;
     host.innerHTML = `
       <section class="sp-card">
@@ -2481,17 +2618,10 @@
         <header class="sp-head"><h2>${ICON.book} Preset <i>พรีเซ็ต</i></h2></header>
         <button class="sp-preset" id="sp-presets">Open preset list ${ICON.chevron}</button>
         <p class="sp-note">Presets set EQ, low cut and compressor only. They never change level, gain or +48V. A plan is shown before anything is sent.</p>
-      </section>
-      <section class="sp-card">
-        <header class="sp-head"><h2>Quick access <i>ควบคุมด่วน</i></h2></header>
-        <div class="sp-quick">
-          ${['mon1', 'mon2', 'fx1', 'fx2'].map((id) => `<button class="sp-q ${id.startsWith('fx') ? 'fx' : 'mon'}${activeLayer === id ? ' active' : ''}" data-layer="${id}" aria-pressed="${activeLayer === id}">${id.startsWith('fx') ? ICON.play : ICON.phones}<b>${LAYER_TABS[id].replace('Monitor ', 'MON ')}</b></button>`).join('')}
-        </div>
       </section>`;
     host.querySelector('#sp-rename').onclick = () => openScribbleModal(ch);
     host.querySelector('#sp-presets').onclick = () => setTopTab('presets');
     host.querySelectorAll('.sp-tile[data-tab]').forEach((b) => { b.onclick = () => setTopTab(b.dataset.tab); });
-    host.querySelectorAll('.sp-q').forEach((b) => { b.onclick = () => { setLayer(b.dataset.layer, false); setTopTab('mixer'); }; });
   }
 
   function renderChrome() {
@@ -2670,6 +2800,20 @@
   });
   // Escape closes the top modal first, then the Inspector.
   document.addEventListener('keydown', (e) => {
+    if (e.key === 'Tab') {
+      // Keep Tab inside the top modal, so focus never lands on controls behind it.
+      const top = [...document.querySelectorAll('.modal-backdrop.open')].pop();
+      if (!top) return;
+      const items = [...top.querySelectorAll('button, input, select, textarea, [tabindex]:not([tabindex="-1"])')]
+        .filter((el) => !el.disabled && !el.hidden && el.offsetParent !== null);
+      if (!items.length) return;
+      const first = items[0];
+      const last = items[items.length - 1];
+      if (!top.contains(document.activeElement)) { e.preventDefault(); first.focus(); }
+      else if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+      return;
+    }
     if (e.key !== 'Escape') return;
     const open = [...document.querySelectorAll('.modal-backdrop.open')];
     if (open.length) { e.preventDefault(); dismissModal(open[open.length - 1]); return; }
@@ -2698,7 +2842,7 @@
   document.getElementById('insp-close').onclick = closeInspector;
   document.querySelectorAll('.cue-tab').forEach((b) => { b.onclick = () => setTopTab(b.dataset.tab); });
   document.querySelectorAll('.cue-group').forEach((g) => { g.onclick = () => setTopTab(lastTabInGroup[g.dataset.group]); });
-  document.getElementById('select-badge').onclick = () => selectChannel((selectedCh % 7) + 1);
+  document.getElementById('select-badge').onclick = () => selectChannel(selectedCh === 8 ? 1 : (selectedCh % 8) + 1);
   document.getElementById('btn-flowai').onclick = () => { flowAiOpen = !flowAiOpen; renderFlowAiDrawer(); };
   document.getElementById('plan-close').onclick = closePlanPanel;
   document.getElementById('plan-discard').onclick = closePlanPanel;
@@ -2742,7 +2886,7 @@
     const inputs = session.channels.filter((c) => c.index <= 7);
     const allMuted = inputs.every((c) => c.mute);
     const res = await postAction({ action: 'muteAll', value: !allMuted });
-    if (res.ok) showToast(allMuted ? 'All inputs unmuted.' : 'All inputs muted. Press UNMUTE ALL to restore.');
+    if (res.ok) showToast(allMuted ? 'All inputs unmuted.' : 'All inputs muted. (Master fader is separate on the master strip.)');
     loadSession();
   }
   // Muting the whole PA needs a 0.6 s hold. Restoring is a single tap.
@@ -2784,7 +2928,7 @@
   let resizeTimer = null;
   window.addEventListener('resize', () => {
     clearTimeout(resizeTimer);
-    resizeTimer = setTimeout(() => { if (!pointerBusy) loadSession(); }, 250);
+    resizeTimer = setTimeout(() => { if (!pointerBusy) { if (session) renderView(); else loadSession(); } }, 250); // no network round trip for a layout change
   });
 
   // ---------- Show Mode (MC / BAND) ----------
@@ -3021,15 +3165,56 @@
       applyConnectionState(false, 'HUB UNREACHABLE — check the host computer and the Wi-Fi link.');
     }
   }, 3000);
+  let sseConnectedOnce = false;
   const es = new EventSource('/api/events?clientId=' + clientId);
   es.onopen = () => document.getElementById('lamp-hub').classList.add('on');
   es.onerror = () => document.getElementById('lamp-hub').classList.remove('on');
+  // Map from paramId (e.g. "ch1.fader") to channel index (1..7) and property name.
+  const RX_UPDATE_MAP = {
+    "ch1.fader": 1, "ch2.fader": 2, "ch3.fader": 3, "ch4.fader": 4,
+    "ch5.fader": 5, "ch6.fader": 6, "ch7.fader": 7,
+    "ch1.mute": 1, "ch2.mute": 2, "ch3.mute": 3, "ch4.mute": 4,
+    "ch5.mute": 5, "ch6.mute": 6, "ch7.mute": 7,
+    "ch1.pan": 1, "ch2.pan": 2, "ch3.pan": 3, "ch4.pan": 4,
+    "ch5.pan": 5, "ch6.pan": 6, "ch7.pan": 7,
+  };
+
+  // Batch counter for grouped parameter changes (undo/redo step).
+  let batchDepth = 0;
+
+  function applyRxUpdate(paramId, value) {
+    const chIdx = RX_UPDATE_MAP[paramId];
+    if (chIdx === undefined) return; // not a simple fader/pan/mute param
+    const ch = session.channels.find((c) => c.index === chIdx);
+    if (!ch) return;
+    // Update provenance first so the render knows the value is valid.
+    if (paramId.endsWith(".fader")) {
+      ch.fader = value;
+      ch.faderProvenance = "OBSERVED";
+    }
+    if (paramId.endsWith(".mute")) {
+      ch.mute = value !== 0;
+      ch.muteProvenance = "OBSERVED";
+    }
+    if (paramId.endsWith(".pan")) {
+      ch.pan = value;
+      ch.panProvenance = "OBSERVED";
+    }
+    // Refresh just the strips that changed.
+    renderConsole();
+  }
+
   es.onmessage = (msg) => {
     let ev = {};
     try { ev = JSON.parse(msg.data); } catch (_) { return; }
     if (ev.type === 'meters') { onMeterFrame(ev.levels || {}); return; }
-    if (ev.type === 'connected') return;
-    if (ev.type === 'rx') markLamp(stripIdForParam(ev.paramId), 'rx');
+    if (ev.type === 'connected') {
+      // A reconnect may have missed events while the stream was down: reload state.
+      if (sseConnectedOnce) scheduleReload();
+      sseConnectedOnce = true;
+      return;
+    }
+    if (ev.type === 'rx') applyRxUpdate(ev.paramId, ev.value);
     if (ev.type === 'tx') {
       // UNDO <mode> undoes the last change, so any other change retires it.
       if (ev.action !== 'runShowMode') hideShowModeUndo();

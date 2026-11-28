@@ -1,0 +1,122 @@
+{
+ "one_key": {
+  "posts": [
+   "setFader"
+  ],
+  "hub": [
+   {
+    "action": "setFader",
+    "code": 200,
+    "midi": [
+     "CC ch2 7 97"
+    ]
+   }
+  ]
+ },
+ "one_click_mute": {
+  "posts": [
+   "setMute"
+  ],
+  "hub": [
+   {
+    "action": "setMute",
+    "code": 200,
+    "midi": [
+     "CC ch4 5 127"
+    ]
+   }
+  ]
+ },
+ "drag": {
+  "posts": [
+   "beginGesture",
+   "setFader",
+   "setFader",
+   "setFader",
+   "setFader",
+   "setFader",
+   "setFader",
+   "endGesture"
+  ],
+  "hub_actions": [
+   "beginGesture",
+   "setFader",
+   "setFader",
+   "setFader",
+   "setFader",
+   "setFader",
+   "setFader",
+   "endGesture"
+  ]
+ },
+ "undo": [
+  {
+   "action": "undo",
+   "code": 200,
+   "midi": [
+    "CC ch1 7 101"
+   ]
+  }
+ ],
+ "redo": [
+  {
+   "action": "redo",
+   "code": 200,
+   "midi": [
+    "CC ch1 7 68"
+   ]
+  }
+ ],
+ "locked_pressed": "true",
+ "locked": {
+  "posts": [],
+  "hub": []
+ },
+ "unlocked_pressed": "false",
+ "offline": {
+  "posts": [],
+  "hub": [],
+  "readouts": [
+   "--",
+   "--",
+   "--",
+   "--",
+   "--",
+   "--",
+   "--",
+   "--"
+  ]
+ },
+ "after_reconnect": {
+  "readouts": [
+   "--",
+   "--",
+   "--",
+   "--",
+   "--",
+   "--",
+   "--",
+   "--"
+  ],
+  "badges": [
+   "UNK",
+   "UNK",
+   "UNK",
+   "UNK",
+   "UNK",
+   "UNK",
+   "UNK",
+   "UNK"
+  ],
+  "mutes": [
+   "MUTE ?",
+   "MUTE ?",
+   "MUTE ?",
+   "MUTE ?",
+   "MUTE ?",
+   "MUTE ?",
+   "MUTE ?"
+  ]
+ },
+ "physical": []
+}

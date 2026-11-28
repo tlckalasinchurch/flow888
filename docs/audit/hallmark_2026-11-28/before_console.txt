@@ -1,0 +1,22 @@
+render tier: 10 screenshots in C:\Users\Administrator\Desktop\00 - Projects\Flow888\flow888\flow8\web_ui\v3\.hallmark\before (1280x800, 1440x900, 1920x1080 folds; 1440 and 375 full pages)
+  FAIL 34 x2 flow8\web_ui\v3\index.html:1 [320px] horizontal scroll: scrollWidth 324 > viewport 320; flow8\web_ui\v3\v3.css:43 overflow-x: hidden on body (breaks sticky) | fix: overflow-x: clip on html and body; find the overflowing block
+  FAIL 39a flow8\web_ui\v3\v3.css:290 disabled via opacity alone on .go:disabled | fix: Three disabled channels: fill, ink and cursor, plus the disabled attribute
+  FAIL 48 x49 flow8\web_ui\v3\v3.css:27 colour literal #070000 outside tokens (--well on body.night); flow8\web_ui\v3\v3.css:27 colour literal #0B0101 outside tokens (--chassis on body.night) | fix: Lift the value into the token block
+  FAIL 49a x3 flow8\web_ui\v3\index.html:1 [375px] control "MUTE ALL" wraps to 2 lines (button.safety.mute); http://127.0.0.1:8855/v3/:1 [320px] control "MY MON" wraps to 2 lines (button) | fix: Shorten the label or set nowrap
+  FAIL 62 flow8\web_ui\v3\v3.css:497 input[type="range"].unk-range::-webkit-slider-thumb is hidden a… | fix: Visible by default: scope the hidden state under a .js class the script adds, or animate from visible with @starting-style
+  FAIL 67 x17 flow8\web_ui\v3\index.html:38 "LIVE CONSOLE" typed in capitals at 15px (<small>); flow8\web_ui\v3\index.html:39 "CONNECTING" typed in capitals at 14px (<button class="state">) | fix: Sentence case in the body face; capitals survive only as a wordmark or as the display voice
+  FAIL 73 http://127.0.0.1:8855/v3/:1 [1440px] text painted under another element: span.cap over "Cha… | fix: Give the text its own space, or put it above what covers it on a surface of its own
+  REFLEX 24b x85 flow8\web_ui\v3\v3.css:53 gap: 10px (off the 4px scale) on .bar; flow8\web_ui\v3\v3.css:56 margin-top: 3px (off the 4px scale) on .brand small | fix: Use the 4px spacing scale
+  REFLEX 38iii flow8\web_ui\v3\v3.css:92 accented word inside a heading (.page-head h1 i) | fix: Set the whole head one way: a line break, a second line at a second size, or the whole head in the accent. Guard: the theme names the coloured word as its signature and it appears once on the page, in the hero
+  REFLEX 39b http://127.0.0.1:8855/v3/:1 [1440px] control height outside 32 to 52px: div.s-head 57px, di… | fix: Marketing controls stand 44 to 52px; app UI 32 to 40px with a 44px hit target
+  REFLEX 72 flow8\web_ui\v3\index.html:1 [1440px] text crowds the edge of its box: button.btn right 6px,… | fix: Pad the box: max(8px, 0.5em) at the sides, max(4px, 0.3em) above and below
+  WARN 40 flow8\web_ui\v3\v3.css:142 3.92:1 < 4.5:1 on .s-mute[aria-pressed="true"] | fix: Raise the contrast to threshold
+  WARN 41 x5 flow8\web_ui\v3\v3.css:159 dark surface (L 23%) on .panel sets no text colour; flow8\web_ui\v3\v3.css:210 dark surface (L 23%) on .cuecard sets no text colour | fix: Swap text to paper in the same rule
+  WARN F3 flow8\web_ui\v3\v3.css:91 no text-wrap: balance on any display head (6 head rule(s), e.g.… | fix: Add text-wrap: balance to h1/h2-level heads
+  WARN F7 flow8\web_ui\v3\v3.css:181 same container recipe on 7 selectors (.preset, .calc input[type… | fix: Vary weight, radius, or fill by role; not every box is the same box
+  WARN F19 http://127.0.0.1:8855/v3/:1 [1440px] 4 font weights in running use (400, 600, 700, 800) | fix: Three weights at most, display and body together, picked as extremes
+  WARN F23 flow8\web_ui\v3\index.html:1 the document lacks a meta description | fix: Name the language, title the page in its own words, and describe it in one sentence for link previews
+  WARN F24 flow8\web_ui\v3\v3.css:77 a hairline border under a wide soft shadow on .setmenu | fix: Commit to one: a defined edge, or elevation by shadow
+  WARN render flow8\web_ui\v3\index.html:1 the shots show a fallback: fonts or stylesheets did not load (v… | fix: Recapture when the host answers or the path is right; never review or sign off a fallback face
+sloplint: 74 FAIL, 88 REFLEX, 12 WARN across 2 file(s) and 1 URL(s), grouped by gate; every line is in .hallmark\before.txt.
+before: recorded 0 links, 0 fields, 0 handlers, 0 test hooks, 0 script hooks and 2 rendered page(s) in .hallmark\before.json; --kept checks a redesign against it
