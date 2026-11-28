@@ -1,0 +1,146 @@
+{
+ "label": "round3",
+ "physical": [],
+ "actions": [
+  {
+   "msg": {
+    "action": "setFader",
+    "channel": 2,
+    "value": 97
+   },
+   "code": 200,
+   "midi": [
+    "CC ch2 7 97"
+   ]
+  },
+  {
+   "msg": {
+    "action": "setFader",
+    "channel": 2,
+    "value": 98
+   },
+   "code": 200,
+   "midi": [
+    "CC ch2 7 98"
+   ]
+  },
+  {
+   "msg": {
+    "action": "setEqBand",
+    "channel": 1,
+    "band": "low",
+    "value": 56,
+    "unit": "raw"
+   },
+   "code": 200,
+   "midi": [
+    "CC ch1 1 56"
+   ]
+  },
+  {
+   "msg": {
+    "action": "setEqBand",
+    "channel": 1,
+    "band": "low",
+    "value": 54,
+    "unit": "raw"
+   },
+   "code": 200,
+   "midi": [
+    "CC ch1 1 54"
+   ]
+  },
+  {
+   "msg": {
+    "action": "setFader",
+    "channel": 4,
+    "value": 73
+   },
+   "code": 200,
+   "midi": [
+    "CC ch4 7 73"
+   ]
+  },
+  {
+   "msg": {
+    "action": "setMute",
+    "channel": 2,
+    "value": true
+   },
+   "code": 200,
+   "midi": [
+    "CC ch2 5 127"
+   ]
+  },
+  {
+   "msg": {
+    "action": "setMute",
+    "channel": 2,
+    "value": false
+   },
+   "code": 200,
+   "midi": [
+    "CC ch2 5 0"
+   ]
+  },
+  {
+   "msg": {
+    "action": "setSend",
+    "channel": 1,
+    "target": "mon2",
+    "value": 1,
+    "unit": "raw"
+   },
+   "code": 200,
+   "midi": [
+    "CC ch1 15 1"
+   ]
+  },
+  {
+   "msg": {
+    "action": "setFxPreset",
+    "engine": "fx2",
+    "value": 5
+   },
+   "code": 200,
+   "midi": [
+    "PC ch14 5 0"
+   ]
+  },
+  {
+   "msg": {
+    "action": "setFxParam",
+    "engine": "fx2",
+    "param": 2,
+    "value": true
+   },
+   "code": 200,
+   "midi": [
+    "CC ch14 2 127"
+   ]
+  },
+  {
+   "msg": {
+    "action": "setBusGeq",
+    "bus": "main",
+    "band": 5,
+    "value": 66
+   },
+   "code": 200,
+   "midi": [
+    "CC ch8 15 66"
+   ]
+  },
+  {
+   "msg": {
+    "action": "setMute",
+    "channel": 3,
+    "value": false
+   },
+   "code": 200,
+   "midi": [
+    "CC ch3 5 0"
+   ]
+  }
+ ]
+}

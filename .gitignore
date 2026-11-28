@@ -47,3 +47,8 @@ desktop.ini
 .DS_Store
 *.swp
 *~
+
+# --- Local design and profiling tool caches (never commit) -----------------
+.hallmark/
+.taste-skill/
+.fast/

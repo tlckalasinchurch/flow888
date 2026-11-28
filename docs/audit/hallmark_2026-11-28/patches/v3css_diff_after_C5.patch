@@ -1,0 +1,22 @@
+diff --git a/flow8/web_ui/v3/v3.css b/flow8/web_ui/v3/v3.css
+index a3f93a7..9c6e36c 100644
+--- a/flow8/web_ui/v3/v3.css
++++ b/flow8/web_ui/v3/v3.css
+@@ -521,3 +521,17 @@ body.night .chrow button[aria-pressed="true"] span { color: var(--ink-2); }
+ /* Hallmark pass: labels never wrap on a 320 px phone; heads balance. */
+ .tabs button, .proc .item, .mixes button, .bus b { white-space: nowrap; }
+ h1, h2 { text-wrap: balance; }
++/* Acceptance pass 2026-11-28 (FINAL_ACCEPTANCE_REPORT.md C1-C3). */
++/* C1: the cap never overhangs its well (the selected strip's 2 px border made the well 1 px narrower than the cap at 1024). */
++.cap { width: min(46px, calc(100% - 4px)); }
++/* C2/C3: on a 320 px phone the FX presets and the GEQ fit their panel; GEQ bands stay at least 24 px wide (WCAG 2.5.8). */
++.fx-grid > *, .out-grid > *, .col { min-width: 0; }
++@media (max-width: 400px) {
++  .presets16 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
++  .geq { gap: 2px; }
++  .out-grid .panel { padding: 10px 8px; }
++}
++/* C4: a range input keeps an intrinsic minimum width; let the row shrink it on a 320 px phone. */
++input[type="range"] { min-width: 0; }
++/* C5: the dashed unknown edge must not replace the keyboard focus ring (WCAG 2.4.7). */
++input[type="range"].unk-range:focus-visible { outline: 2px solid var(--sel); outline-offset: 2px; }
